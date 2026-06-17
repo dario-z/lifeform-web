@@ -5,7 +5,7 @@ import {
 } from 'react'
 import type { FormEvent } from 'react'
 import type { Session } from '@supabase/supabase-js'
-import { LifeformHome } from './components/LifeformHome'
+import { GeminiGate } from './components/GeminiGate'
 import { LifeformOnboarding } from './components/LifeformOnboarding'
 import { supabase } from './lib/supabase'
 import type {
@@ -556,7 +556,7 @@ function App() {
   }
 
   return (
-    <LifeformHome
+    <GeminiGate
       profile={profile}
       lifeform={lifeform}
       signingOut={authSubmitting}
