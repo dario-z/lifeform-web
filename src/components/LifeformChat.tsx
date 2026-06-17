@@ -48,6 +48,7 @@ import type {
 } from '../types/lifeform'
 import type { ChatMessage } from '../types/message'
 import './GeminiModelSelect.css'
+import './MobileChatLayout.css'
 
 const MESSAGE_PAGE_SIZE = 50
 const GEMINI_CONTEXT_SIZE = 24
@@ -1743,6 +1744,50 @@ export function LifeformChat({
             </form>
           </section>
         </div>
+
+        <section
+          className="mobile-chat-meta"
+          aria-label="Informazioni della Lifeform"
+        >
+          <div className="mobile-chat-meta-card">
+            <span>Stato emotivo</span>
+
+            <strong>
+              {getEmotionUiLabel(
+                settledEmotion,
+              )}
+
+              {settledEmotion !==
+                'neutral' &&
+                ' · ' +
+                  emotionIntensity}
+            </strong>
+          </div>
+
+          <div className="mobile-chat-meta-card">
+            <span>Modello Gemini</span>
+
+            <strong>
+              {getGeminiModelLabel(
+                selectedModel,
+              )}
+            </strong>
+          </div>
+
+          <div className="mobile-chat-meta-card">
+            <span>Token giornalieri</span>
+
+            <strong>
+              {dailyTokensUsed.toLocaleString(
+                locale,
+              )}
+              {' / '}
+              {dailyTokenLimit.toLocaleString(
+                locale,
+              )}
+            </strong>
+          </div>
+        </section>
 
         <EmotionMonitor
           open={emotionPanelOpen}

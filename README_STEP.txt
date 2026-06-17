@@ -1,24 +1,27 @@
-DIGITAL LIFEFORM — MOBILE RESPONSIVE + TOKEN INPUT LIBERO
+DIGITAL LIFEFORM — MOBILE CHAT PRIORITY LAYOUT
 
-File:
-- src/components/GeminiSetup.tsx
-- src/components/EmotionMonitor.tsx
-- src/components/MobileResponsive.css
+Mobile first viewport:
+- upper 50%: only the Lifeform sprite
+- lower 50%: only conversation and composer
 
-Modifiche:
-- Login e registrazione responsive senza elementi nascosti.
-- Schermata Connetti Lifeform completamente adattiva.
-- Campo token digitabile liberamente anche da smartphone.
-- Nessun vincolo HTML step che blocchi valori precisi.
-- Normalizzazione solo alla conferma/uscita dal campo.
-- Sprite mantenuto visibile e molto più ampio nella chat mobile.
-- Supporto safe-area per telefoni con notch.
+Below the first viewport, reachable by normal page scroll:
+- current emotional state
+- selected Gemini model
+- daily token consumption
+- Lifeform identity
+- model selector
+- Emotions, Clear chat, Change API and Logout buttons
 
-Installazione:
-1. Estrarre lo ZIP nella root C:\Projects\lifeform-web
-2. Confermare la sovrascrittura.
+Files:
+- src/components/LifeformChat.tsx
+- src/components/MobileChatLayout.css
+
+Install:
+1. Extract into C:\Projects\lifeform-web
+2. Confirm overwrite of LifeformChat.tsx
 3. npm run build
 4. npm run dev
-5. CTRL+F5 nel browser.
+5. Test with browser responsive mode and a real phone
+6. After publishing, refresh the phone page without cache
 
-Non servono modifiche SQL.
+No SQL changes are required.
