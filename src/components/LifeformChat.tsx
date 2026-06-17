@@ -63,8 +63,8 @@ const MAX_MESSAGE_LENGTH = 20000
 const MOBILE_SPRITE_SHARE_STORAGE_KEY =
   'lifeform.mobile-sprite-share'
 const DEFAULT_MOBILE_SPRITE_SHARE = 50
-const MIN_MOBILE_SPRITE_SHARE = 28
-const MAX_MOBILE_SPRITE_SHARE = 72
+const MIN_MOBILE_SPRITE_SHARE = 24
+const MAX_MOBILE_SPRITE_SHARE = 96
 const MOBILE_SPRITE_SHARE_STEP = 2
 
 type LifeformChatProps = {
@@ -1459,9 +1459,17 @@ export function LifeformChat({
         return
       }
 
+      const viewportHeight =
+        window.visualViewport?.height ??
+        window.innerHeight
+
+      if (viewportHeight <= 0) {
+        return
+      }
+
       const nextShare =
         ((clientY - bounds.top) /
-          bounds.height) *
+          viewportHeight) *
         100
 
       setMobileSpriteShare(
@@ -1767,12 +1775,7 @@ export function LifeformChat({
             aria-valuetext={
               'Sprite ' +
               String(mobileSpriteShare) +
-              ' per cento, chat ' +
-              String(
-                100 -
-                  mobileSpriteShare,
-              ) +
-              ' per cento'
+              ' per cento dello schermo. La chat mantiene sempre una schermata intera.'
             }
             tabIndex={0}
             onPointerDown={
