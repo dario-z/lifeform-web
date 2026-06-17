@@ -5,8 +5,10 @@ import {
   useState,
 } from 'react'
 import type {
+  CSSProperties,
   FormEvent,
   KeyboardEvent,
+  PointerEvent as ReactPointerEvent,
 } from 'react'
 import { EmotionMonitor } from './EmotionMonitor'
 import { LifeformSprite } from './LifeformSprite'
@@ -58,6 +60,13 @@ const SENSITIVITY_SAVE_DELAY_MS = 450
 const TOKEN_SETTINGS_SAVE_DELAY_MS = 450
 const MAX_MESSAGE_LENGTH = 20000
 
+const MOBILE_SPRITE_SHARE_STORAGE_KEY =
+  'lifeform.mobile-sprite-share'
+const DEFAULT_MOBILE_SPRITE_SHARE = 50
+const MIN_MOBILE_SPRITE_SHARE = 28
+const MAX_MOBILE_SPRITE_SHARE = 72
+const MOBILE_SPRITE_SHARE_STEP = 2
+
 type LifeformChatProps = {
   profile: Profile
   lifeform: Lifeform
@@ -76,6 +85,44 @@ type EmotionStateRow = {
   daily_token_limit: number
   daily_tokens_used: number
   token_usage_date: string
+}
+
+function clampMobileSpriteShare(
+  value: number,
+): number {
+  return Math.min(
+    MAX_MOBILE_SPRITE_SHARE,
+    Math.max(
+      MIN_MOBILE_SPRITE_SHARE,
+      Math.round(value),
+    ),
+  )
+}
+
+function loadMobileSpriteShare(): number {
+  if (typeof window === 'undefined') {
+    return DEFAULT_MOBILE_SPRITE_SHARE
+  }
+
+  const storedValue =
+    window.localStorage.getItem(
+      MOBILE_SPRITE_SHARE_STORAGE_KEY,
+    )
+
+  if (!storedValue) {
+    return DEFAULT_MOBILE_SPRITE_SHARE
+  }
+
+  const numericValue =
+    Number(storedValue)
+
+  if (!Number.isFinite(numericValue)) {
+    return DEFAULT_MOBILE_SPRITE_SHARE
+  }
+
+  return clampMobileSpriteShare(
+    numericValue,
+  )
 }
 
 function getErrorMessage(error: unknown): string {
@@ -224,6 +271,18 @@ export function LifeformChat({
   const [emotionPanelOpen, setEmotionPanelOpen] =
     useState(false)
 
+  const [
+    mobileSpriteShare,
+    setMobileSpriteShare,
+  ] = useState(
+    loadMobileSpriteShare,
+  )
+
+  const [
+    resizingMobileStage,
+    setResizingMobileStage,
+  ] = useState(false)
+
   const [analyzingEmotion, setAnalyzingEmotion] =
     useState(false)
 
@@ -236,6 +295,9 @@ export function LifeformChat({
   ] = useState<EmotionalAnalysisSource | null>(
     null,
   )
+
+  const chatBodyRef =
+    useRef<HTMLDivElement | null>(null)
 
   const messageListRef =
     useRef<HTMLDivElement | null>(null)
@@ -284,6 +346,13 @@ export function LifeformChat({
   const locale = getLocale(
     profile.interface_language,
   )
+
+  useEffect(() => {
+    window.localStorage.setItem(
+      MOBILE_SPRITE_SHARE_STORAGE_KEY,
+      String(mobileSpriteShare),
+    )
+  }, [mobileSpriteShare])
 
   useEffect(() => {
     dailyTokenLimitRef.current =
@@ -1374,6 +1443,143 @@ export function LifeformChat({
         ? transientEmotionIntensity
         : emotionIntensity
 
+  const updateMobileSpriteShareFromPointer =
+    (clientY: number) => {
+      const container =
+        chatBodyRef.current
+
+      if (!container) {
+        return
+      }
+
+      const bounds =
+        container.getBoundingClientRect()
+
+      if (bounds.height <= 0) {
+        return
+      }
+
+      const nextShare =
+        ((clientY - bounds.top) /
+          bounds.height) *
+        100
+
+      setMobileSpriteShare(
+        clampMobileSpriteShare(
+          nextShare,
+        ),
+      )
+    }
+
+  const handleMobileDividerPointerDown =
+    (
+      event:
+        ReactPointerEvent<HTMLDivElement>,
+    ) => {
+      event.preventDefault()
+
+      event.currentTarget.setPointerCapture(
+        event.pointerId,
+      )
+
+      setResizingMobileStage(true)
+
+      updateMobileSpriteShareFromPointer(
+        event.clientY,
+      )
+    }
+
+  const handleMobileDividerPointerMove =
+    (
+      event:
+        ReactPointerEvent<HTMLDivElement>,
+    ) => {
+      if (!resizingMobileStage) {
+        return
+      }
+
+      event.preventDefault()
+
+      updateMobileSpriteShareFromPointer(
+        event.clientY,
+      )
+    }
+
+  const finishMobileDividerResize =
+    (
+      event:
+        ReactPointerEvent<HTMLDivElement>,
+    ) => {
+      if (
+        event.currentTarget.hasPointerCapture(
+          event.pointerId,
+        )
+      ) {
+        event.currentTarget.releasePointerCapture(
+          event.pointerId,
+        )
+      }
+
+      setResizingMobileStage(false)
+    }
+
+  const handleMobileDividerKeyDown =
+    (
+      event:
+        KeyboardEvent<HTMLDivElement>,
+    ) => {
+      let nextShare:
+        number | null = null
+
+      if (event.key === 'ArrowUp') {
+        nextShare =
+          mobileSpriteShare -
+          MOBILE_SPRITE_SHARE_STEP
+      }
+
+      if (event.key === 'ArrowDown') {
+        nextShare =
+          mobileSpriteShare +
+          MOBILE_SPRITE_SHARE_STEP
+      }
+
+      if (event.key === 'Home') {
+        nextShare =
+          MIN_MOBILE_SPRITE_SHARE
+      }
+
+      if (event.key === 'End') {
+        nextShare =
+          MAX_MOBILE_SPRITE_SHARE
+      }
+
+      if (
+        event.key === 'Enter' ||
+        event.key === ' '
+      ) {
+        nextShare =
+          DEFAULT_MOBILE_SPRITE_SHARE
+      }
+
+      if (nextShare === null) {
+        return
+      }
+
+      event.preventDefault()
+
+      setMobileSpriteShare(
+        clampMobileSpriteShare(
+          nextShare,
+        ),
+      )
+    }
+
+  const mobileStageStyle = {
+    '--mobile-sprite-height':
+      String(mobileSpriteShare) +
+      'dvh',
+  } as CSSProperties
+
   return (
     <main className="chat-page">
       <section className="chat-shell">
@@ -1488,7 +1694,15 @@ export function LifeformChat({
           </div>
         </header>
 
-        <div className="chat-body">
+        <div
+          ref={chatBodyRef}
+          className={
+            resizingMobileStage
+              ? 'chat-body mobile-stage-resizing'
+              : 'chat-body'
+          }
+          style={mobileStageStyle}
+        >
           <aside className="chat-avatar-panel">
             <LifeformSprite
               emotion={
@@ -1535,6 +1749,58 @@ export function LifeformChat({
               </strong>
             </div>
           </aside>
+
+          <div
+            className="mobile-stage-divider"
+            role="separator"
+            aria-label="Ridimensiona lo spazio tra sprite e chat"
+            aria-orientation="horizontal"
+            aria-valuemin={
+              MIN_MOBILE_SPRITE_SHARE
+            }
+            aria-valuemax={
+              MAX_MOBILE_SPRITE_SHARE
+            }
+            aria-valuenow={
+              mobileSpriteShare
+            }
+            aria-valuetext={
+              'Sprite ' +
+              String(mobileSpriteShare) +
+              ' per cento, chat ' +
+              String(
+                100 -
+                  mobileSpriteShare,
+              ) +
+              ' per cento'
+            }
+            tabIndex={0}
+            onPointerDown={
+              handleMobileDividerPointerDown
+            }
+            onPointerMove={
+              handleMobileDividerPointerMove
+            }
+            onPointerUp={
+              finishMobileDividerResize
+            }
+            onPointerCancel={
+              finishMobileDividerResize
+            }
+            onKeyDown={
+              handleMobileDividerKeyDown
+            }
+            onDoubleClick={() =>
+              setMobileSpriteShare(
+                DEFAULT_MOBILE_SPRITE_SHARE,
+              )
+            }
+          >
+            <span
+              className="mobile-stage-divider-anchor"
+              aria-hidden="true"
+            />
+          </div>
 
           <section className="chat-conversation">
             <div

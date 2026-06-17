@@ -2,14 +2,16 @@
  * Mobile-first chat composition.
  *
  * First viewport:
- *   50% Lifeform sprite
- *   50% conversation
+ *   - Lifeform sprite
+ *   - draggable divider
+ *   - conversation
  *
- * Everything secondary starts below the first viewport and is reached
- * by scrolling the page.
+ * The divider changes the vertical split and stores the preference
+ * locally on the current device.
  */
 
-.mobile-chat-meta {
+.mobile-chat-meta,
+.mobile-stage-divider {
   display: none;
 }
 
@@ -51,29 +53,53 @@
   }
 
   /*
-   * Remove the wrapper box from the mobile flow. Its two children become
-   * direct flex items of chat-shell and can be ordered independently.
+   * The first viewport is a three-row stage:
+   * sprite / drag handle / chat.
    */
   body #root .chat-body {
-    display: contents;
+    --mobile-sprite-height: 50dvh;
+
+    order: 1;
+    width: 100%;
+    height: 100vh;
+    height: 100dvh;
+    min-height: 540px;
+    display: grid !important;
+    grid-template-columns:
+      minmax(0, 1fr);
+    grid-template-rows:
+      clamp(
+        220px,
+        var(--mobile-sprite-height),
+        calc(100dvh - 258px)
+      )
+      18px
+      minmax(240px, 1fr);
+    overflow: hidden;
+  }
+
+  body #root .chat-body.mobile-stage-resizing {
+    cursor: ns-resize;
+    user-select: none;
   }
 
   /* ============================================================
-     1. TOP HALF — SPRITE ONLY
+     1. SPRITE AREA
      ============================================================ */
 
   body #root .chat-avatar-panel {
-    order: 1;
+    position: relative;
+    grid-column: 1;
+    grid-row: 1;
     width: 100%;
-    height: 50vh;
-    height: 50dvh;
-    min-height: 280px;
+    height: auto;
+    min-height: 0;
     max-height: none;
     display: block;
     padding:
       max(8px, env(safe-area-inset-top))
       max(8px, env(safe-area-inset-right))
-      4px
+      2px
       max(8px, env(safe-area-inset-left));
     overflow: hidden;
     border: 0;
@@ -109,33 +135,164 @@
   }
 
   /*
-   * Current emotion, model and context are intentionally removed from
-   * the main sprite area. They are repeated below the conversation.
+   * Small current-state badge at the extreme top-left.
    */
-  body #root .chat-avatar-panel > .chat-emotion,
+  body #root .chat-avatar-panel > .chat-emotion {
+    position: absolute;
+    z-index: 8;
+    top: max(
+      7px,
+      env(safe-area-inset-top)
+    );
+    left: max(
+      8px,
+      env(safe-area-inset-left)
+    );
+    display: block !important;
+    max-width: calc(100% - 58px);
+    margin: 0;
+    padding: 4px 7px;
+    overflow: hidden;
+    color: rgba(255, 255, 255, 0.88);
+    font-family:
+      ui-monospace,
+      SFMono-Regular,
+      Consolas,
+      monospace;
+    font-size: 0.58rem;
+    font-weight: 800;
+    line-height: 1;
+    letter-spacing: 0.08em;
+    text-overflow: ellipsis;
+    text-transform: uppercase;
+    white-space: nowrap;
+    background: rgba(6, 7, 10, 0.68);
+    border-left: 2px solid
+      var(--p5-red, #ff2740);
+    backdrop-filter: blur(6px);
+    pointer-events: none;
+  }
+
   body #root .chat-avatar-panel > .chat-provider,
   body #root .chat-avatar-panel > .chat-context-info {
     display: none !important;
   }
 
   /* ============================================================
-     2. BOTTOM HALF — CHAT ONLY
+     2. DRAG ANCHOR
+     ============================================================ */
+
+  body #root .mobile-stage-divider {
+    position: relative;
+    z-index: 12;
+    grid-column: 1;
+    grid-row: 2;
+    width: 100%;
+    height: 18px;
+    display: grid;
+    place-items: center;
+    padding: 0;
+    color: inherit;
+    background:
+      linear-gradient(
+        180deg,
+        #15161c,
+        #0c0d11
+      );
+    border-top: 1px solid
+      rgba(255, 255, 255, 0.09);
+    border-bottom: 1px solid
+      rgba(255, 255, 255, 0.09);
+    cursor: ns-resize;
+    touch-action: none;
+    outline: none;
+  }
+
+  body #root .mobile-stage-divider::before,
+  body #root .mobile-stage-divider::after {
+    content: "";
+    position: absolute;
+    top: 50%;
+    width: calc(50% - 34px);
+    height: 1px;
+    background: rgba(
+      255,
+      255,
+      255,
+      0.08
+    );
+  }
+
+  body #root .mobile-stage-divider::before {
+    left: 0;
+  }
+
+  body #root .mobile-stage-divider::after {
+    right: 0;
+  }
+
+  body #root .mobile-stage-divider-anchor {
+    position: relative;
+    width: 54px;
+    height: 8px;
+    display: block;
+    border-radius: 999px;
+    background: #2c2e37;
+    box-shadow:
+      0 0 0 1px
+        rgba(255, 255, 255, 0.08),
+      0 3px 12px
+        rgba(0, 0, 0, 0.4);
+  }
+
+  body #root .mobile-stage-divider-anchor::before {
+    content: "";
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    width: 7px;
+    height: 7px;
+    border-radius: 50%;
+    background:
+      var(--p5-red, #ff2740);
+    box-shadow:
+      0 0 10px
+        rgba(255, 39, 64, 0.72);
+    transform:
+      translate(-50%, -50%);
+  }
+
+  body #root .mobile-stage-divider:hover
+    .mobile-stage-divider-anchor,
+  body #root .mobile-stage-divider:focus-visible
+    .mobile-stage-divider-anchor,
+  body #root .chat-body.mobile-stage-resizing
+    .mobile-stage-divider-anchor {
+    background: #3a3d48;
+    box-shadow:
+      0 0 0 2px
+        rgba(255, 39, 64, 0.28),
+      0 3px 16px
+        rgba(0, 0, 0, 0.5);
+  }
+
+  /* ============================================================
+     3. CHAT AREA
      ============================================================ */
 
   body #root .chat-conversation {
-    order: 2;
+    grid-column: 1;
+    grid-row: 3;
     width: 100%;
-    height: 50vh;
-    height: 50dvh;
-    min-height: 280px;
+    height: auto;
+    min-height: 0;
     display: grid;
     grid-template-rows:
       minmax(0, 1fr)
       auto
       auto;
     overflow: hidden;
-    border-top: 1px solid
-      rgba(255, 255, 255, 0.09);
+    border: 0;
     background: #090a0e;
   }
 
@@ -206,7 +363,7 @@
   }
 
   /* ============================================================
-     3. ACCESSORY INFORMATION — BELOW THE FIRST VIEWPORT
+     4. ACCESSORY INFORMATION BELOW THE FIRST VIEWPORT
      ============================================================ */
 
   body #root .mobile-chat-meta {
@@ -230,7 +387,8 @@
   body #root .mobile-chat-meta-card {
     min-width: 0;
     padding: 13px;
-    background: rgba(255, 255, 255, 0.035);
+    background:
+      rgba(255, 255, 255, 0.035);
     border: 1px solid
       rgba(255, 255, 255, 0.08);
   }
@@ -246,7 +404,8 @@
 
   body #root .mobile-chat-meta-card span {
     margin-bottom: 5px;
-    color: var(--p5-red, #ff2740);
+    color:
+      var(--p5-red, #ff2740);
     font-size: 0.65rem;
     font-weight: 900;
     letter-spacing: 0.08em;
@@ -261,7 +420,7 @@
   }
 
   /* ============================================================
-     4. IDENTITY, MODEL AND BUTTONS — LAST
+     5. IDENTITY, MODEL AND BUTTONS LAST
      ============================================================ */
 
   body #root .chat-header {
@@ -356,8 +515,15 @@
 ) and (
   max-height: 620px
 ) {
-  body #root .chat-avatar-panel,
-  body #root .chat-conversation {
-    min-height: 250px;
+  body #root .chat-body {
+    min-height: 500px;
+    grid-template-rows:
+      clamp(
+        200px,
+        var(--mobile-sprite-height),
+        calc(100dvh - 238px)
+      )
+      18px
+      minmax(220px, 1fr);
   }
 }
