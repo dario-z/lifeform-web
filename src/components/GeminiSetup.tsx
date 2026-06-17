@@ -16,11 +16,42 @@ import {
   type GeminiModelId,
 } from '../lib/gemini'
 import './GeminiModelSelect.css'
+import './MobileResponsive.css'
 
 type GeminiSetupProps = {
   lifeformName: string
   onConnected: (apiKey: string) => void
   onSignOut: () => Promise<void>
+}
+
+function sanitizeTokenInput(
+  value: string,
+): string {
+  return value
+    .replace(/[^0-9]/g, '')
+    .slice(0, 9)
+}
+
+function parseTokenInput(
+  value: string,
+): number | null {
+  const cleanValue =
+    sanitizeTokenInput(value)
+
+  if (!cleanValue) {
+    return null
+  }
+
+  const numericValue =
+    Number(cleanValue)
+
+  if (!Number.isFinite(numericValue)) {
+    return null
+  }
+
+  return normalizeDailyTokenLimit(
+    numericValue,
+  )
 }
 
 function getErrorMessage(
@@ -51,6 +82,13 @@ export function GeminiSetup({
       getStoredDailyTokenLimit(),
     )
 
+  const [
+    dailyTokenLimitInput,
+    setDailyTokenLimitInput,
+  ] = useState(() =>
+    String(getStoredDailyTokenLimit()),
+  )
+
   const [rememberOnDevice, setRememberOnDevice] =
     useState(false)
 
@@ -78,6 +116,26 @@ export function GeminiSetup({
       return
     }
 
+    const normalizedTokenLimit =
+      parseTokenInput(
+        dailyTokenLimitInput,
+      )
+
+    if (normalizedTokenLimit === null) {
+      setError(
+        'Inserisci un numero valido di token giornalieri.',
+      )
+      return
+    }
+
+    setDailyTokenLimit(
+      normalizedTokenLimit,
+    )
+
+    setDailyTokenLimitInput(
+      String(normalizedTokenLimit),
+    )
+
     setTesting(true)
     setError(null)
 
@@ -89,7 +147,7 @@ export function GeminiSetup({
 
       saveGeminiModel(selectedModel)
       saveDailyTokenLimit(
-        dailyTokenLimit,
+        normalizedTokenLimit,
       )
 
       saveGeminiApiKey(
@@ -222,24 +280,55 @@ export function GeminiSetup({
             <input
               id="daily-token-limit"
               className="gemini-token-limit-input"
-              type="number"
-              min="1000"
-              max="100000000"
-              step="1000"
-              value={dailyTokenLimit}
-              onChange={(event) =>
-                setDailyTokenLimit(
-                  normalizeDailyTokenLimit(
-                    event.target.valueAsNumber,
+              type="text"
+              inputMode="numeric"
+              pattern="[0-9]*"
+              autoComplete="off"
+              value={dailyTokenLimitInput}
+              onChange={(event) => {
+                setDailyTokenLimitInput(
+                  sanitizeTokenInput(
+                    event.target.value,
                   ),
                 )
-              }
+                setError(null)
+              }}
+              onBlur={() => {
+                const normalizedValue =
+                  parseTokenInput(
+                    dailyTokenLimitInput,
+                  )
+
+                if (normalizedValue === null) {
+                  setDailyTokenLimitInput(
+                    String(dailyTokenLimit),
+                  )
+                  return
+                }
+
+                setDailyTokenLimit(
+                  normalizedValue,
+                )
+
+                setDailyTokenLimitInput(
+                  String(normalizedValue),
+                )
+              }}
+              onKeyDown={(event) => {
+                if (event.key === 'Enter') {
+                  event.currentTarget.blur()
+                }
+              }}
               disabled={testing}
+              aria-describedby="daily-token-limit-help"
               required
             />
 
-            <p className="gemini-model-explanation">
-              Valore standard: {DEFAULT_DAILY_TOKEN_LIMIT.toLocaleString('it-IT')}. Il parametro Tired crescerà dallo 0 al 100 in proporzione ai token realmente usati ogni giorno da chat e classificatore emotivo.
+            <p
+              id="daily-token-limit-help"
+              className="gemini-model-explanation"
+            >
+              Puoi digitare liberamente un valore intero preciso. Valore standard: {DEFAULT_DAILY_TOKEN_LIMIT.toLocaleString('it-IT')}. Il parametro Tired crescerà dallo 0 al 100 in proporzione ai token realmente usati ogni giorno da chat e classificatore emotivo.
             </p>
 
             <label htmlFor="gemini-api-key">

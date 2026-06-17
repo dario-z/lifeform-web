@@ -1,3 +1,4 @@
+import { useEffect, useState } from 'react'
 import { createPortal } from 'react-dom'
 import { EMOTION_LABELS } from '../lib/sprites'
 import {
@@ -12,7 +13,11 @@ import type {
   EmotionalSensitivities,
   EmotionalState,
 } from '../types/lifeform'
+import {
+  normalizeDailyTokenLimit,
+} from '../lib/gemini'
 import './EmotionMonitor.css'
+import './MobileResponsive.css'
 
 type EmotionMonitorProps = {
   open: boolean
@@ -68,6 +73,56 @@ export function EmotionMonitor({
   onDailyTokenLimitChange,
   onClose,
 }: EmotionMonitorProps) {
+  const [
+    dailyTokenLimitInput,
+    setDailyTokenLimitInput,
+  ] = useState(
+    String(dailyTokenLimit),
+  )
+
+  useEffect(() => {
+    setDailyTokenLimitInput(
+      String(dailyTokenLimit),
+    )
+  }, [dailyTokenLimit])
+
+  const commitDailyTokenLimit = () => {
+    const cleanValue =
+      dailyTokenLimitInput
+        .replace(/[^0-9]/g, '')
+        .slice(0, 9)
+
+    if (!cleanValue) {
+      setDailyTokenLimitInput(
+        String(dailyTokenLimit),
+      )
+      return
+    }
+
+    const normalizedValue =
+      normalizeDailyTokenLimit(
+        Number(cleanValue),
+      )
+
+    setDailyTokenLimitInput(
+      String(normalizedValue),
+    )
+
+    if (
+      normalizedValue !==
+      dailyTokenLimit
+    ) {
+      onDailyTokenLimitChange(
+        normalizedValue,
+      )
+    }
+  }
+
+  const closeMonitor = () => {
+    commitDailyTokenLimit()
+    onClose()
+  }
+
   if (!open) {
     return null
   }
@@ -103,7 +158,7 @@ export function EmotionMonitor({
       role="presentation"
       onMouseDown={(event) => {
         if (event.target === event.currentTarget) {
-          onClose()
+          closeMonitor()
         }
       }}
     >
@@ -123,7 +178,7 @@ export function EmotionMonitor({
           <button
             type="button"
             className="emotion-monitor-close"
-            onClick={onClose}
+            onClick={closeMonitor}
             aria-label="Chiudi parametri emotivi"
           >
             ×
@@ -239,22 +294,25 @@ export function EmotionMonitor({
 
             <input
               id="daily-token-limit-monitor"
-              type="number"
-              min="1000"
-              max="100000000"
-              step="1000"
-              value={dailyTokenLimit}
-              onChange={(event) => {
-                if (
-                  Number.isFinite(
-                    event.target.valueAsNumber,
-                  )
-                ) {
-                  onDailyTokenLimitChange(
-                    event.target.valueAsNumber,
-                  )
+              type="text"
+              inputMode="numeric"
+              pattern="[0-9]*"
+              autoComplete="off"
+              value={dailyTokenLimitInput}
+              onChange={(event) =>
+                setDailyTokenLimitInput(
+                  event.target.value
+                    .replace(/[^0-9]/g, '')
+                    .slice(0, 9),
+                )
+              }
+              onBlur={commitDailyTokenLimit}
+              onKeyDown={(event) => {
+                if (event.key === 'Enter') {
+                  event.currentTarget.blur()
                 }
               }}
+              aria-label="Token massimi giornalieri"
             />
           </label>
         </section>

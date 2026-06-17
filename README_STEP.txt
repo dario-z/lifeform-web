@@ -1,15 +1,24 @@
-Correzione input soglia token giornaliera
+DIGITAL LIFEFORM — MOBILE RESPONSIVE + TOKEN INPUT LIBERO
 
-Il problema era la combinazione HTML:
-min="1000" + step="10000"
+File:
+- src/components/GeminiSetup.tsx
+- src/components/EmotionMonitor.tsx
+- src/components/MobileResponsive.css
 
-Con questa combinazione il browser accettava soltanto:
-1000, 11000, 21000, ... 91000, 101000, ...
-Per questo 100000 risultava non valido.
+Modifiche:
+- Login e registrazione responsive senza elementi nascosti.
+- Schermata Connetti Lifeform completamente adattiva.
+- Campo token digitabile liberamente anche da smartphone.
+- Nessun vincolo HTML step che blocchi valori precisi.
+- Normalizzazione solo alla conferma/uscita dal campo.
+- Sprite mantenuto visibile e molto più ampio nella chat mobile.
+- Supporto safe-area per telefoni con notch.
 
-La correzione usa step="1000" sia nella schermata Connetti Lili sia nel pannello Emozioni.
+Installazione:
+1. Estrarre lo ZIP nella root C:\Projects\lifeform-web
+2. Confermare la sovrascrittura.
+3. npm run build
+4. npm run dev
+5. CTRL+F5 nel browser.
 
-Copia src nella root C:\Projects\lifeform-web e conferma la sovrascrittura.
-Poi esegui:
-npm run build
-npm run dev
+Non servono modifiche SQL.
