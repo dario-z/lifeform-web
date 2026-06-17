@@ -1,7 +1,18 @@
-import { useEffect, useState } from 'react'
+import {
+  useCallback,
+  useEffect,
+  useState,
+} from 'react'
 import type { FormEvent } from 'react'
 import type { Session } from '@supabase/supabase-js'
+import { LifeformHome } from './components/LifeformHome'
+import { LifeformOnboarding } from './components/LifeformOnboarding'
 import { supabase } from './lib/supabase'
+import type {
+  Lifeform,
+  OnboardingData,
+  Profile,
+} from './types/lifeform'
 import './App.css'
 
 type AuthMode = 'login' | 'register'
@@ -26,15 +37,101 @@ function App() {
   const [mode, setMode] = useState<AuthMode>('login')
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
-
-  const [submitting, setSubmitting] = useState(false)
+  const [authSubmitting, setAuthSubmitting] = useState(false)
   const [feedback, setFeedback] = useState<Feedback>(null)
+
+  const [profile, setProfile] = useState<Profile | null>(null)
+  const [lifeform, setLifeform] = useState<Lifeform | null>(null)
+  const [accountLoading, setAccountLoading] = useState(false)
+  const [accountError, setAccountError] = useState<string | null>(
+    null,
+  )
+  const [creatingLifeform, setCreatingLifeform] =
+    useState(false)
+
+  const loadAccountData = useCallback(
+    async (activeSession: Session) => {
+      setAccountLoading(true)
+      setAccountError(null)
+
+      try {
+        const userId = activeSession.user.id
+
+        const [profileResponse, lifeformResponse] =
+          await Promise.all([
+            supabase
+              .from('profiles')
+              .select(
+                `
+                  user_id,
+                  display_name,
+                  interface_language,
+                  onboarding_completed,
+                  created_at,
+                  updated_at
+                `,
+              )
+              .eq('user_id', userId)
+              .maybeSingle(),
+
+            supabase
+              .from('lifeforms')
+              .select(
+                `
+                  id,
+                  user_id,
+                  name,
+                  language,
+                  current_emotion,
+                  previous_emotion,
+                  emotion_intensity,
+                  emotional_sensitivities,
+                  last_seen_at,
+                  created_at,
+                  updated_at
+                `,
+              )
+              .eq('user_id', userId)
+              .maybeSingle(),
+          ])
+
+        if (profileResponse.error) {
+          throw profileResponse.error
+        }
+
+        if (lifeformResponse.error) {
+          throw lifeformResponse.error
+        }
+
+        if (!profileResponse.data) {
+          throw new Error(
+            'Il profilo dell’utente non è stato trovato.',
+          )
+        }
+
+        setProfile(profileResponse.data as Profile)
+        setLifeform(
+          lifeformResponse.data
+            ? (lifeformResponse.data as Lifeform)
+            : null,
+        )
+      } catch (error: unknown) {
+        setAccountError(getErrorMessage(error))
+        setProfile(null)
+        setLifeform(null)
+      } finally {
+        setAccountLoading(false)
+      }
+    },
+    [],
+  )
 
   useEffect(() => {
     let active = true
 
     const loadSession = async () => {
-      const { data, error } = await supabase.auth.getSession()
+      const { data, error } =
+        await supabase.auth.getSession()
 
       if (!active) {
         return
@@ -55,10 +152,12 @@ function App() {
 
     const {
       data: { subscription },
-    } = supabase.auth.onAuthStateChange((_event, nextSession) => {
-      setSession(nextSession)
-      setInitializing(false)
-    })
+    } = supabase.auth.onAuthStateChange(
+      (_event, nextSession) => {
+        setSession(nextSession)
+        setInitializing(false)
+      },
+    )
 
     return () => {
       active = false
@@ -66,13 +165,27 @@ function App() {
     }
   }, [])
 
+  useEffect(() => {
+    if (!session) {
+      setProfile(null)
+      setLifeform(null)
+      setAccountError(null)
+      setAccountLoading(false)
+      return
+    }
+
+    void loadAccountData(session)
+  }, [session, loadAccountData])
+
   const changeMode = (nextMode: AuthMode) => {
     setMode(nextMode)
     setPassword('')
     setFeedback(null)
   }
 
-  const handleSubmit = async (event: FormEvent<HTMLFormElement>) => {
+  const handleAuthSubmit = async (
+    event: FormEvent<HTMLFormElement>,
+  ) => {
     event.preventDefault()
 
     const normalizedEmail = email.trim().toLowerCase()
@@ -93,7 +206,7 @@ function App() {
       return
     }
 
-    setSubmitting(true)
+    setAuthSubmitting(true)
     setFeedback(null)
 
     try {
@@ -114,10 +227,11 @@ function App() {
           })
         }
       } else {
-        const { error } = await supabase.auth.signInWithPassword({
-          email: normalizedEmail,
-          password,
-        })
+        const { error } =
+          await supabase.auth.signInWithPassword({
+            email: normalizedEmail,
+            password,
+          })
 
         if (error) {
           throw error
@@ -131,12 +245,12 @@ function App() {
         text: getErrorMessage(error),
       })
     } finally {
-      setSubmitting(false)
+      setAuthSubmitting(false)
     }
   }
 
   const handleSignOut = async () => {
-    setSubmitting(true)
+    setAuthSubmitting(true)
     setFeedback(null)
 
     try {
@@ -153,7 +267,80 @@ function App() {
         text: getErrorMessage(error),
       })
     } finally {
-      setSubmitting(false)
+      setAuthSubmitting(false)
+    }
+  }
+
+  const handleCreateLifeform = async (
+    data: OnboardingData,
+  ) => {
+    if (!session) {
+      setAccountError('Sessione utente non disponibile.')
+      return
+    }
+
+    setCreatingLifeform(true)
+    setAccountError(null)
+
+    let createdLifeform: Lifeform | null = null
+
+    try {
+      const { data: insertedData, error: insertError } =
+        await supabase
+          .from('lifeforms')
+          .insert({
+            user_id: session.user.id,
+            name: data.lifeformName,
+            language: data.language,
+          })
+          .select()
+          .single()
+
+      if (insertError) {
+        throw insertError
+      }
+
+      if (!insertedData) {
+        throw new Error(
+          'La Lifeform è stata creata ma non restituita dal database.',
+        )
+      }
+
+      createdLifeform = insertedData as Lifeform
+
+      const { data: updatedProfile, error: profileError } =
+        await supabase
+          .from('profiles')
+          .update({
+            display_name: data.displayName,
+            interface_language: data.language,
+            onboarding_completed: true,
+          })
+          .eq('user_id', session.user.id)
+          .select()
+          .single()
+
+      if (profileError) {
+        await supabase
+          .from('lifeforms')
+          .delete()
+          .eq('id', createdLifeform.id)
+
+        throw profileError
+      }
+
+      if (!updatedProfile) {
+        throw new Error(
+          'Il profilo aggiornato non è stato restituito.',
+        )
+      }
+
+      setProfile(updatedProfile as Profile)
+      setLifeform(createdLifeform)
+    } catch (error: unknown) {
+      setAccountError(getErrorMessage(error))
+    } finally {
+      setCreatingLifeform(false)
     }
   }
 
@@ -168,170 +355,213 @@ function App() {
     )
   }
 
-  if (session) {
+  if (!session) {
     return (
       <main className="app-shell">
-        <section className="authenticated-card">
-          <div className="status-orb">
-            <span />
+        <section className="auth-layout">
+          <div className="intro-panel">
+            <div
+              className="avatar-placeholder"
+              aria-hidden="true"
+            >
+              <span />
+            </div>
+
+            <p className="eyebrow">Project Lifeform</p>
+
+            <h1>Give your AI a presence.</h1>
+
+            <p>
+              Un’identità visiva e relazionale applicata al
+              modello IA scelto dall’utente.
+            </p>
           </div>
 
-          <p className="eyebrow">Connessione stabilita</p>
+          <div className="auth-panel">
+            <div
+              className="auth-tabs"
+              aria-label="Tipo di accesso"
+            >
+              <button
+                type="button"
+                className={mode === 'login' ? 'active' : ''}
+                onClick={() => changeMode('login')}
+              >
+                Accedi
+              </button>
 
-          <h1>Autenticazione riuscita</h1>
-
-          <p className="authenticated-description">
-            Il tuo account è collegato correttamente a Supabase. Nel prossimo
-            passaggio creeremo la Lifeform associata a questo utente.
-          </p>
-
-          <dl className="account-details">
-            <div>
-              <dt>Email</dt>
-              <dd>{session.user.email ?? 'Non disponibile'}</dd>
+              <button
+                type="button"
+                className={
+                  mode === 'register' ? 'active' : ''
+                }
+                onClick={() => changeMode('register')}
+              >
+                Registrati
+              </button>
             </div>
 
-            <div>
-              <dt>User ID</dt>
-              <dd>{session.user.id}</dd>
-            </div>
-          </dl>
+            <div className="auth-heading">
+              <p className="eyebrow">
+                {mode === 'login'
+                  ? 'Bentornato'
+                  : 'Nuova connessione'}
+              </p>
 
-          {feedback && (
-            <p className={`feedback feedback-${feedback.type}`}>
-              {feedback.text}
+              <h2>
+                {mode === 'login'
+                  ? 'Accedi alla tua Lifeform'
+                  : 'Crea il tuo account'}
+              </h2>
+
+              <p>
+                {mode === 'login'
+                  ? 'Riprendi la tua unica sessione personale.'
+                  : 'Ogni account potrà essere associato a una sola Lifeform.'}
+              </p>
+            </div>
+
+            <form
+              className="auth-form"
+              onSubmit={handleAuthSubmit}
+            >
+              <label htmlFor="email">Email</label>
+
+              <input
+                id="email"
+                name="email"
+                type="email"
+                value={email}
+                onChange={(event) =>
+                  setEmail(event.target.value)
+                }
+                autoComplete="email"
+                placeholder="nome@esempio.com"
+                disabled={authSubmitting}
+                required
+              />
+
+              <label htmlFor="password">Password</label>
+
+              <input
+                id="password"
+                name="password"
+                type="password"
+                value={password}
+                onChange={(event) =>
+                  setPassword(event.target.value)
+                }
+                autoComplete={
+                  mode === 'register'
+                    ? 'new-password'
+                    : 'current-password'
+                }
+                placeholder="Almeno 8 caratteri"
+                minLength={8}
+                disabled={authSubmitting}
+                required
+              />
+
+              {feedback && (
+                <p
+                  className={`feedback feedback-${feedback.type}`}
+                  aria-live="polite"
+                >
+                  {feedback.text}
+                </p>
+              )}
+
+              <button
+                className="primary-button"
+                type="submit"
+                disabled={authSubmitting}
+              >
+                {authSubmitting
+                  ? 'Attendi…'
+                  : mode === 'login'
+                    ? 'Accedi'
+                    : 'Crea account'}
+              </button>
+            </form>
+
+            <p className="temporary-note">
+              Versione di sviluppo: la conferma
+              dell’indirizzo email è temporaneamente
+              disattivata.
             </p>
-          )}
-
-          <button
-            className="secondary-button"
-            type="button"
-            onClick={handleSignOut}
-            disabled={submitting}
-          >
-            {submitting ? 'Disconnessione…' : 'Esci'}
-          </button>
+          </div>
         </section>
       </main>
     )
   }
 
-  return (
-    <main className="app-shell">
-      <section className="auth-layout">
-        <div className="intro-panel">
-          <div className="avatar-placeholder" aria-hidden="true">
-            <span />
-          </div>
+  if (accountLoading) {
+    return (
+      <main className="app-shell">
+        <section className="loading-card" aria-live="polite">
+          <div className="loading-orb" />
+          <p>Recupero della Lifeform…</p>
+        </section>
+      </main>
+    )
+  }
 
-          <p className="eyebrow">Project Lifeform</p>
+  if (accountError && !profile) {
+    return (
+      <main className="app-shell">
+        <section className="authenticated-card">
+          <p className="eyebrow">Errore di connessione</p>
+          <h1>Dati non disponibili</h1>
 
-          <h1>Give your AI a presence.</h1>
-
-          <p>
-            Un’identità visiva e relazionale applicata al modello IA scelto
-            dall’utente.
+          <p className="feedback feedback-error">
+            {accountError}
           </p>
-        </div>
 
-        <div className="auth-panel">
-          <div className="auth-tabs" aria-label="Tipo di accesso">
+          <div className="error-actions">
             <button
               type="button"
-              className={mode === 'login' ? 'active' : ''}
-              onClick={() => changeMode('login')}
-            >
-              Accedi
-            </button>
-
-            <button
-              type="button"
-              className={mode === 'register' ? 'active' : ''}
-              onClick={() => changeMode('register')}
-            >
-              Registrati
-            </button>
-          </div>
-
-          <div className="auth-heading">
-            <p className="eyebrow">
-              {mode === 'login' ? 'Bentornato' : 'Nuova connessione'}
-            </p>
-
-            <h2>
-              {mode === 'login'
-                ? 'Accedi alla tua Lifeform'
-                : 'Crea il tuo account'}
-            </h2>
-
-            <p>
-              {mode === 'login'
-                ? 'Riprendi la tua unica sessione personale.'
-                : 'Ogni account potrà essere associato a una sola Lifeform.'}
-            </p>
-          </div>
-
-          <form className="auth-form" onSubmit={handleSubmit}>
-            <label htmlFor="email">Email</label>
-
-            <input
-              id="email"
-              name="email"
-              type="email"
-              value={email}
-              onChange={(event) => setEmail(event.target.value)}
-              autoComplete="email"
-              placeholder="nome@esempio.com"
-              disabled={submitting}
-              required
-            />
-
-            <label htmlFor="password">Password</label>
-
-            <input
-              id="password"
-              name="password"
-              type="password"
-              value={password}
-              onChange={(event) => setPassword(event.target.value)}
-              autoComplete={
-                mode === 'register' ? 'new-password' : 'current-password'
-              }
-              placeholder="Almeno 8 caratteri"
-              minLength={8}
-              disabled={submitting}
-              required
-            />
-
-            {feedback && (
-              <p
-                className={`feedback feedback-${feedback.type}`}
-                aria-live="polite"
-              >
-                {feedback.text}
-              </p>
-            )}
-
-            <button
               className="primary-button"
-              type="submit"
-              disabled={submitting}
+              onClick={() => void loadAccountData(session)}
             >
-              {submitting
-                ? 'Attendi…'
-                : mode === 'login'
-                  ? 'Accedi'
-                  : 'Crea account'}
+              Riprova
             </button>
-          </form>
 
-          <p className="temporary-note">
-            Versione di sviluppo: la conferma dell’indirizzo email è
-            temporaneamente disattivata.
-          </p>
-        </div>
-      </section>
-    </main>
+            <button
+              type="button"
+              className="secondary-button"
+              onClick={() => void handleSignOut()}
+            >
+              Esci
+            </button>
+          </div>
+        </section>
+      </main>
+    )
+  }
+
+  if (!profile) {
+    return null
+  }
+
+  if (!lifeform) {
+    return (
+      <LifeformOnboarding
+        userEmail={session.user.email ?? 'Email non disponibile'}
+        submitting={creatingLifeform || authSubmitting}
+        serverError={accountError}
+        onCreate={handleCreateLifeform}
+        onSignOut={handleSignOut}
+      />
+    )
+  }
+
+  return (
+    <LifeformHome
+      profile={profile}
+      lifeform={lifeform}
+      signingOut={authSubmitting}
+      onSignOut={handleSignOut}
+    />
   )
 }
 
