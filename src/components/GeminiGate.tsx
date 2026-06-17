@@ -1,7 +1,10 @@
 import { useState } from 'react'
 import { GeminiSetup } from './GeminiSetup'
-import { LifeformHome } from './LifeformHome'
-import { getStoredGeminiApiKey } from '../lib/gemini'
+import { LifeformChat } from './LifeformChat'
+import {
+  clearGeminiApiKey,
+  getStoredGeminiApiKey,
+} from '../lib/gemini'
 import type {
   Lifeform,
   Profile,
@@ -24,6 +27,11 @@ export function GeminiGate({
     () => getStoredGeminiApiKey(),
   )
 
+  const handleDisconnectGemini = () => {
+    clearGeminiApiKey()
+    setApiKey('')
+  }
+
   if (!apiKey) {
     return (
       <GeminiSetup
@@ -35,11 +43,13 @@ export function GeminiGate({
   }
 
   return (
-    <LifeformHome
+    <LifeformChat
       profile={profile}
       lifeform={lifeform}
+      apiKey={apiKey}
       signingOut={signingOut}
       onSignOut={onSignOut}
+      onDisconnectGemini={handleDisconnectGemini}
     />
   )
 }
