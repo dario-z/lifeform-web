@@ -1,0 +1,432 @@
+.emotion-monitor-backdrop {
+  position: fixed;
+  z-index: 10000;
+  inset: 0;
+  display: flex;
+  justify-content: flex-end;
+  overflow: hidden;
+  background: rgba(0, 0, 0, 0.54);
+  backdrop-filter: blur(4px);
+}
+
+.emotion-monitor {
+  width: min(580px, 100vw);
+  max-width: 100%;
+  height: 100vh;
+  height: 100dvh;
+  max-height: 100vh;
+  max-height: 100dvh;
+  box-sizing: border-box;
+  overflow-x: hidden;
+  overflow-y: auto;
+  padding: 26px;
+  color: var(--p5-text, #e6e6eb);
+  background:
+    linear-gradient(
+      160deg,
+      rgba(255, 39, 64, 0.13),
+      transparent 34%
+    ),
+    #111217;
+  border-left: 1px solid
+    rgba(255, 255, 255, 0.12);
+  box-shadow: -26px 0 70px rgba(0, 0, 0, 0.5);
+  animation: emotion-monitor-enter 180ms ease-out;
+  overscroll-behavior: contain;
+}
+
+.emotion-monitor-header {
+  position: sticky;
+  z-index: 2;
+  top: -26px;
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 18px;
+  margin: -26px -26px 0;
+  padding: 26px 26px 20px;
+  background:
+    linear-gradient(
+      160deg,
+      rgba(255, 39, 64, 0.14),
+      transparent 48%
+    ),
+    #111217;
+  border-bottom: 1px solid
+    rgba(255, 255, 255, 0.1);
+}
+
+.emotion-monitor-title {
+  min-width: 0;
+}
+
+.emotion-monitor-title .eyebrow {
+  margin-bottom: 8px;
+}
+
+.emotion-monitor-header h2 {
+  margin: 0;
+  max-width: 100%;
+  color: var(--p5-white, #f6f6f8);
+  font-family:
+    Impact,
+    Haettenschweiler,
+    "Arial Narrow Bold",
+    sans-serif;
+  font-size: clamp(1.8rem, 5vw, 2.45rem);
+  font-style: italic;
+  line-height: 0.95;
+  text-transform: uppercase;
+  overflow-wrap: break-word;
+}
+
+.emotion-monitor-close {
+  width: 42px;
+  height: 42px;
+  flex: 0 0 auto;
+  display: grid;
+  place-items: center;
+  color: #fff;
+  font-size: 1.7rem;
+  line-height: 1;
+  background: #292b33;
+  cursor: pointer;
+}
+
+.emotion-monitor-close:hover {
+  background: var(--p5-red, #ff2740);
+}
+
+.emotion-monitor-summary {
+  display: grid;
+  grid-template-columns:
+    repeat(2, minmax(0, 1fr));
+  gap: 8px;
+  margin: 20px 0 14px;
+}
+
+.emotion-monitor-summary div {
+  min-width: 0;
+  padding: 12px;
+  background: rgba(0, 0, 0, 0.24);
+  border: 1px solid
+    rgba(255, 255, 255, 0.08);
+}
+
+.emotion-monitor-summary span,
+.emotion-monitor-summary strong {
+  display: block;
+}
+
+.emotion-monitor-summary span {
+  margin-bottom: 5px;
+  color: #8f929d;
+  font-size: 0.63rem;
+  font-weight: 900;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.emotion-monitor-summary strong {
+  overflow-wrap: anywhere;
+  color: #fff;
+  font-size: 0.82rem;
+}
+
+.emotion-monitor-reason {
+  margin: 0 0 14px;
+  padding: 12px 14px;
+  color: #b8bac3;
+  font-size: 0.78rem;
+  line-height: 1.5;
+  background: rgba(255, 255, 255, 0.035);
+  border-left: 3px solid
+    var(--p5-red, #ff2740);
+}
+
+.emotion-sensitivity-save-status {
+  margin: 0 0 16px;
+  padding: 9px 11px;
+  color: #8f929d;
+  font-size: 0.68rem;
+  line-height: 1.4;
+  background: rgba(255, 255, 255, 0.025);
+  border: 1px solid
+    rgba(255, 255, 255, 0.07);
+}
+
+.emotion-sensitivity-save-status-error {
+  color: #ffb5bf;
+  border-color: rgba(255, 39, 64, 0.4);
+  background: rgba(255, 39, 64, 0.08);
+}
+
+.emotion-parameter-list {
+  display: grid;
+  grid-template-columns:
+    repeat(2, minmax(0, 1fr));
+  gap: 12px;
+}
+
+.emotion-parameter {
+  min-width: 0;
+  padding: 12px;
+  background:
+    linear-gradient(
+      180deg,
+      rgba(255, 255, 255, 0.025),
+      transparent
+    ),
+    rgba(0, 0, 0, 0.18);
+  border: 1px solid
+    rgba(255, 255, 255, 0.07);
+}
+
+.emotion-parameter-heading {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  margin-bottom: 7px;
+  color: #c9cad1;
+  font-size: 0.7rem;
+  font-weight: 800;
+  text-transform: uppercase;
+}
+
+.emotion-parameter-heading span {
+  min-width: 0;
+}
+
+.emotion-parameter-heading span:first-child {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.emotion-parameter-heading span:last-child {
+  flex: 0 0 auto;
+  color: #8e919b;
+  font-family:
+    ui-monospace,
+    SFMono-Regular,
+    Consolas,
+    monospace;
+  font-size: 0.66rem;
+}
+
+.emotion-level-track {
+  height: 8px;
+  overflow: hidden;
+  background: #252730;
+}
+
+.emotion-level-track > span {
+  display: block;
+  height: 100%;
+  min-width: 0;
+  background:
+    linear-gradient(
+      90deg,
+      #a91b31,
+      var(--p5-red, #ff2740)
+    );
+  transition: width 320ms ease;
+}
+
+.emotion-sensitivity-control {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) 30px;
+  align-items: center;
+  gap: 8px;
+  margin-top: 11px;
+  color: #868994;
+  font-size: 0.63rem;
+  font-weight: 800;
+  text-transform: uppercase;
+}
+
+.emotion-sensitivity-control input {
+  width: 100%;
+  min-width: 0;
+  margin: 0;
+  accent-color: var(--p5-red, #ff2740);
+  cursor: pointer;
+}
+
+.emotion-sensitivity-control output {
+  color: #f4f4f6;
+  font-family:
+    ui-monospace,
+    SFMono-Regular,
+    Consolas,
+    monospace;
+  font-size: 0.72rem;
+  text-align: right;
+}
+
+.emotion-monitor-footer {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: space-between;
+  gap: 8px 12px;
+  margin-top: 22px;
+  padding-top: 16px;
+  color: #747782;
+  font-size: 0.66rem;
+  border-top: 1px solid
+    rgba(255, 255, 255, 0.08);
+}
+
+@keyframes emotion-monitor-enter {
+  from {
+    opacity: 0;
+    transform: translateX(30px);
+  }
+
+  to {
+    opacity: 1;
+    transform: translateX(0);
+  }
+}
+
+@media (max-width: 620px) {
+  .emotion-monitor {
+    width: 100vw;
+    padding: 20px 16px;
+  }
+
+  .emotion-monitor-header {
+    top: -20px;
+    margin: -20px -16px 0;
+    padding: 20px 16px 18px;
+  }
+
+  .emotion-monitor-summary {
+    grid-template-columns: 1fr 1fr;
+  }
+
+  .emotion-parameter-list {
+    grid-template-columns: 1fr;
+  }
+}
+
+.emotion-monitor-summary div:last-child {
+  grid-column: 1 / -1;
+}
+
+.daily-token-settings {
+  margin: 0 0 16px;
+  padding: 14px;
+  background:
+    linear-gradient(
+      145deg,
+      rgba(255, 39, 64, 0.09),
+      transparent 44%
+    ),
+    rgba(0, 0, 0, 0.2);
+  border: 1px solid
+    rgba(255, 255, 255, 0.09);
+}
+
+.daily-token-settings-heading > div {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.daily-token-settings-heading span {
+  color: #d3d4d9;
+  font-size: 0.72rem;
+  font-weight: 900;
+  text-transform: uppercase;
+}
+
+.daily-token-settings-heading strong {
+  color: var(--p5-red, #ff2740);
+  font-family:
+    ui-monospace,
+    SFMono-Regular,
+    Consolas,
+    monospace;
+  font-size: 0.82rem;
+}
+
+.daily-token-settings-heading p {
+  margin: 8px 0 11px;
+  color: #8d909a;
+  font-size: 0.7rem;
+  line-height: 1.45;
+}
+
+.daily-token-progress {
+  height: 9px;
+  overflow: hidden;
+  background: #252730;
+}
+
+.daily-token-progress > span {
+  display: block;
+  height: 100%;
+  background:
+    linear-gradient(
+      90deg,
+      #774454,
+      var(--p5-red, #ff2740)
+    );
+  transition: width 320ms ease;
+}
+
+.daily-token-limit-control {
+  display: grid;
+  grid-template-columns:
+    minmax(0, 1fr)
+    minmax(130px, 170px);
+  align-items: center;
+  gap: 12px;
+  margin-top: 12px;
+  color: #9da0aa;
+  font-size: 0.66rem;
+  font-weight: 800;
+  text-transform: uppercase;
+}
+
+.daily-token-limit-control input {
+  width: 100%;
+  min-height: 38px;
+  padding: 7px 9px;
+  color: #fff;
+  font-family:
+    ui-monospace,
+    SFMono-Regular,
+    Consolas,
+    monospace;
+  background: #171920;
+  border: 1px solid #343741;
+  outline: none;
+}
+
+.daily-token-limit-control input:focus {
+  border-color: var(--p5-red, #ff2740);
+  box-shadow:
+    0 0 0 3px
+    rgba(255, 39, 64, 0.14);
+}
+
+.emotion-parameter-derived {
+  border-color: rgba(255, 39, 64, 0.2);
+}
+
+.emotion-derived-note {
+  margin: 10px 0 0;
+  color: #858894;
+  font-size: 0.63rem;
+  line-height: 1.4;
+}
+
+@media (max-width: 620px) {
+  .daily-token-limit-control {
+    grid-template-columns: 1fr;
+  }
+}

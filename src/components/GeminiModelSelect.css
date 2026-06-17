@@ -1,0 +1,115 @@
+.chat-model-picker {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+}
+
+.chat-model-picker > span {
+  color: #858893;
+  font-size: 0.64rem;
+  font-weight: 900;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.chat-model-picker select,
+.gemini-model-select,
+.gemini-token-limit-input {
+  color: var(--p5-white, #f6f6f8);
+  font-weight: 800;
+  background:
+    linear-gradient(
+      180deg,
+      rgba(255, 255, 255, 0.04),
+      transparent
+    ),
+    #1b1d24;
+  border: 1px solid #343741;
+  outline: none;
+  cursor: pointer;
+  clip-path: polygon(
+    8px 0,
+    100% 0,
+    calc(100% - 8px) 100%,
+    0 100%
+  );
+}
+
+.chat-model-picker select {
+  min-width: 220px;
+  max-width: 280px;
+  height: 38px;
+  padding: 0 34px 0 12px;
+  font-size: 0.76rem;
+}
+
+.gemini-model-select,
+.gemini-token-limit-input {
+  width: 100%;
+  min-height: 48px;
+  margin-bottom: 10px;
+  padding: 12px 42px 12px 14px;
+  font-size: 0.86rem;
+}
+
+.chat-model-picker select:hover:not(:disabled),
+.chat-model-picker select:focus,
+.gemini-model-select:hover:not(:disabled),
+.gemini-model-select:focus,
+.gemini-token-limit-input:hover:not(:disabled),
+.gemini-token-limit-input:focus {
+  border-color:
+    var(--p5-red, #ff2740);
+  box-shadow:
+    0 0 0 3px
+    rgba(255, 39, 64, 0.14);
+}
+
+.chat-model-picker select:disabled,
+.gemini-model-select:disabled,
+.gemini-token-limit-input:disabled {
+  cursor: not-allowed;
+  opacity: 0.55;
+}
+
+.chat-model-picker option,
+.gemini-model-select option {
+  color: #f6f6f8;
+  background: #171920;
+}
+
+.gemini-model-explanation {
+  margin: 0 0 22px;
+  color: var(--p5-muted, #a6a8b3);
+  font-size: 0.78rem;
+  line-height: 1.55;
+}
+
+body #root .chat-header-actions {
+  flex-wrap: wrap;
+  justify-content: flex-end;
+}
+
+@media (max-width: 1120px) {
+  .chat-model-picker > span {
+    display: none;
+  }
+
+  .chat-model-picker select {
+    min-width: 190px;
+    max-width: 220px;
+  }
+}
+
+@media (max-width: 760px) {
+  .chat-model-picker {
+    width: 100%;
+    order: 10;
+  }
+
+  .chat-model-picker select {
+    width: 100%;
+    max-width: none;
+  }
+}
