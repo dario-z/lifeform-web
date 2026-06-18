@@ -7,6 +7,14 @@ import {
   type GeminiModelId,
   type GeminiTokenUsage,
 } from './geminiModels'
+import {
+  KEY_MEMORY_CATEGORIES,
+  type KeyMemory,
+  type KeyMemoryCandidate,
+} from '../types/keyMemory'
+import {
+  normalizeKeyMemoryCandidate,
+} from './keyMemories'
 import type {
   EmotionalSensitivities,
   EmotionalState,
@@ -55,6 +63,8 @@ export type EmotionalAnalysis = {
   levels: EmotionLevels
   signals: EmotionalSignals
   tokenUsage: GeminiTokenUsage
+  memoryCandidate:
+    KeyMemoryCandidate | null
 }
 
 type AnalyzeEmotionalStateOptions = {
@@ -64,6 +74,7 @@ type AnalyzeEmotionalStateOptions = {
   currentEmotion: EmotionalState
   currentLevels: EmotionLevels
   sensitivities: EmotionalSensitivities
+  keyMemories: KeyMemory[]
   recentHistory: Array<{
     role: 'user' | 'assistant'
     content: string
@@ -80,6 +91,7 @@ type RawEmotionalAnalysis = {
     Record<TrackedEmotion, unknown>
   >
   reason?: unknown
+  keyMemory?: unknown
 }
 
 const signalObjectSchema = {
@@ -108,11 +120,54 @@ const emotionSchema = {
       description:
         'A short semantic explanation, maximum one sentence.',
     },
+    keyMemory: {
+      type: 'object',
+      properties: {
+        action: {
+          type: 'string',
+          enum: [
+            'none',
+            'create',
+            'update',
+          ],
+        },
+        memoryId: {
+          type: 'string',
+        },
+        category: {
+          type: 'string',
+          enum: [
+            ...KEY_MEMORY_CATEGORIES,
+          ],
+        },
+        content: {
+          type: 'string',
+        },
+        importance: {
+          type: 'integer',
+          minimum: 0,
+          maximum: 100,
+        },
+        reason: {
+          type: 'string',
+        },
+      },
+      required: [
+        'action',
+        'memoryId',
+        'category',
+        'content',
+        'importance',
+        'reason',
+      ],
+      additionalProperties: false,
+    },
   },
   required: [
     'signals',
     'immediateSignals',
     'reason',
+    'keyMemory',
   ],
   additionalProperties: false,
 }
@@ -1712,6 +1767,7 @@ async function requestModelSignals(
   model: GeminiModelId,
   lifeformName: string,
   currentEmotion: EmotionalState,
+  keyMemories: KeyMemory[],
   recentHistory: Array<{
     role: 'user' | 'assistant'
     content: string
@@ -1723,6 +1779,8 @@ async function requestModelSignals(
   immediateSignals: EmotionalSignals
   reason: string
   tokenUsage: GeminiTokenUsage
+  memoryCandidate:
+    KeyMemoryCandidate | null
 }> {
   const client = new GoogleGenAI({
     apiKey,
@@ -1740,6 +1798,17 @@ async function requestModelSignals(
       lifeformName,
     'Current persistent emotion: ' +
       currentEmotion,
+    '',
+    'Existing Key Memories:',
+    JSON.stringify(
+      keyMemories.map((memory) => ({
+        id: memory.id,
+        category: memory.category,
+        content: memory.content,
+        importance: memory.importance,
+        source: memory.source,
+      })),
+    ),
     '',
     'Recent conversation:',
     JSON.stringify(recentHistory),
@@ -1772,7 +1841,19 @@ async function requestModelSignals(
     '- The internal key horny represents the UI state Excited: playful romantic or sexual excitement. Consensual adult flirting, double entendres, suggestive jokes and light sexual allusions may produce a mild signal of 20 to 45. Clear adult sexual play may produce 50 to 75; reserve 80 to 100 for strong and sustained excitement.',
     '- Do not activate Excited for medical or educational discussion, quoted examples, ordinary nonsexual affection, coercive situations or any context involving minors.',
     '- tired must always be 0 in both returned vectors because tired is calculated deterministically from daily token usage.',
-    '- The reason must explain the meaning of the exchange in one short sentence.',
+    '',
+    'Key Memory decision rules:',
+    '- Return at most one Key Memory decision for this exchange.',
+    '- Use action none unless the exchange contains durable information that will probably remain useful beyond the recent-message window.',
+    '- Suitable memories include stable user preferences, important people, places or projects, long-term goals, key events, concise summaries of older conversation threads, and beliefs genuinely developed by the Lifeform.',
+    '- Do not store greetings, temporary moods, casual wording, repeated facts, uncertain guesses, one-off details, API keys, passwords, authentication tokens, payment data or other secrets.',
+    '- A memory must be concise, self-contained and understandable without the surrounding conversation.',
+    '- If an existing automatic memory already covers the same topic, use update with its exact id instead of creating a duplicate.',
+    '- Never update a memory whose source is manual. User-edited memories are authoritative.',
+    '- If there are already 10 memories, propose a new one only when it is clearly more important than a low-importance automatic memory.',
+    '- Use memoryId as an empty string when action is none or create.',
+    '- When action is none, return an empty content string, importance 0 and a brief reason.',
+    '- The reason must explain the emotional meaning of the exchange in one short sentence.',
   ].join('\n')
 
   const response =
@@ -1784,7 +1865,7 @@ async function requestModelSignals(
           'application/json',
         responseSchema:
           emotionSchema,
-        maxOutputTokens: 700,
+        maxOutputTokens: 1000,
         temperature: 0.1,
       } as any,
     })
@@ -1819,6 +1900,11 @@ async function requestModelSignals(
         : 'Classificazione semantica completata.',
     tokenUsage:
       getGeminiTokenUsage(response),
+    memoryCandidate:
+      normalizeKeyMemoryCandidate(
+        parsed.keyMemory,
+        keyMemories,
+      ),
   }
 }
 
@@ -1829,6 +1915,7 @@ export async function analyzeEmotionalState({
   currentEmotion,
   currentLevels,
   sensitivities,
+  keyMemories,
   recentHistory,
   userMessage,
   assistantResponse,
@@ -1841,6 +1928,8 @@ export async function analyzeEmotionalState({
   let source:
     EmotionalAnalysisSource
   let tokenUsage: GeminiTokenUsage
+  let memoryCandidate:
+    KeyMemoryCandidate | null
 
   try {
     const result =
@@ -1849,6 +1938,7 @@ export async function analyzeEmotionalState({
         model,
         lifeformName,
         currentEmotion,
+        keyMemories,
         recentHistory,
         userMessage,
         assistantResponse,
@@ -1859,6 +1949,8 @@ export async function analyzeEmotionalState({
       result.immediateSignals
     reason = result.reason
     tokenUsage = result.tokenUsage
+    memoryCandidate =
+      result.memoryCandidate
     source = 'model'
   } catch (error: unknown) {
     signals = buildFallbackSignals(
@@ -1879,6 +1971,7 @@ export async function analyzeEmotionalState({
     tokenUsage = {
       ...EMPTY_GEMINI_TOKEN_USAGE,
     }
+    memoryCandidate = null
     source = 'fallback'
   }
 
@@ -1915,5 +2008,6 @@ export async function analyzeEmotionalState({
     levels,
     signals,
     tokenUsage,
+    memoryCandidate,
   }
 }

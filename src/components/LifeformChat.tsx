@@ -11,6 +11,7 @@ import type {
   PointerEvent as ReactPointerEvent,
 } from 'react'
 import { EmotionMonitor } from './EmotionMonitor'
+import { KeyMemoriesPanel } from './KeyMemoriesPanel'
 import { LifeformSprite } from './LifeformSprite'
 import {
   analyzeEmotionalState,
@@ -24,6 +25,13 @@ import {
   type EmotionLevels,
   type TrackedEmotion,
 } from '../lib/emotions'
+import {
+  AUTO_MEMORY_REPLACEMENT_MARGIN,
+  MAX_KEY_MEMORIES,
+  buildKeyMemoriesContext,
+  findSimilarKeyMemory,
+  normalizeKeyMemoryInput,
+} from '../lib/keyMemories'
 import {
   EMPTY_GEMINI_TOKEN_USAGE,
   GEMINI_MODEL_OPTIONS,
@@ -49,6 +57,11 @@ import type {
   Profile,
 } from '../types/lifeform'
 import type { ChatMessage } from '../types/message'
+import type {
+  KeyMemory,
+  KeyMemoryCandidate,
+  KeyMemoryInput,
+} from '../types/keyMemory'
 import './GeminiModelSelect.css'
 import './MobileChatLayout.css'
 
@@ -168,6 +181,31 @@ function getEmotionUiLabel(
   return EMOTION_LABELS[emotion]
 }
 
+function sortKeyMemories(
+  memories: KeyMemory[],
+): KeyMemory[] {
+  return [...memories].sort(
+    (left, right) => {
+      const importanceDifference =
+        right.importance -
+        left.importance
+
+      if (importanceDifference !== 0) {
+        return importanceDifference
+      }
+
+      return (
+        new Date(
+          right.updated_at,
+        ).getTime() -
+        new Date(
+          left.updated_at,
+        ).getTime()
+      )
+    },
+  )
+}
+
 export function LifeformChat({
   profile,
   lifeform,
@@ -178,6 +216,19 @@ export function LifeformChat({
 }: LifeformChatProps) {
   const [messages, setMessages] =
     useState<ChatMessage[]>([])
+
+  const [keyMemories, setKeyMemories] =
+    useState<KeyMemory[]>([])
+
+  const [loadingKeyMemories, setLoadingKeyMemories] =
+    useState(true)
+
+  const [savingKeyMemory, setSavingKeyMemory] =
+    useState(false)
+
+  const [keyMemoryError, setKeyMemoryError] =
+    useState<string | null>(null)
+
   const [draft, setDraft] = useState('')
   const [loadingMessages, setLoadingMessages] =
     useState(true)
@@ -271,6 +322,9 @@ export function LifeformChat({
   const [emotionPanelOpen, setEmotionPanelOpen] =
     useState(false)
 
+  const [keyMemoryPanelOpen, setKeyMemoryPanelOpen] =
+    useState(false)
+
   const [
     mobileMenuOpen,
     setMobileMenuOpen,
@@ -311,6 +365,9 @@ export function LifeformChat({
     useRef<HTMLTextAreaElement | null>(null)
 
   const stickToBottomRef = useRef(true)
+
+  const keyMemoriesRef =
+    useRef<KeyMemory[]>([])
 
   const transientEmotionTimerRef =
     useRef<number | null>(null)
@@ -358,6 +415,11 @@ export function LifeformChat({
       String(mobileSpriteShare),
     )
   }, [mobileSpriteShare])
+
+  useEffect(() => {
+    keyMemoriesRef.current =
+      keyMemories
+  }, [keyMemories])
 
   useEffect(() => {
     if (!mobileMenuOpen) {
@@ -575,6 +637,55 @@ export function LifeformChat({
     [lifeform.id],
   )
 
+  const loadKeyMemories = useCallback(
+    async () => {
+      setLoadingKeyMemories(true)
+      setKeyMemoryError(null)
+
+      try {
+        const {
+          data,
+          error: queryError,
+        } = await supabase
+          .from('key_memories')
+          .select(
+            'id,user_id,lifeform_id,category,content,importance,source,created_at,updated_at',
+          )
+          .eq('lifeform_id', lifeform.id)
+          .order('importance', {
+            ascending: false,
+          })
+          .order('updated_at', {
+            ascending: false,
+          })
+          .limit(MAX_KEY_MEMORIES)
+
+        if (queryError) {
+          throw queryError
+        }
+
+        const loadedMemories =
+          sortKeyMemories(
+            (data ?? []) as KeyMemory[],
+          )
+
+        keyMemoriesRef.current =
+          loadedMemories
+
+        setKeyMemories(
+          loadedMemories,
+        )
+      } catch (loadError: unknown) {
+        setKeyMemoryError(
+          getErrorMessage(loadError),
+        )
+      } finally {
+        setLoadingKeyMemories(false)
+      }
+    },
+    [lifeform.id],
+  )
+
   const loadInitialMessages = useCallback(
     async () => {
       setLoadingMessages(true)
@@ -636,9 +747,11 @@ export function LifeformChat({
   useEffect(() => {
     void loadInitialMessages()
     void loadEmotionState()
+    void loadKeyMemories()
   }, [
     loadInitialMessages,
     loadEmotionState,
+    loadKeyMemories,
   ])
 
   useEffect(() => {
@@ -756,6 +869,357 @@ export function LifeformChat({
       setLoadingOlder(false)
     }
   }
+
+  const commitKeyMemories = (
+    nextMemories: KeyMemory[],
+  ) => {
+    const orderedMemories =
+      sortKeyMemories(
+        nextMemories,
+      ).slice(0, MAX_KEY_MEMORIES)
+
+    keyMemoriesRef.current =
+      orderedMemories
+
+    setKeyMemories(
+      orderedMemories,
+    )
+  }
+
+  const handleCreateKeyMemory = async (
+    input: KeyMemoryInput,
+  ) => {
+    if (
+      keyMemoriesRef.current.length >=
+      MAX_KEY_MEMORIES
+    ) {
+      setKeyMemoryError(
+        'Il limite di 10 Key Memories è già stato raggiunto.',
+      )
+      return
+    }
+
+    const normalized =
+      normalizeKeyMemoryInput(input)
+
+    if (!normalized.content) {
+      setKeyMemoryError(
+        'La memoria non può essere vuota.',
+      )
+      return
+    }
+
+    setSavingKeyMemory(true)
+    setKeyMemoryError(null)
+
+    try {
+      const {
+        data,
+        error: insertError,
+      } = await supabase
+        .from('key_memories')
+        .insert({
+          user_id: lifeform.user_id,
+          lifeform_id: lifeform.id,
+          category: normalized.category,
+          content: normalized.content,
+          importance:
+            normalized.importance,
+          source: 'manual',
+        })
+        .select()
+        .single()
+
+      if (insertError) {
+        throw insertError
+      }
+
+      if (!data) {
+        throw new Error(
+          'La memoria non è stata restituita dal database.',
+        )
+      }
+
+      commitKeyMemories([
+        ...keyMemoriesRef.current,
+        data as KeyMemory,
+      ])
+    } catch (saveError: unknown) {
+      setKeyMemoryError(
+        getErrorMessage(saveError),
+      )
+      throw saveError
+    } finally {
+      setSavingKeyMemory(false)
+    }
+  }
+
+  const handleUpdateKeyMemory = async (
+    id: string,
+    input: KeyMemoryInput,
+  ) => {
+    const normalized =
+      normalizeKeyMemoryInput(input)
+
+    if (!normalized.content) {
+      setKeyMemoryError(
+        'La memoria non può essere vuota.',
+      )
+      return
+    }
+
+    setSavingKeyMemory(true)
+    setKeyMemoryError(null)
+
+    try {
+      const {
+        data,
+        error: updateError,
+      } = await supabase
+        .from('key_memories')
+        .update({
+          category: normalized.category,
+          content: normalized.content,
+          importance:
+            normalized.importance,
+          source: 'manual',
+        })
+        .eq('id', id)
+        .eq('lifeform_id', lifeform.id)
+        .select()
+        .single()
+
+      if (updateError) {
+        throw updateError
+      }
+
+      if (!data) {
+        throw new Error(
+          'La memoria aggiornata non è stata restituita dal database.',
+        )
+      }
+
+      commitKeyMemories([
+        ...keyMemoriesRef.current.filter(
+          (memory) => memory.id !== id,
+        ),
+        data as KeyMemory,
+      ])
+    } catch (saveError: unknown) {
+      setKeyMemoryError(
+        getErrorMessage(saveError),
+      )
+      throw saveError
+    } finally {
+      setSavingKeyMemory(false)
+    }
+  }
+
+  const handleDeleteKeyMemory = async (
+    id: string,
+  ) => {
+    setSavingKeyMemory(true)
+    setKeyMemoryError(null)
+
+    try {
+      const { error: deleteError } =
+        await supabase
+          .from('key_memories')
+          .delete()
+          .eq('id', id)
+          .eq('lifeform_id', lifeform.id)
+
+      if (deleteError) {
+        throw deleteError
+      }
+
+      commitKeyMemories(
+        keyMemoriesRef.current.filter(
+          (memory) => memory.id !== id,
+        ),
+      )
+    } catch (deleteMemoryError: unknown) {
+      setKeyMemoryError(
+        getErrorMessage(
+          deleteMemoryError,
+        ),
+      )
+      throw deleteMemoryError
+    } finally {
+      setSavingKeyMemory(false)
+    }
+  }
+
+  const updateAutomaticKeyMemory = async (
+    memory: KeyMemory,
+    candidate: KeyMemoryCandidate,
+  ) => {
+    const {
+      data,
+      error: updateError,
+    } = await supabase
+      .from('key_memories')
+      .update({
+        category: candidate.category,
+        content: candidate.content,
+        importance: Math.max(
+          memory.importance,
+          candidate.importance,
+        ),
+        source: 'auto',
+      })
+      .eq('id', memory.id)
+      .eq('lifeform_id', lifeform.id)
+      .select()
+      .single()
+
+    if (updateError) {
+      throw updateError
+    }
+
+    if (!data) {
+      throw new Error(
+        'La Key Memory automatica aggiornata non è stata restituita.',
+      )
+    }
+
+    commitKeyMemories([
+      ...keyMemoriesRef.current.filter(
+        (currentMemory) =>
+          currentMemory.id !== memory.id,
+      ),
+      data as KeyMemory,
+    ])
+  }
+
+  const createAutomaticKeyMemory = async (
+    candidate: KeyMemoryCandidate,
+  ) => {
+    const {
+      data,
+      error: insertError,
+    } = await supabase
+      .from('key_memories')
+      .insert({
+        user_id: lifeform.user_id,
+        lifeform_id: lifeform.id,
+        category: candidate.category,
+        content: candidate.content,
+        importance:
+          candidate.importance,
+        source: 'auto',
+      })
+      .select()
+      .single()
+
+    if (insertError) {
+      throw insertError
+    }
+
+    if (!data) {
+      throw new Error(
+        'La nuova Key Memory automatica non è stata restituita.',
+      )
+    }
+
+    commitKeyMemories([
+      ...keyMemoriesRef.current,
+      data as KeyMemory,
+    ])
+  }
+
+  const applyAutonomousMemoryCandidate =
+    async (
+      candidate:
+        KeyMemoryCandidate | null,
+    ) => {
+      if (!candidate) {
+        return
+      }
+
+      const currentMemories =
+        keyMemoriesRef.current
+
+      if (
+        candidate.action === 'update' &&
+        candidate.memoryId
+      ) {
+        const requestedMemory =
+          currentMemories.find(
+            (memory) =>
+              memory.id ===
+              candidate.memoryId,
+          )
+
+        if (
+          requestedMemory &&
+          requestedMemory.source === 'auto'
+        ) {
+          await updateAutomaticKeyMemory(
+            requestedMemory,
+            candidate,
+          )
+        }
+
+        return
+      }
+
+      const similarMemory =
+        findSimilarKeyMemory(
+          currentMemories,
+          candidate.content,
+        )
+
+      if (similarMemory) {
+        if (
+          similarMemory.source === 'auto'
+        ) {
+          await updateAutomaticKeyMemory(
+            similarMemory,
+            candidate,
+          )
+        }
+
+        return
+      }
+
+      if (
+        currentMemories.length <
+        MAX_KEY_MEMORIES
+      ) {
+        await createAutomaticKeyMemory(
+          candidate,
+        )
+        return
+      }
+
+      const replaceableMemory = [
+        ...currentMemories,
+      ]
+        .filter(
+          (memory) =>
+            memory.source === 'auto',
+        )
+        .sort(
+          (left, right) =>
+            left.importance -
+            right.importance,
+        )[0]
+
+      if (
+        !replaceableMemory ||
+        candidate.importance <
+          replaceableMemory.importance +
+            AUTO_MEMORY_REPLACEMENT_MARGIN
+      ) {
+        return
+      }
+
+      await updateAutomaticKeyMemory(
+        replaceableMemory,
+        candidate,
+      )
+    }
 
   const clearImmediateReaction =
     () => {
@@ -1017,6 +1481,11 @@ export function LifeformChat({
             emotionLevels,
         })
 
+      const keyMemoryContext =
+        buildKeyMemoriesContext(
+          keyMemoriesRef.current,
+        )
+
       return [
         'Your name is ' +
           lifeform.name +
@@ -1031,8 +1500,9 @@ export function LifeformChat({
         'Answer the actual request directly and competently before adding personality.',
         'You may sound natural, warm and recognizable, but do not turn every answer into an introspective monologue.',
         emotionalResponseContext,
-        'Do not claim to have memories, personal information or knowledge that is not included in the supplied conversation.',
-        'Long-term memory and autonomous personality evolution are not enabled yet.',
+        keyMemoryContext,
+        'The supplied Key Memories are the only long-term memories currently available. Use them as persistent context, but never invent additional memories.',
+        'If a Key Memory conflicts with the latest explicit statement from the user, follow the latest statement and allow the memory system to update afterward.',
         'Do not pretend to have used tools, searched the web, opened files or performed actions unless those tools were actually provided in the request.',
         'Do not repeatedly announce that you are an AI unless it is directly relevant.',
       ].join('\n')
@@ -1294,6 +1764,8 @@ export function LifeformChat({
               emotionLevels,
             sensitivities:
               emotionalSensitivities,
+            keyMemories:
+              keyMemoriesRef.current,
             recentHistory:
               previousContext.slice(
                 -EMOTION_CONTEXT_SIZE,
@@ -1313,6 +1785,17 @@ export function LifeformChat({
           analysis,
           completeTokenUsage,
         )
+
+        try {
+          await applyAutonomousMemoryCandidate(
+            analysis.memoryCandidate,
+          )
+        } catch (memoryError: unknown) {
+          console.warn(
+            'Aggiornamento automatico delle Key Memories non disponibile:',
+            memoryError,
+          )
+        }
 
         immediateReaction = {
           emotion:
@@ -1375,7 +1858,7 @@ export function LifeformChat({
 
       const confirmed =
         window.confirm(
-          'Vuoi eliminare definitivamente tutta la cronologia e azzerare tutti i parametri emotivi? Questa operazione non può essere annullata.',
+          'Vuoi eliminare definitivamente tutta la cronologia e azzerare tutti i parametri emotivi? Le Key Memories resteranno conservate. Questa operazione non può essere annullata.',
         )
 
       if (!confirmed) {
@@ -1790,6 +2273,24 @@ export function LifeformChat({
               className="text-button"
               onClick={() => {
                 setMobileMenuOpen(false)
+                setKeyMemoryPanelOpen(true)
+              }}
+              aria-expanded={
+                keyMemoryPanelOpen
+              }
+            >
+              Key Memories
+              {' '}
+              {keyMemories.length}
+              {'/'}
+              {MAX_KEY_MEMORIES}
+            </button>
+
+            <button
+              type="button"
+              className="text-button"
+              onClick={() => {
+                setMobileMenuOpen(false)
                 void handleClearChat()
               }}
               disabled={
@@ -2143,6 +2644,26 @@ export function LifeformChat({
             </form>
           </section>
         </div>
+
+        <KeyMemoriesPanel
+          open={keyMemoryPanelOpen}
+          memories={keyMemories}
+          loading={loadingKeyMemories}
+          saving={savingKeyMemory}
+          error={keyMemoryError}
+          onClose={() =>
+            setKeyMemoryPanelOpen(false)
+          }
+          onCreate={
+            handleCreateKeyMemory
+          }
+          onUpdate={
+            handleUpdateKeyMemory
+          }
+          onDelete={
+            handleDeleteKeyMemory
+          }
+        />
 
         <EmotionMonitor
           open={emotionPanelOpen}
