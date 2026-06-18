@@ -1338,3 +1338,31 @@ body #root .chat-send-button:disabled {
     scale: 1 !important;
   }
 }
+
+
+/* ============================================================
+   IVORY GLASS V4 — PREVENT MOBILE FOCUS ZOOM
+   ============================================================ */
+
+/*
+ * iOS Safari automatically zooms focused form fields whose text is
+ * smaller than 16 px. Keeping mobile controls at 16 px prevents that
+ * zoom without disabling normal pinch-to-zoom accessibility.
+ */
+@media (max-width: 820px) {
+  html {
+    -webkit-text-size-adjust: 100% !important;
+    text-size-adjust: 100% !important;
+  }
+
+  body #root input,
+  body #root select,
+  body #root textarea,
+  body #root .chat-composer textarea {
+    font-size: 16px !important;
+  }
+
+  body #root .chat-composer textarea {
+    line-height: 1.25 !important;
+  }
+}
