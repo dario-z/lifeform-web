@@ -411,6 +411,18 @@ export function LifeformChat({
   )
 
   useEffect(() => {
+    document.body.classList.add(
+      'lifeform-chat-active',
+    )
+
+    return () => {
+      document.body.classList.remove(
+        'lifeform-chat-active',
+      )
+    }
+  }, [])
+
+  useEffect(() => {
     window.localStorage.setItem(
       MOBILE_SPRITE_SHARE_STORAGE_KEY,
       String(mobileSpriteShare),

@@ -1,34 +1,31 @@
-DIGITAL LIFEFORM — IVORY GLASS UI
-
-Colore principale:
-- HEX #E8E3DE
-- RGB 232, 227, 222
+DIGITAL LIFEFORM — IVORY GLASS V2
 
 Modifiche:
-- eliminati gli accenti rossi;
-- eliminati gli sfondi blu-neri;
-- superfici semitrasparenti color avorio;
-- lo sfondo dei nuovi sprite si fonde con tutta la UI;
-- login, registrazione, onboarding e connessione API uniformati;
-- chat desktop e mobile resa semitrasparente;
-- menu mobile, Emozioni e Key Memories uniformati;
-- pulsanti e input ridisegnati in toni grafite e tortora;
-- nessuna modifica a database o funzionalità.
+- login usa neutral.nosfondo.png;
+- sprite login molto più grande;
+- tutti gli accenti testuali rossi diventano grafite;
+- entrambe le bolle chat sono grafite con testo bianco;
+- titoli grandi con font di sistema più leggibile e peso 600;
+- login nuovamente scrollabile su mobile;
+- body bloccato solo quando la chat è realmente aperta;
+- ripristinata la possibilità di usare il pulsante ACCEDI su mobile.
 
 Installazione:
-1. Estrarre nella root:
+1. Estrarre lo ZIP nella root:
    C:\Projects\lifeform-web
 
 2. Confermare la sovrascrittura di:
    src\components\LifeformChat.tsx
-   src\components\GeminiSetup.tsx
-
-3. Verrà aggiunto:
    src\components\IvoryGlassTheme.css
+
+3. Verificare che esista:
+   public\sprites\emotions\neutral.nosfondo.png
 
 4. Eseguire:
    npm run build
    npm run dev
 
 5. Aggiornare con CTRL+F5.
-   Su telefono usare inizialmente una scheda privata per evitare la cache CSS.
+   Sul telefono usare una scheda privata al primo test.
+
+Non sono richieste modifiche SQL.
