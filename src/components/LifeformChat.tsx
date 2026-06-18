@@ -2625,7 +2625,7 @@ export function LifeformChat({
                 maxLength={
                   MAX_MESSAGE_LENGTH
                 }
-                rows={2}
+                rows={1}
                 disabled={
                   sending ||
                   loadingMessages
@@ -2642,16 +2642,26 @@ export function LifeformChat({
 
                 <button
                   type="submit"
-                  className="primary-button"
+                  className="primary-button chat-send-button"
+                  aria-label={
+                    sending
+                      ? 'Invio in corso'
+                      : 'Invia messaggio'
+                  }
+                  title={
+                    sending
+                      ? 'Invio in corso'
+                      : 'Invia messaggio'
+                  }
                   disabled={
                     sending ||
                     loadingMessages ||
                     !draft.trim()
                   }
                 >
-                  {sending
-                    ? 'Elaborazione…'
-                    : 'Invia'}
+                  <span aria-hidden="true">
+                    ↑
+                  </span>
                 </button>
               </div>
             </form>
