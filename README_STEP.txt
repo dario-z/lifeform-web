@@ -1,58 +1,34 @@
-DIGITAL LIFEFORM — KEY MEMORIES (MAX 10)
+DIGITAL LIFEFORM — IVORY GLASS UI
 
-Nuovo sistema:
-- Tabella Supabase dedicata alle Key Memories.
-- Massimo 10 memorie per Lifeform, protetto anche dal database.
-- Tutte le memorie vengono passate alla chiamata principale Gemini.
-- La Lifeform può proporre una memoria autonoma durante la stessa chiamata
-  già usata per la classificazione emotiva: non viene aggiunta una terza
-  richiesta API.
-- Memorie manuali e memorie modificate dall'utente diventano autorevoli e
-  non vengono sovrascritte automaticamente.
-- Le memorie automatiche simili vengono aggiornate invece di duplicate.
-- A 10 memorie, una nuova memoria può sostituire solo una memoria automatica
-  meno importante, con un margine minimo di 8 punti.
-- "Svuota chat" non cancella le Key Memories.
+Colore principale:
+- HEX #E8E3DE
+- RGB 232, 227, 222
 
-Categorie supportate:
-- Ricordi dalla conversazione
-- Preferenze consolidate
-- Persone importanti
-- Luoghi importanti
-- Progetti importanti
-- Obiettivi a lungo termine
-- Riassunti storici
-- Eventi chiave
-- Convinzioni della Lifeform
-- Altro
+Modifiche:
+- eliminati gli accenti rossi;
+- eliminati gli sfondi blu-neri;
+- superfici semitrasparenti color avorio;
+- lo sfondo dei nuovi sprite si fonde con tutta la UI;
+- login, registrazione, onboarding e connessione API uniformati;
+- chat desktop e mobile resa semitrasparente;
+- menu mobile, Emozioni e Key Memories uniformati;
+- pulsanti e input ridisegnati in toni grafite e tortora;
+- nessuna modifica a database o funzionalità.
 
-INSTALLAZIONE
-
-1. Supabase -> SQL Editor -> New query.
-2. Eseguire tutto il contenuto di:
-   supabase/key_memories_migration.sql
-3. Estrarre lo ZIP nella root:
+Installazione:
+1. Estrarre nella root:
    C:\Projects\lifeform-web
-4. Confermare la sovrascrittura di:
-   src\lib\emotions.ts
+
+2. Confermare la sovrascrittura di:
    src\components\LifeformChat.tsx
-5. Nuovi file:
-   src\types\keyMemory.ts
-   src\lib\keyMemories.ts
-   src\components\KeyMemoriesPanel.tsx
-   src\components\KeyMemoriesPanel.css
-6. Eseguire:
+   src\components\GeminiSetup.tsx
+
+3. Verrà aggiunto:
+   src\components\IvoryGlassTheme.css
+
+4. Eseguire:
    npm run build
    npm run dev
-7. Aprire il menu della Lifeform e premere "Key Memories".
 
-TEST RAPIDO
-
-- Scrivere: "Ricorda che il progetto più importante su cui sto lavorando è
-  Digital Lifeform e voglio renderlo utilizzabile soprattutto da mobile."
-- Dopo la risposta, aprire Key Memories.
-- La memoria può comparire automaticamente come Progetto importante.
-- Modificarla manualmente e salvarla: la sorgente diventa Manuale.
-- Aggiornare la pagina e verificare che la memoria rimanga.
-- Inviare un messaggio dopo oltre 24 messaggi recenti: la memoria continua a
-  essere inclusa nel contesto principale.
+5. Aggiornare con CTRL+F5.
+   Su telefono usare inizialmente una scheda privata per evitare la cache CSS.

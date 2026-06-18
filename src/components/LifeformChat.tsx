@@ -64,6 +64,7 @@ import type {
 } from '../types/keyMemory'
 import './GeminiModelSelect.css'
 import './MobileChatLayout.css'
+import './IvoryGlassTheme.css'
 
 const MESSAGE_PAGE_SIZE = 50
 const GEMINI_CONTEXT_SIZE = 24

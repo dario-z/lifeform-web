@@ -17,6 +17,7 @@ import {
 } from '../lib/gemini'
 import './GeminiModelSelect.css'
 import './MobileResponsive.css'
+import './IvoryGlassTheme.css'
 
 type GeminiSetupProps = {
   lifeformName: string
