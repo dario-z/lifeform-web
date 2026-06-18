@@ -272,6 +272,11 @@ export function LifeformChat({
     useState(false)
 
   const [
+    mobileMenuOpen,
+    setMobileMenuOpen,
+  ] = useState(false)
+
+  const [
     mobileSpriteShare,
     setMobileSpriteShare,
   ] = useState(
@@ -353,6 +358,32 @@ export function LifeformChat({
       String(mobileSpriteShare),
     )
   }, [mobileSpriteShare])
+
+  useEffect(() => {
+    if (!mobileMenuOpen) {
+      return
+    }
+
+    const handleKeyDown = (
+      event: globalThis.KeyboardEvent,
+    ) => {
+      if (event.key === 'Escape') {
+        setMobileMenuOpen(false)
+      }
+    }
+
+    window.addEventListener(
+      'keydown',
+      handleKeyDown,
+    )
+
+    return () => {
+      window.removeEventListener(
+        'keydown',
+        handleKeyDown,
+      )
+    }
+  }, [mobileMenuOpen])
 
   useEffect(() => {
     dailyTokenLimitRef.current =
@@ -1591,7 +1622,58 @@ export function LifeformChat({
   return (
     <main className="chat-page">
       <section className="chat-shell">
-        <header className="chat-header">
+        <button
+          type="button"
+          className="mobile-menu-toggle"
+          aria-label="Apri menu"
+          aria-controls="lifeform-mobile-menu"
+          aria-expanded={mobileMenuOpen}
+          onClick={() =>
+            setMobileMenuOpen(
+              (currentValue) =>
+                !currentValue,
+            )
+          }
+        >
+          <span />
+          <span />
+          <span />
+        </button>
+
+        <button
+          type="button"
+          className={
+            mobileMenuOpen
+              ? 'mobile-menu-backdrop mobile-menu-backdrop-open'
+              : 'mobile-menu-backdrop'
+          }
+          aria-label="Chiudi menu"
+          tabIndex={
+            mobileMenuOpen ? 0 : -1
+          }
+          onClick={() =>
+            setMobileMenuOpen(false)
+          }
+        />
+
+        <header
+          id="lifeform-mobile-menu"
+          className={
+            mobileMenuOpen
+              ? 'chat-header mobile-menu-open'
+              : 'chat-header'
+          }
+        >
+          <button
+            type="button"
+            className="mobile-menu-close"
+            aria-label="Chiudi menu"
+            onClick={() =>
+              setMobileMenuOpen(false)
+            }
+          >
+            ×
+          </button>
           <div className="chat-identity">
             <div
               className="chat-status-dot"
@@ -1608,6 +1690,50 @@ export function LifeformChat({
               </h1>
             </div>
           </div>
+
+          <section
+            className="mobile-drawer-meta"
+            aria-label="Informazioni della Lifeform"
+          >
+            <div>
+              <span>Stato</span>
+
+              <strong>
+                {getEmotionUiLabel(
+                  settledEmotion,
+                )}
+
+                {settledEmotion !==
+                  'neutral' &&
+                  ' · ' +
+                    emotionIntensity}
+              </strong>
+            </div>
+
+            <div>
+              <span>Modello</span>
+
+              <strong>
+                {getGeminiModelLabel(
+                  selectedModel,
+                )}
+              </strong>
+            </div>
+
+            <div>
+              <span>Token oggi</span>
+
+              <strong>
+                {dailyTokensUsed.toLocaleString(
+                  locale,
+                )}
+                {' / '}
+                {dailyTokenLimit.toLocaleString(
+                  locale,
+                )}
+              </strong>
+            </div>
+          </section>
 
           <div className="chat-header-actions">
             <label className="chat-model-picker">
@@ -1648,9 +1774,10 @@ export function LifeformChat({
             <button
               type="button"
               className="text-button"
-              onClick={() =>
+              onClick={() => {
+                setMobileMenuOpen(false)
                 setEmotionPanelOpen(true)
-              }
+              }}
               aria-expanded={
                 emotionPanelOpen
               }
@@ -1661,9 +1788,10 @@ export function LifeformChat({
             <button
               type="button"
               className="text-button"
-              onClick={() =>
+              onClick={() => {
+                setMobileMenuOpen(false)
                 void handleClearChat()
-              }
+              }}
               disabled={
                 sending ||
                 clearingChat
@@ -1677,9 +1805,10 @@ export function LifeformChat({
             <button
               type="button"
               className="text-button"
-              onClick={
-                onDisconnectGemini
-              }
+              onClick={() => {
+                setMobileMenuOpen(false)
+                onDisconnectGemini()
+              }}
               disabled={sending}
             >
               Cambia API
@@ -1688,9 +1817,10 @@ export function LifeformChat({
             <button
               type="button"
               className="secondary-button"
-              onClick={() =>
+              onClick={() => {
+                setMobileMenuOpen(false)
                 void onSignOut()
-              }
+              }}
               disabled={
                 sending || signingOut
               }
@@ -2013,50 +2143,6 @@ export function LifeformChat({
             </form>
           </section>
         </div>
-
-        <section
-          className="mobile-chat-meta"
-          aria-label="Informazioni della Lifeform"
-        >
-          <div className="mobile-chat-meta-card">
-            <span>Stato emotivo</span>
-
-            <strong>
-              {getEmotionUiLabel(
-                settledEmotion,
-              )}
-
-              {settledEmotion !==
-                'neutral' &&
-                ' · ' +
-                  emotionIntensity}
-            </strong>
-          </div>
-
-          <div className="mobile-chat-meta-card">
-            <span>Modello Gemini</span>
-
-            <strong>
-              {getGeminiModelLabel(
-                selectedModel,
-              )}
-            </strong>
-          </div>
-
-          <div className="mobile-chat-meta-card">
-            <span>Token giornalieri</span>
-
-            <strong>
-              {dailyTokensUsed.toLocaleString(
-                locale,
-              )}
-              {' / '}
-              {dailyTokenLimit.toLocaleString(
-                locale,
-              )}
-            </strong>
-          </div>
-        </section>
 
         <EmotionMonitor
           open={emotionPanelOpen}

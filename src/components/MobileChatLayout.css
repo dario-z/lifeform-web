@@ -1,19 +1,19 @@
 /*
- * Mobile-first chat composition.
+ * Mobile immersive layout.
  *
- * Mobile page order:
- *   1. Variable-height Lifeform sprite
- *   2. Draggable anchor
- *   3. Conversation fixed to one full viewport
- *   4. Accessory information
- *   5. Model selector and secondary actions
- *
- * Moving the anchor changes only the sprite height. The chat never
- * shrinks: it is translated farther down the page.
+ * The page itself never scrolls:
+ * - the Lifeform fills the background;
+ * - the transparent chat overlays the lower half;
+ * - only the message history can scroll;
+ * - secondary controls live in an off-canvas hamburger menu.
  */
 
-.mobile-chat-meta,
-.mobile-stage-divider {
+.mobile-menu-toggle,
+.mobile-menu-backdrop,
+.mobile-menu-close,
+.mobile-drawer-meta,
+.mobile-stage-divider,
+.mobile-chat-meta {
   display: none;
 }
 
@@ -22,99 +22,348 @@
   body,
   #root {
     width: 100%;
+    height: 100%;
     min-width: 0;
     max-width: 100%;
-    min-height: 100%;
+    min-height: 0;
+    overflow: hidden;
+    overscroll-behavior: none;
   }
 
   body {
-    overflow-x: hidden;
-    overflow-y: auto;
+    position: fixed;
+    inset: 0;
+    margin: 0;
+    overflow: hidden;
   }
 
   body #root .chat-page {
+    position: fixed;
+    inset: 0;
     width: 100%;
-    min-height: 100dvh;
+    height: 100vh;
+    height: 100dvh;
+    min-height: 0;
     display: block;
     padding: 0;
-    overflow: visible;
-    background: #08090c;
+    overflow: hidden;
+    background:
+      radial-gradient(
+        ellipse at 50% 28%,
+        rgba(255, 39, 64, 0.16),
+        transparent 58%
+      ),
+      #08090c;
   }
 
   body #root .chat-shell {
+    position: relative;
     width: 100%;
-    max-width: none;
-    height: auto;
+    height: 100%;
     min-height: 0;
-    display: flex;
-    flex-direction: column;
-    overflow: visible;
+    display: block;
+    overflow: hidden;
     border: 0;
     clip-path: none;
     box-shadow: none;
+    background: transparent;
   }
 
-  /*
-   * The sprite height can range from 24dvh to 96dvh.
-   * The chat row always remains exactly 100dvh.
-   */
-  body #root .chat-body {
-    --mobile-sprite-height: 50dvh;
-
-    order: 1;
-    width: 100%;
-    height: auto;
-    min-height: 0;
-    display: grid !important;
-    grid-template-columns:
-      minmax(0, 1fr);
-    grid-template-rows:
-      clamp(
-        24dvh,
-        var(--mobile-sprite-height),
-        96dvh
-      )
-      18px
-      100dvh;
-    overflow: visible;
-  }
-
-  body #root .chat-body.mobile-stage-resizing {
-    cursor: ns-resize;
-    user-select: none;
+  body #root .chat-shell::before,
+  body #root .chat-shell::after {
+    display: none;
   }
 
   /* ============================================================
-     1. VARIABLE-HEIGHT SPRITE AREA
+     HAMBURGER
      ============================================================ */
 
-  body #root .chat-avatar-panel {
-    position: relative;
-    grid-column: 1;
-    grid-row: 1;
-    width: 100%;
-    height: auto;
+  body #root .mobile-menu-toggle {
+    position: fixed;
+    z-index: 5200;
+    top: max(
+      10px,
+      env(safe-area-inset-top)
+    );
+    left: max(
+      10px,
+      env(safe-area-inset-left)
+    );
+    width: 44px;
+    height: 44px;
+    display: grid;
+    align-content: center;
+    justify-items: center;
+    gap: 5px;
+    padding: 0;
+    color: #fff;
+    background: rgba(7, 8, 11, 0.74);
+    border: 1px solid
+      rgba(255, 255, 255, 0.14);
+    border-radius: 10px;
+    box-shadow:
+      0 8px 24px
+        rgba(0, 0, 0, 0.36);
+    backdrop-filter: blur(12px);
+    cursor: pointer;
+  }
+
+  body #root .mobile-menu-toggle span {
+    width: 22px;
+    height: 2px;
+    display: block;
+    border-radius: 99px;
+    background: #fff;
+  }
+
+  body #root .mobile-menu-backdrop {
+    position: fixed;
+    z-index: 4990;
+    inset: 0;
+    display: block;
+    visibility: hidden;
+    opacity: 0;
+    background: rgba(0, 0, 0, 0.56);
+    border: 0;
+    transition:
+      opacity 180ms ease,
+      visibility 180ms ease;
+    pointer-events: none;
+  }
+
+  body #root .mobile-menu-backdrop-open {
+    visibility: visible;
+    opacity: 1;
+    pointer-events: auto;
+  }
+
+  /* ============================================================
+     OFF-CANVAS MENU
+     ============================================================ */
+
+  body #root .chat-header {
+    position: fixed;
+    z-index: 5100;
+    inset:
+      0
+      auto
+      0
+      0;
+    width: min(350px, 88vw);
+    height: 100vh;
+    height: 100dvh;
     min-height: 0;
-    max-height: none;
+    display: flex;
+    flex-direction: column;
+    align-items: stretch;
+    justify-content: flex-start;
+    gap: 0;
+    padding:
+      max(18px, env(safe-area-inset-top))
+      16px
+      max(18px, env(safe-area-inset-bottom))
+      max(16px, env(safe-area-inset-left));
+    overflow: hidden;
+    border: 0;
+    border-right: 1px solid
+      rgba(255, 255, 255, 0.12);
+    background:
+      linear-gradient(
+        155deg,
+        rgba(255, 39, 64, 0.16),
+        transparent 32%
+      ),
+      rgba(14, 15, 20, 0.98);
+    clip-path: none;
+    box-shadow:
+      24px 0 60px
+        rgba(0, 0, 0, 0.5);
+    transform: translateX(-105%);
+    transition: transform 210ms ease;
+  }
+
+  body #root .chat-header.mobile-menu-open {
+    transform: translateX(0);
+  }
+
+  body #root .chat-header::after {
+    display: none;
+  }
+
+  body #root .mobile-menu-close {
+    position: absolute;
+    top: max(
+      10px,
+      env(safe-area-inset-top)
+    );
+    right: 10px;
+    width: 38px;
+    height: 38px;
+    display: grid;
+    place-items: center;
+    padding: 0;
+    color: #fff;
+    font-size: 1.65rem;
+    line-height: 1;
+    background: rgba(255, 255, 255, 0.07);
+    border-radius: 9px;
+    cursor: pointer;
+  }
+
+  body #root .chat-identity {
+    width: calc(100% - 44px);
+    min-width: 0;
+    margin: 2px 0 16px;
+  }
+
+  body #root .chat-identity .eyebrow {
+    margin-bottom: 3px;
+    font-size: 0.62rem;
+  }
+
+  body #root .chat-identity h1 {
+    max-width: 100%;
+    font-size: 1.85rem;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  body #root .mobile-drawer-meta {
+    width: 100%;
+    display: grid;
+    grid-template-columns:
+      repeat(2, minmax(0, 1fr));
+    gap: 8px;
+    margin-bottom: 14px;
+  }
+
+  body #root .mobile-drawer-meta > div {
+    min-width: 0;
+    padding: 9px 10px;
+    background: rgba(255, 255, 255, 0.045);
+    border: 1px solid
+      rgba(255, 255, 255, 0.08);
+    border-radius: 8px;
+  }
+
+  body #root .mobile-drawer-meta > div:last-child {
+    grid-column: 1 / -1;
+  }
+
+  body #root .mobile-drawer-meta span,
+  body #root .mobile-drawer-meta strong {
+    display: block;
+  }
+
+  body #root .mobile-drawer-meta span {
+    margin-bottom: 3px;
+    color: var(--p5-red, #ff2740);
+    font-size: 0.59rem;
+    font-weight: 900;
+    letter-spacing: 0.07em;
+    text-transform: uppercase;
+  }
+
+  body #root .mobile-drawer-meta strong {
+    color: #f5f5f7;
+    font-size: 0.72rem;
+    line-height: 1.25;
+    overflow-wrap: anywhere;
+  }
+
+  body #root .chat-header-actions {
+    width: 100%;
+    min-height: 0;
+    display: grid;
+    grid-template-columns:
+      repeat(2, minmax(0, 1fr));
+    gap: 8px;
+    align-content: start;
+  }
+
+  body #root .chat-model-picker {
+    grid-column: 1 / -1;
+    width: 100%;
+    min-width: 0;
+    display: grid;
+    gap: 6px;
+  }
+
+  body #root .chat-model-picker span {
+    font-size: 0.65rem;
+  }
+
+  body #root .chat-model-picker select {
+    width: 100%;
+    min-width: 0;
+    min-height: 44px;
+    padding: 8px 10px;
+    font-size: 0.78rem;
+  }
+
+  body #root .chat-header-actions > button {
+    width: 100%;
+    min-width: 0;
+    min-height: 43px;
+    padding: 8px 9px;
+    color: #f3f3f6;
+    font-size: 0.72rem;
+    text-align: center;
+    background: #1b1d24;
+    border: 1px solid
+      rgba(255, 255, 255, 0.08);
+    border-radius: 8px;
+    clip-path: none;
+  }
+
+  body #root .chat-header-actions >
+    .secondary-button {
+    background: #2a2c34;
+  }
+
+  /* ============================================================
+     IMMERSIVE SPRITE BACKGROUND
+     ============================================================ */
+
+  body #root .chat-body {
+    position: absolute;
+    inset: 0;
+    width: 100%;
+    height: 100%;
+    min-height: 0;
+    display: block !important;
+    overflow: hidden;
+    background: transparent;
+  }
+
+  body #root .chat-avatar-panel {
+    position: absolute;
+    z-index: 1;
+    inset: 0;
+    width: 100%;
+    height: 100%;
+    min-height: 0;
     display: block;
     padding:
-      max(8px, env(safe-area-inset-top))
-      max(8px, env(safe-area-inset-right))
-      2px
-      max(8px, env(safe-area-inset-left));
+      max(4px, env(safe-area-inset-top))
+      max(4px, env(safe-area-inset-right))
+      0
+      max(4px, env(safe-area-inset-left));
     overflow: hidden;
     border: 0;
     background:
       radial-gradient(
-        ellipse at 50% 45%,
-        rgba(255, 39, 64, 0.17),
+        ellipse at 50% 32%,
+        rgba(255, 39, 64, 0.18),
         transparent 58%
       ),
       linear-gradient(
         180deg,
         #151015 0%,
-        #0c0d11 100%
+        #090a0e 100%
       );
+    pointer-events: none;
   }
 
   body #root .chat-avatar {
@@ -127,165 +376,94 @@
     overflow: visible;
   }
 
-  body #root .chat-avatar img {
-    width: 100%;
-    height: 100%;
-    max-width: none;
-    object-fit: contain;
-    object-position: center bottom;
+  body #root .chat-avatar::after {
+    display: none;
   }
 
+  body #root .chat-avatar img {
+    width: 100%;
+    height: max(68dvh, 100%);
+    max-width: none;
+    object-fit: contain;
+    object-position: center top;
+    filter:
+      drop-shadow(
+        0 14px 28px
+        rgba(0, 0, 0, 0.34)
+      );
+  }
+
+  /*
+   * Keep the emotional label high-left, immediately beside the menu.
+   */
   body #root .chat-avatar-panel > .chat-emotion {
-    position: absolute;
-    z-index: 8;
+    position: fixed;
+    z-index: 4800;
     top: max(
-      7px,
-      env(safe-area-inset-top)
+      13px,
+      calc(
+        env(safe-area-inset-top) +
+        3px
+      )
     );
     left: max(
-      8px,
-      env(safe-area-inset-left)
+      64px,
+      calc(
+        env(safe-area-inset-left) +
+        64px
+      )
     );
     display: block !important;
-    max-width: calc(100% - 58px);
+    max-width: calc(100vw - 82px);
     margin: 0;
-    padding: 4px 7px;
+    padding: 5px 8px;
     overflow: hidden;
-    color: rgba(255, 255, 255, 0.88);
+    color: rgba(255, 255, 255, 0.84);
     font-family:
       ui-monospace,
       SFMono-Regular,
       Consolas,
       monospace;
-    font-size: 0.58rem;
+    font-size: 0.56rem;
     font-weight: 800;
     line-height: 1;
-    letter-spacing: 0.08em;
+    letter-spacing: 0.07em;
     text-overflow: ellipsis;
     text-transform: uppercase;
     white-space: nowrap;
-    background: rgba(6, 7, 10, 0.68);
+    background: rgba(7, 8, 11, 0.66);
     border-left: 2px solid
       var(--p5-red, #ff2740);
-    backdrop-filter: blur(6px);
+    border-radius: 4px;
+    backdrop-filter: blur(8px);
     pointer-events: none;
   }
 
-  body #root .chat-avatar-panel > .chat-provider,
-  body #root .chat-avatar-panel > .chat-context-info {
+  body #root .chat-avatar-panel >
+    .chat-provider,
+  body #root .chat-avatar-panel >
+    .chat-context-info {
+    display: none !important;
+  }
+
+  body #root .mobile-stage-divider {
     display: none !important;
   }
 
   /* ============================================================
-     2. DRAG ANCHOR
-     ============================================================ */
-
-  body #root .mobile-stage-divider {
-    position: relative;
-    z-index: 12;
-    grid-column: 1;
-    grid-row: 2;
-    width: 100%;
-    height: 18px;
-    display: grid;
-    place-items: center;
-    padding: 0;
-    color: inherit;
-    background:
-      linear-gradient(
-        180deg,
-        #15161c,
-        #0c0d11
-      );
-    border-top: 1px solid
-      rgba(255, 255, 255, 0.09);
-    border-bottom: 1px solid
-      rgba(255, 255, 255, 0.09);
-    cursor: ns-resize;
-    touch-action: none;
-    outline: none;
-  }
-
-  body #root .mobile-stage-divider::before,
-  body #root .mobile-stage-divider::after {
-    content: "";
-    position: absolute;
-    top: 50%;
-    width: calc(50% - 34px);
-    height: 1px;
-    background: rgba(
-      255,
-      255,
-      255,
-      0.08
-    );
-  }
-
-  body #root .mobile-stage-divider::before {
-    left: 0;
-  }
-
-  body #root .mobile-stage-divider::after {
-    right: 0;
-  }
-
-  body #root .mobile-stage-divider-anchor {
-    position: relative;
-    width: 54px;
-    height: 8px;
-    display: block;
-    border-radius: 999px;
-    background: #2c2e37;
-    box-shadow:
-      0 0 0 1px
-        rgba(255, 255, 255, 0.08),
-      0 3px 12px
-        rgba(0, 0, 0, 0.4);
-  }
-
-  body #root .mobile-stage-divider-anchor::before {
-    content: "";
-    position: absolute;
-    top: 50%;
-    left: 50%;
-    width: 7px;
-    height: 7px;
-    border-radius: 50%;
-    background:
-      var(--p5-red, #ff2740);
-    box-shadow:
-      0 0 10px
-        rgba(255, 39, 64, 0.72);
-    transform:
-      translate(-50%, -50%);
-  }
-
-  body #root .mobile-stage-divider:hover
-    .mobile-stage-divider-anchor,
-  body #root .mobile-stage-divider:focus-visible
-    .mobile-stage-divider-anchor,
-  body #root .chat-body.mobile-stage-resizing
-    .mobile-stage-divider-anchor {
-    background: #3a3d48;
-    box-shadow:
-      0 0 0 2px
-        rgba(255, 39, 64, 0.28),
-      0 3px 16px
-        rgba(0, 0, 0, 0.5);
-  }
-
-  /* ============================================================
-     3. CHAT AREA — ALWAYS ONE FULL SCREEN
+     TRANSPARENT CHAT OVERLAY
      ============================================================ */
 
   body #root .chat-conversation {
-    grid-column: 1;
-    grid-row: 3;
+    position: absolute;
+    z-index: 20;
+    right: 0;
+    bottom: 0;
+    left: 0;
     width: 100%;
-    height: 100vh;
-    height: 100dvh;
-    min-height: 100vh;
-    min-height: 100dvh;
+    height: 50vh;
+    height: 50dvh;
+    min-height: 0;
     display: grid;
     grid-template-rows:
       minmax(0, 1fr)
@@ -293,64 +471,146 @@
       auto;
     overflow: hidden;
     border: 0;
-    background: #090a0e;
+    background: transparent;
   }
 
   body #root .message-list {
     min-height: 0;
     height: auto;
-    padding: 14px 10px;
+    padding:
+      34px
+      10px
+      10px;
     overflow-x: hidden;
     overflow-y: auto;
     overscroll-behavior: contain;
     -webkit-overflow-scrolling: touch;
+    scrollbar-width: none;
+    background: transparent;
+
+    /*
+     * Messages progressively disappear toward the upper edge.
+     * This works while the list remains fully scrollable.
+     */
+    -webkit-mask-image:
+      linear-gradient(
+        to bottom,
+        transparent 0%,
+        rgba(0, 0, 0, 0.15) 10%,
+        rgba(0, 0, 0, 0.62) 25%,
+        #000 44%,
+        #000 100%
+      );
+    mask-image:
+      linear-gradient(
+        to bottom,
+        transparent 0%,
+        rgba(0, 0, 0, 0.15) 10%,
+        rgba(0, 0, 0, 0.62) 25%,
+        #000 44%,
+        #000 100%
+      );
+  }
+
+  body #root .message-list::-webkit-scrollbar {
+    display: none;
   }
 
   body #root .chat-message {
-    width: min(92%, 720px);
-    margin-bottom: 12px;
-    padding: 11px 12px;
+    width: min(90%, 720px);
+    margin-bottom: 11px;
+    padding: 10px 12px;
+    border: 1px solid
+      rgba(255, 255, 255, 0.14);
+    border-radius: 13px;
+    clip-path: none;
+    box-shadow:
+      0 8px 22px
+        rgba(0, 0, 0, 0.22);
+    backdrop-filter: blur(12px);
+  }
+
+  body #root .chat-message-user {
+    background:
+      rgba(130, 18, 37, 0.72);
+    border-color:
+      rgba(255, 65, 91, 0.34);
+  }
+
+  body #root .chat-message-assistant {
+    background:
+      rgba(15, 17, 23, 0.68);
   }
 
   body #root .chat-message > p {
-    font-size: 0.9rem;
-    line-height: 1.52;
+    font-size: 0.89rem;
+    line-height: 1.5;
   }
 
   body #root .message-meta {
-    margin-bottom: 6px;
-    font-size: 0.66rem;
+    margin-bottom: 5px;
+    font-size: 0.64rem;
+  }
+
+  body #root .empty-chat {
+    min-height: 100%;
+    justify-content: flex-end;
+    padding-bottom: 20px;
+    text-shadow:
+      0 2px 8px
+        rgba(0, 0, 0, 0.9);
+  }
+
+  body #root .empty-chat h2 {
+    font-size: 2rem;
+  }
+
+  body #root .chat-loading {
+    text-shadow:
+      0 2px 8px
+        rgba(0, 0, 0, 0.9);
   }
 
   body #root .chat-error {
-    max-height: 24dvh;
-    margin: 0;
+    max-height: 18dvh;
+    margin: 0 9px 7px;
     overflow-y: auto;
-    border-right: 0;
-    border-left: 0;
+    border-radius: 8px;
+    backdrop-filter: blur(12px);
   }
 
   body #root .chat-composer {
     width: 100%;
     padding:
-      9px
+      8px
       max(9px, env(safe-area-inset-right))
       max(9px, env(safe-area-inset-bottom))
       max(9px, env(safe-area-inset-left));
-    border-top: 1px solid
-      rgba(255, 255, 255, 0.1);
+    border: 0;
+    background: transparent;
   }
 
   body #root .chat-composer textarea {
-    min-height: 54px;
-    max-height: 110px;
+    min-height: 52px;
+    max-height: 96px;
     padding: 10px 11px;
     resize: none;
+    color: #fff;
+    background:
+      rgba(10, 11, 15, 0.72);
+    border: 1px solid
+      rgba(255, 255, 255, 0.16);
+    border-radius: 12px;
+    clip-path: none;
+    box-shadow:
+      0 8px 24px
+        rgba(0, 0, 0, 0.28);
+    backdrop-filter: blur(14px);
   }
 
   body #root .composer-footer {
     gap: 8px;
-    margin-top: 7px;
+    margin-top: 6px;
   }
 
   body #root .composer-footer > span {
@@ -359,153 +619,44 @@
 
   body #root .composer-footer .primary-button {
     width: 100%;
-    min-height: 40px;
-  }
-
-  /* ============================================================
-     4. ACCESSORY INFORMATION BELOW SPRITE + FULL CHAT
-     ============================================================ */
-
-  body #root .mobile-chat-meta {
-    order: 3;
-    width: 100%;
-    display: grid;
-    grid-template-columns:
-      repeat(2, minmax(0, 1fr));
-    gap: 10px;
-    padding: 20px 14px;
-    background:
-      linear-gradient(
-        180deg,
-        #101117,
-        #0b0c10
-      );
-    border-top: 1px solid
-      rgba(255, 255, 255, 0.1);
-  }
-
-  body #root .mobile-chat-meta-card {
-    min-width: 0;
-    padding: 13px;
-    background:
-      rgba(255, 255, 255, 0.035);
-    border: 1px solid
-      rgba(255, 255, 255, 0.08);
-  }
-
-  body #root .mobile-chat-meta-card:last-child {
-    grid-column: 1 / -1;
-  }
-
-  body #root .mobile-chat-meta-card span,
-  body #root .mobile-chat-meta-card strong {
-    display: block;
-  }
-
-  body #root .mobile-chat-meta-card span {
-    margin-bottom: 5px;
-    color:
-      var(--p5-red, #ff2740);
-    font-size: 0.65rem;
-    font-weight: 900;
-    letter-spacing: 0.08em;
-    text-transform: uppercase;
-  }
-
-  body #root .mobile-chat-meta-card strong {
-    min-width: 0;
-    color: #f5f5f7;
-    font-size: 0.82rem;
-    overflow-wrap: anywhere;
-  }
-
-  /* ============================================================
-     5. IDENTITY, MODEL AND BUTTONS LAST
-     ============================================================ */
-
-  body #root .chat-header {
-    order: 4;
-    width: 100%;
-    display: block;
-    padding:
-      20px
-      max(14px, env(safe-area-inset-right))
-      max(28px, env(safe-area-inset-bottom))
-      max(14px, env(safe-area-inset-left));
-    border-top: 1px solid
-      rgba(255, 255, 255, 0.1);
-    border-bottom: 0;
-    background: #111218;
-  }
-
-  body #root .chat-header::after {
-    display: none;
-  }
-
-  body #root .chat-identity {
-    width: 100%;
-    margin-bottom: 18px;
-  }
-
-  body #root .chat-identity h1 {
-    font-size: 2rem;
-  }
-
-  body #root .chat-header-actions {
-    width: 100%;
-    display: grid;
-    grid-template-columns:
-      repeat(2, minmax(0, 1fr));
-    gap: 10px;
-  }
-
-  body #root .chat-model-picker {
-    grid-column: 1 / -1;
-    width: 100%;
-    min-width: 0;
-    display: grid;
-    gap: 7px;
-  }
-
-  body #root .chat-model-picker select {
-    width: 100%;
-    min-width: 0;
-    min-height: 48px;
-  }
-
-  body #root .chat-header-actions > button {
-    width: 100%;
-    min-width: 0;
-    min-height: 46px;
-    padding: 9px 10px;
-    justify-content: center;
-    text-align: center;
-    border: 1px solid
-      rgba(255, 255, 255, 0.08);
-    background: #1a1c23;
-  }
-
-  body #root .chat-header-actions > .secondary-button {
-    background: #282a33;
+    min-height: 39px;
+    border-radius: 10px;
+    clip-path: none;
   }
 }
 
-@media (max-width: 480px) {
-  body #root .mobile-chat-meta {
-    grid-template-columns:
-      minmax(0, 1fr);
+@media (
+  max-width: 820px
+) and (
+  max-height: 600px
+) {
+  body #root .chat-conversation {
+    height: 56dvh;
   }
 
-  body #root .mobile-chat-meta-card:last-child {
-    grid-column: auto;
+  body #root .chat-avatar img {
+    object-position: center top;
+  }
+
+  body #root .chat-header {
+    gap: 0;
+    padding-top: 12px;
+    padding-bottom: 12px;
+  }
+
+  body #root .chat-identity {
+    margin-bottom: 10px;
+  }
+
+  body #root .mobile-drawer-meta {
+    margin-bottom: 10px;
   }
 
   body #root .chat-header-actions {
-    grid-template-columns:
-      minmax(0, 1fr);
+    gap: 6px;
   }
 
-  body #root .chat-model-picker {
-    grid-column: auto;
+  body #root .chat-header-actions > button {
+    min-height: 38px;
   }
 }
