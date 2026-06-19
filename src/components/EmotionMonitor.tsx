@@ -1,4 +1,3 @@
-import { useEffect, useState } from 'react'
 import { createPortal } from 'react-dom'
 import { EMOTION_LABELS } from '../lib/sprites'
 import {
@@ -13,11 +12,7 @@ import type {
   EmotionalSensitivities,
   EmotionalState,
 } from '../types/lifeform'
-import {
-  normalizeDailyTokenLimit,
-} from '../lib/gemini'
 import './EmotionMonitor.css'
-import './MobileResponsive.css'
 
 type EmotionMonitorProps = {
   open: boolean
@@ -73,56 +68,6 @@ export function EmotionMonitor({
   onDailyTokenLimitChange,
   onClose,
 }: EmotionMonitorProps) {
-  const [
-    dailyTokenLimitInput,
-    setDailyTokenLimitInput,
-  ] = useState(
-    String(dailyTokenLimit),
-  )
-
-  useEffect(() => {
-    setDailyTokenLimitInput(
-      String(dailyTokenLimit),
-    )
-  }, [dailyTokenLimit])
-
-  const commitDailyTokenLimit = () => {
-    const cleanValue =
-      dailyTokenLimitInput
-        .replace(/[^0-9]/g, '')
-        .slice(0, 9)
-
-    if (!cleanValue) {
-      setDailyTokenLimitInput(
-        String(dailyTokenLimit),
-      )
-      return
-    }
-
-    const normalizedValue =
-      normalizeDailyTokenLimit(
-        Number(cleanValue),
-      )
-
-    setDailyTokenLimitInput(
-      String(normalizedValue),
-    )
-
-    if (
-      normalizedValue !==
-      dailyTokenLimit
-    ) {
-      onDailyTokenLimitChange(
-        normalizedValue,
-      )
-    }
-  }
-
-  const closeMonitor = () => {
-    commitDailyTokenLimit()
-    onClose()
-  }
-
   if (!open) {
     return null
   }
@@ -158,13 +103,13 @@ export function EmotionMonitor({
       role="presentation"
       onMouseDown={(event) => {
         if (event.target === event.currentTarget) {
-          closeMonitor()
+          onClose()
         }
       }}
     >
       <aside
         className="emotion-monitor"
-        aria-label="Parametri emotivi"
+        aria-label="Emotional parameters"
       >
         <header className="emotion-monitor-header">
           <div className="emotion-monitor-title">
@@ -172,14 +117,14 @@ export function EmotionMonitor({
               Emotional telemetry
             </p>
 
-            <h2>Parametri emotivi</h2>
+            <h2>Emotional parameters</h2>
           </div>
 
           <button
             type="button"
             className="emotion-monitor-close"
-            onClick={closeMonitor}
-            aria-label="Chiudi parametri emotivi"
+            onClick={onClose}
+            aria-label="Close emotional parameters"
           >
             ×
           </button>
@@ -187,7 +132,7 @@ export function EmotionMonitor({
 
         <section className="emotion-monitor-summary">
           <div>
-            <span>Stato attuale</span>
+            <span>Current state</span>
             <strong>
               {getEmotionUiLabel(
                 currentEmotion,
@@ -196,25 +141,25 @@ export function EmotionMonitor({
           </div>
 
           <div>
-            <span>Intensità</span>
+            <span>Intensity</span>
             <strong>{intensity}</strong>
           </div>
 
           <div>
-            <span>Classificatore</span>
+            <span>Classifier</span>
             <strong>
               {analyzing
-                ? 'Analisi…'
+                ? 'Analysis…'
                 : analysisSource === 'fallback'
-                  ? 'Fallback locale'
+                  ? 'Local fallback'
                   : analysisSource === 'model'
                     ? 'Gemini'
-                    : 'In attesa'}
+                    : 'Waiting'}
             </strong>
           </div>
 
           <div>
-            <span>Pool emotivo</span>
+            <span>Emotion pool</span>
             <strong>
               {emotionPointTotal}
               {' / '}
@@ -223,11 +168,11 @@ export function EmotionMonitor({
           </div>
 
           <div>
-            <span>Token odierni</span>
+            <span>Daily tokens</span>
             <strong>
-              {dailyTokensUsed.toLocaleString('it-IT')}
+              {dailyTokensUsed.toLocaleString('en-US')}
               {' / '}
-              {dailyTokenLimit.toLocaleString('it-IT')}
+              {dailyTokenLimit.toLocaleString('en-US')}
             </strong>
           </div>
         </section>
@@ -249,28 +194,28 @@ export function EmotionMonitor({
           {settingsError
             ? settingsError
             : savingSettings
-              ? 'Salvataggio impostazioni…'
-              : 'Le impostazioni vengono salvate automaticamente.'}
+              ? 'Saving settings…'
+              : 'Settings are saved automatically.'}
         </div>
 
         <section className="daily-token-settings">
           <div className="daily-token-settings-heading">
             <div>
-              <span>Stanchezza giornaliera</span>
+              <span>Daily tiredness</span>
               <strong>
                 {tokenPercentage}%
               </strong>
             </div>
 
             <p>
-              Tired dipende soltanto dai token realmente utilizzati oggi da chat e classificatore emotivo.
+              Tired depends only on the tokens actually used today by chat and emotional classifier.
             </p>
           </div>
 
           <div
             className="daily-token-progress"
             aria-label={
-              'Consumo token giornaliero: ' +
+              'Daily token usage: ' +
               String(tokenPercentage) +
               '%'
             }
@@ -289,30 +234,27 @@ export function EmotionMonitor({
             htmlFor="daily-token-limit-monitor"
           >
             <span>
-              Token massimi giornalieri
+              Daily token limit
             </span>
 
             <input
               id="daily-token-limit-monitor"
-              type="text"
-              inputMode="numeric"
-              pattern="[0-9]*"
-              autoComplete="off"
-              value={dailyTokenLimitInput}
-              onChange={(event) =>
-                setDailyTokenLimitInput(
-                  event.target.value
-                    .replace(/[^0-9]/g, '')
-                    .slice(0, 9),
-                )
-              }
-              onBlur={commitDailyTokenLimit}
-              onKeyDown={(event) => {
-                if (event.key === 'Enter') {
-                  event.currentTarget.blur()
+              type="number"
+              min="1000"
+              max="100000000"
+              step="10000"
+              value={dailyTokenLimit}
+              onChange={(event) => {
+                if (
+                  Number.isFinite(
+                    event.target.valueAsNumber,
+                  )
+                ) {
+                  onDailyTokenLimitChange(
+                    event.target.valueAsNumber,
+                  )
                 }
               }}
-              aria-label="Token massimi giornalieri"
             />
           </label>
         </section>
@@ -341,7 +283,7 @@ export function EmotionMonitor({
                   </span>
 
                   <span>
-                    Livello {level}
+                    Level {level}
                   </span>
                 </div>
 
@@ -349,7 +291,7 @@ export function EmotionMonitor({
                   className="emotion-level-track"
                   aria-label={
                     getEmotionUiLabel(emotion) +
-                    ': livello ' +
+                    ': level ' +
                     String(level)
                   }
                 >
@@ -363,14 +305,14 @@ export function EmotionMonitor({
 
                 {emotion === 'tired' ? (
                   <p className="emotion-derived-note">
-                    Automatico: segue il consumo token giornaliero.
+                    Automatic: follows daily token usage.
                   </p>
                 ) : (
                   <label
                     className="emotion-sensitivity-control"
                     htmlFor={inputId}
                   >
-                    <span>Sensibilità</span>
+                    <span>Sensitivity</span>
 
                     <input
                       id={inputId}
@@ -388,7 +330,7 @@ export function EmotionMonitor({
                         )
                       }
                       aria-label={
-                        'Sensibilità ' +
+                        'Sensitivity ' +
                         getEmotionUiLabel(
                           emotion,
                         )
@@ -406,13 +348,13 @@ export function EmotionMonitor({
         </div>
 
         <footer className="emotion-monitor-footer">
-          <span>Livello = stato dinamico</span>
-          <span>Sensibilità = reattività 0–100</span>
+          <span>Level = dynamic state</span>
+          <span>Sensitivity = reactivity 0–100</span>
           <span>
-            Tired = consumo token giornaliero
+            Tired = daily token usage
           </span>
           <span>
-            Pool massimo: {EMOTION_POINT_BUDGET}
+            Maximum pool: {EMOTION_POINT_BUDGET}
           </span>
         </footer>
       </aside>

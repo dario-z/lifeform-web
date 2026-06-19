@@ -2416,7 +2416,7 @@ export function LifeformChat({
 
           if (explicitKeyMemoryRequest) {
             setError(
-              'La risposta è stata inviata, ma non sono riuscita a salvare la Key Memory: ' +
+              'The reply was sent, but the Key Memory could not be saved: ' +
                 getErrorMessage(
                   memoryError,
                 ),
@@ -2485,7 +2485,7 @@ export function LifeformChat({
 
       const confirmed =
         window.confirm(
-          'Vuoi eliminare definitivamente tutta la cronologia e azzerare tutti i parametri emotivi? Le Key Memories resteranno conservate. Questa operazione non può essere annullata.',
+          'Permanently delete the whole chat history and reset all emotional parameters? Key Memories will be preserved. This cannot be undone.',
         )
 
       if (!confirmed) {
@@ -2758,7 +2758,7 @@ export function LifeformChat({
         <button
           type="button"
           className="mobile-menu-toggle"
-          aria-label="Apri menu"
+          aria-label="Open menu"
           aria-controls="lifeform-mobile-menu"
           aria-expanded={mobileMenuOpen}
           onClick={() =>
@@ -2780,7 +2780,7 @@ export function LifeformChat({
               ? 'mobile-menu-backdrop mobile-menu-backdrop-open'
               : 'mobile-menu-backdrop'
           }
-          aria-label="Chiudi menu"
+          aria-label="Close menu"
           tabIndex={
             mobileMenuOpen ? 0 : -1
           }
@@ -2800,7 +2800,7 @@ export function LifeformChat({
           <button
             type="button"
             className="mobile-menu-close"
-            aria-label="Chiudi menu"
+            aria-label="Close menu"
             onClick={() =>
               setMobileMenuOpen(false)
             }
@@ -2815,7 +2815,7 @@ export function LifeformChat({
 
             <div>
               <p className="eyebrow">
-                Connessione attiva
+                Active connection
               </p>
 
               <h1>
@@ -2826,10 +2826,10 @@ export function LifeformChat({
 
           <section
             className="mobile-drawer-meta"
-            aria-label="Informazioni della Lifeform"
+            aria-label="Lifeform information"
           >
             <div>
-              <span>Stato</span>
+              <span>State</span>
 
               <strong>
                 {topEmotionSummary}
@@ -2837,7 +2837,7 @@ export function LifeformChat({
             </div>
 
             <div>
-              <span>Modello</span>
+              <span>Model</span>
 
               <strong>
                 {getGeminiModelLabel(
@@ -2847,7 +2847,7 @@ export function LifeformChat({
             </div>
 
             <div>
-              <span>Token oggi</span>
+              <span>Tokens today</span>
 
               <strong>
                 {dailyTokensUsed.toLocaleString(
@@ -2863,7 +2863,7 @@ export function LifeformChat({
 
           <div className="chat-header-actions">
             <label className="chat-model-picker">
-              <span>Modello</span>
+              <span>Model</span>
 
               <select
                 value={selectedModel}
@@ -2880,7 +2880,7 @@ export function LifeformChat({
                   setError(null)
                 }}
                 disabled={sending}
-                aria-label="Modello Gemini"
+                aria-label="Gemini model"
               >
                 {GEMINI_MODEL_OPTIONS.map(
                   (option) => (
@@ -2908,7 +2908,7 @@ export function LifeformChat({
                 emotionPanelOpen
               }
             >
-              Emozioni
+              Emotions
             </button>
 
             <button
@@ -2942,8 +2942,8 @@ export function LifeformChat({
               }
             >
               {clearingChat
-                ? 'Eliminazione…'
-                : 'Svuota chat'}
+                ? 'Clearing…'
+                : 'Clear chat'}
             </button>
 
             <button
@@ -2955,7 +2955,7 @@ export function LifeformChat({
               }}
               disabled={sending}
             >
-              Cambia API
+              Change API
             </button>
 
             <button
@@ -2970,8 +2970,8 @@ export function LifeformChat({
               }
             >
               {signingOut
-                ? 'Disconnessione…'
-                : 'Esci'}
+                ? 'Signing out…'
+                : 'Sign out'}
             </button>
           </div>
         </header>
@@ -3001,7 +3001,7 @@ export function LifeformChat({
             <p
               className="chat-emotion chat-emotion-stack"
               aria-label={
-                'Emozioni principali: ' +
+                'Top emotions: ' +
                 topEmotionSummary
               }
             >
@@ -3028,7 +3028,7 @@ export function LifeformChat({
                 transientEmotion !==
                   null && (
                   <span className="chat-emotion-note">
-                    reazione
+                    reaction
                   </span>
                 )}
             </p>
@@ -3041,12 +3041,12 @@ export function LifeformChat({
 
             <div className="chat-context-info">
               <span>
-                Parametri emotivi
+                Emotional parameters
               </span>
 
               <strong>
-                Apri “Emozioni” per
-                monitorare i livelli
+                Open “Emotions” to
+                monitor levels
               </strong>
             </div>
           </aside>
@@ -3054,7 +3054,7 @@ export function LifeformChat({
           <div
             className="mobile-stage-divider"
             role="separator"
-            aria-label="Ridimensiona lo spazio tra sprite e chat"
+            aria-label="Resize the space between sprite and chat"
             aria-orientation="horizontal"
             aria-valuemin={
               MIN_MOBILE_SPRITE_SHARE
@@ -3068,7 +3068,7 @@ export function LifeformChat({
             aria-valuetext={
               'Sprite ' +
               String(mobileSpriteShare) +
-              ' per cento dello schermo. La chat mantiene sempre una schermata intera.'
+              ' percent of the screen. The chat always keeps one full screen.'
             }
             tabIndex={0}
             onPointerDown={
@@ -3119,8 +3119,8 @@ export function LifeformChat({
                   }
                 >
                   {loadingOlder
-                    ? 'Caricamento…'
-                    : 'Carica messaggi precedenti'}
+                    ? 'Loading…'
+                    : 'Load earlier messages'}
                 </button>
               )}
 
@@ -3129,7 +3129,7 @@ export function LifeformChat({
                   <div className="loading-orb" />
 
                   <p>
-                    Caricamento della cronologia…
+                    Loading history…
                   </p>
                 </div>
               ) : messages.length ===
@@ -3137,19 +3137,18 @@ export function LifeformChat({
                 !streamingText ? (
                 <div className="empty-chat">
                   <p className="eyebrow">
-                    Prima conversazione
+                    First conversation
                   </p>
 
                   <h2>
-                    {lifeform.name} è
-                    connessa.
+                    {lifeform.name} is
+                    connected.
                   </h2>
 
                   <p>
-                    Scrivi il primo
-                    messaggio per iniziare
-                    questa unica cronologia
-                    condivisa.
+                    Send the first message
+                    to begin this shared
+                    history.
                   </p>
                 </div>
               ) : (
@@ -3168,7 +3167,7 @@ export function LifeformChat({
                           'user'
                             ? profile
                                 .display_name ??
-                              'Utente'
+                              'User'
                             : lifeform.name}
                         </span>
 
@@ -3214,8 +3213,8 @@ export function LifeformChat({
 
                     <span>
                       {analyzingEmotion
-                        ? 'sta aggiornando le emozioni'
-                        : 'sta rispondendo'}
+                        ? 'updating emotions'
+                        : 'replying'}
                     </span>
                   </div>
 
@@ -3225,13 +3224,13 @@ export function LifeformChat({
                     </p>
                   ) : analyzingEmotion ? (
                     <p>
-                      Analisi emotiva in
-                      corso…
+                      Emotion analysis in
+                      progress…
                     </p>
                   ) : (
                     <div
                       className="typing-indicator"
-                      aria-label="Elaborazione in corso"
+                      aria-label="Processing"
                     >
                       <span />
                       <span />
@@ -3267,7 +3266,7 @@ export function LifeformChat({
                   handleTextareaKeyDown
                 }
                 placeholder={
-                  'Scrivi a ' +
+                  'Message ' +
                   lifeform.name +
                   '…'
                 }
@@ -3284,9 +3283,9 @@ export function LifeformChat({
 
               <div className="composer-footer">
                 <span>
-                  Invio per spedire ·
-                  Maiusc+Invio per
-                  andare a capo
+                  Enter to send ·
+                  Shift+Enter for
+                  a new line
                 </span>
 
                 <button
@@ -3294,13 +3293,13 @@ export function LifeformChat({
                   className="primary-button chat-send-button"
                   aria-label={
                     sending
-                      ? 'Invio in corso'
-                      : 'Invia messaggio'
+                      ? 'Sending'
+                      : 'Send message'
                   }
                   title={
                     sending
-                      ? 'Invio in corso'
-                      : 'Invia messaggio'
+                      ? 'Sending'
+                      : 'Send message'
                   }
                   disabled={
                     sending ||

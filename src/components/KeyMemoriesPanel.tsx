@@ -166,17 +166,17 @@ export function KeyMemoriesPanel({
             type="button"
             className="key-memory-close"
             onClick={onClose}
-            aria-label="Chiudi Key Memories"
+            aria-label="Close Key Memories"
           >
             ×
           </button>
         </header>
 
         <div className="key-memory-intro">
-          La Lifeform può creare e aggiornare
-          autonomamente ricordi importanti. Ogni
-          modifica manuale diventa autorevole e non
-          verrà sovrascritta automaticamente.
+          The Lifeform can create and update
+          important memories autonomously. Every
+          manual edit becomes authoritative and will
+          not be overwritten automatically.
         </div>
 
         {error && (
@@ -188,7 +188,7 @@ export function KeyMemoriesPanel({
         {editingId && (
           <section className="key-memory-editor">
             <label>
-              <span>Categoria</span>
+              <span>Category</span>
 
               <select
                 value={form.category}
@@ -220,7 +220,7 @@ export function KeyMemoriesPanel({
             </label>
 
             <label>
-              <span>Memoria</span>
+              <span>Memory</span>
 
               <textarea
                 value={form.content}
@@ -234,13 +234,13 @@ export function KeyMemoriesPanel({
                 maxLength={500}
                 rows={5}
                 disabled={saving}
-                placeholder="Scrivi una memoria chiara e autosufficiente…"
+                placeholder="Write a clear, self-contained memory…"
               />
             </label>
 
             <label>
               <span>
-                Importanza: {form.importance}
+                Importance: {form.importance}
               </span>
 
               <input
@@ -269,7 +269,7 @@ export function KeyMemoriesPanel({
                 onClick={closeEditor}
                 disabled={saving}
               >
-                Annulla
+                Cancel
               </button>
 
               <button
@@ -284,8 +284,8 @@ export function KeyMemoriesPanel({
                 }
               >
                 {saving
-                  ? 'Salvataggio…'
-                  : 'Salva memoria'}
+                  ? 'Saving…'
+                  : 'Save memory'}
               </button>
             </div>
           </section>
@@ -302,20 +302,20 @@ export function KeyMemoriesPanel({
                 MAX_KEY_MEMORIES
             }
           >
-            + Nuova memoria
+            + New memory
           </button>
         )}
 
         <div className="key-memory-list">
           {loading ? (
             <p className="key-memory-empty">
-              Caricamento delle memorie…
+              Loading memories…
             </p>
           ) : orderedMemories.length === 0 ? (
             <p className="key-memory-empty">
-              Nessuna Key Memory presente. La
-              Lifeform potrà crearne autonomamente
-              durante le conversazioni.
+              No Key Memories yet. The
+              Lifeform can create them autonomously
+              during conversations.
             </p>
           ) : (
             orderedMemories.map((memory) => (
@@ -334,8 +334,8 @@ export function KeyMemoriesPanel({
 
                   <span>
                     {memory.source === 'manual'
-                      ? 'Manuale'
-                      : 'Autonoma'}
+                      ? 'Manual'
+                      : 'Autonomous'}
                     {' · '}
                     {memory.importance}
                   </span>
@@ -351,7 +351,7 @@ export function KeyMemoriesPanel({
                     }
                     disabled={saving}
                   >
-                    Modifica
+                    Edit
                   </button>
 
                   <button
@@ -359,7 +359,7 @@ export function KeyMemoriesPanel({
                     onClick={() => {
                       const confirmed =
                         window.confirm(
-                          'Eliminare questa Key Memory?',
+                          'Delete this Key Memory?',
                         )
 
                       if (confirmed) {
@@ -370,7 +370,7 @@ export function KeyMemoriesPanel({
                     }}
                     disabled={saving}
                   >
-                    Elimina
+                    Delete
                   </button>
                 </div>
               </article>

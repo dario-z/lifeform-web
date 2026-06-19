@@ -13,25 +13,25 @@ export const AUTO_MEMORY_REPLACEMENT_MARGIN = 8
 export const KEY_MEMORY_CATEGORY_LABELS:
   Record<KeyMemoryCategory, string> = {
     conversation_memory:
-      'Ricordo dalla conversazione',
+      'Conversation memory',
     user_preference:
-      'Preferenza consolidata',
+      'User preference',
     important_person:
-      'Persona importante',
+      'Important person',
     important_place:
-      'Luogo importante',
+      'Important place',
     important_project:
-      'Progetto importante',
+      'Important project',
     long_term_goal:
-      'Obiettivo a lungo termine',
+      'Long-term goal',
     conversation_summary:
-      'Riassunto storico',
+      'Conversation summary',
     key_event:
-      'Evento chiave',
+      'Key event',
     lifeform_belief:
-      'Convinzione della Lifeform',
+      'Lifeform belief',
     other:
-      'Altro',
+      'Other',
   }
 
 type RawKeyMemoryCandidate = {

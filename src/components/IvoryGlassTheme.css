@@ -1520,16 +1520,335 @@ body #root .chat-avatar-interactive:focus-visible {
 }
 
 
-/* Higher-specificity override for the old single-emotion badge. */
-body #root .chat-avatar-panel
-  > .chat-emotion.chat-emotion-stack {
+/* ============================================================
+   IVORY GLASS V8 — CONTRAST, ENGLISH UI AND LARGE SPRITES
+   ============================================================ */
+
+/* Chat bubble metadata must be readable on graphite bubbles. */
+body #root .chat-message,
+body #root .chat-message * ,
+body #root .chat-message-user,
+body #root .chat-message-user *,
+body #root .chat-message-assistant,
+body #root .chat-message-assistant * {
+  color: #fff !important;
+}
+
+body #root .chat-message .message-meta,
+body #root .chat-message .message-meta span,
+body #root .chat-message .message-meta time {
+  color: rgba(255, 255, 255, 0.84) !important;
+}
+
+body #root .chat-message p {
+  color: #fff !important;
+}
+
+/* General contrast safeguards for dark graphite controls. */
+body #root .primary-button,
+body #root .secondary-button,
+body #root .chat-header-actions > .secondary-button,
+body #root .composer-footer .primary-button,
+body #root .chat-send-button {
+  color: #fff !important;
+}
+
+body #root .primary-button *,
+body #root .secondary-button *,
+body #root .chat-header-actions > .secondary-button *,
+body #root .composer-footer .primary-button *,
+body #root .chat-send-button * {
+  color: #fff !important;
+}
+
+/* Light glass panels keep graphite text. */
+body #root .auth-panel,
+body #root .authenticated-card,
+body #root .onboarding-card,
+body #root .gemini-setup-card,
+body #root .lifeform-home,
+body #root .mobile-drawer-meta,
+body #root .key-memory-panel,
+body #root .emotion-monitor {
+  color: var(--ivory-ink) !important;
+}
+
+/* Desktop chat: make the left sprite fill the whole visual section. */
+@media (min-width: 821px) {
+  body #root .chat-avatar-panel {
+    padding: 0 !important;
+    overflow: hidden !important;
+    background: transparent !important;
+  }
+
+  body #root .chat-avatar {
+    width: 100% !important;
+    height: 100% !important;
+    max-width: none !important;
+    max-height: none !important;
+    display: block !important;
+    overflow: hidden !important;
+  }
+
+  body #root .chat-avatar img {
+    width: 100% !important;
+    height: 100% !important;
+    max-width: none !important;
+    max-height: none !important;
+    object-fit: cover !important;
+    object-position: center center !important;
+  }
+
+  body #root .chat-avatar-panel > .chat-emotion {
+    position: absolute !important;
+    z-index: 6 !important;
+    top: 14px !important;
+    left: 14px !important;
+  }
+
+  body #root .chat-provider,
+  body #root .chat-context-info {
+    position: absolute !important;
+    z-index: 5 !important;
+    left: 14px !important;
+    right: 14px !important;
+  }
+
+  body #root .chat-provider {
+    bottom: 86px !important;
+  }
+
+  body #root .chat-context-info {
+    bottom: 14px !important;
+  }
+}
+
+@keyframes lifeform-login-sprite-cycle {
+  0.0000% {
+    background-image:
+      url("/lifeform-web/sprites/emotions/neutral.png");
+  }
+  4.5455% {
+    background-image:
+      url("/lifeform-web/sprites/emotions/happy_1.png");
+  }
+  9.0909% {
+    background-image:
+      url("/lifeform-web/sprites/emotions/happy_2.png");
+  }
+  13.6364% {
+    background-image:
+      url("/lifeform-web/sprites/emotions/curious_1.png");
+  }
+  18.1818% {
+    background-image:
+      url("/lifeform-web/sprites/emotions/curious_2.png");
+  }
+  22.7273% {
+    background-image:
+      url("/lifeform-web/sprites/emotions/curious_3.png");
+  }
+  27.2727% {
+    background-image:
+      url("/lifeform-web/sprites/emotions/engaged_neutral.png");
+  }
+  31.8182% {
+    background-image:
+      url("/lifeform-web/sprites/emotions/engaged_happy.png");
+  }
+  36.3636% {
+    background-image:
+      url("/lifeform-web/sprites/emotions/engaged_concerned.png");
+  }
+  40.9091% {
+    background-image:
+      url("/lifeform-web/sprites/emotions/concerned.png");
+  }
+  45.4545% {
+    background-image:
+      url("/lifeform-web/sprites/emotions/reflective.png");
+  }
+  50.0000% {
+    background-image:
+      url("/lifeform-web/sprites/emotions/thinking.neutral.png");
+  }
+  54.5455% {
+    background-image:
+      url("/lifeform-web/sprites/emotions/thinking.happy.png");
+  }
+  59.0909% {
+    background-image:
+      url("/lifeform-web/sprites/emotions/thinking.angry.png");
+  }
+  63.6364% {
+    background-image:
+      url("/lifeform-web/sprites/emotions/sad_1.png");
+  }
+  68.1818% {
+    background-image:
+      url("/lifeform-web/sprites/emotions/sad_2.png");
+  }
+  72.7273% {
+    background-image:
+      url("/lifeform-web/sprites/emotions/wary.png");
+  }
+  77.2727% {
+    background-image:
+      url("/lifeform-web/sprites/emotions/afraid.png");
+  }
+  81.8182% {
+    background-image:
+      url("/lifeform-web/sprites/emotions/irritated.png");
+  }
+  86.3636% {
+    background-image:
+      url("/lifeform-web/sprites/emotions/angry.png");
+  }
+  90.9091% {
+    background-image:
+      url("/lifeform-web/sprites/emotions/tired.png");
+  }
+  95.4545% {
+    background-image:
+      url("/lifeform-web/sprites/emotions/dormant.png");
+  }
+  100% {
+    background-image:
+      url("/lifeform-web/sprites/emotions/neutral.png");
+  }
+}
+
+/* Login: huge rotating sprite, excluding horny variants. */
+body #root .intro-panel {
+  position: relative !important;
+  min-height: min(920px, calc(100vh - 32px)) !important;
+  overflow: hidden !important;
   display: flex !important;
-  align-items: center !important;
-  gap: 5px !important;
-  padding: 0 !important;
-  background: transparent !important;
-  border: 0 !important;
-  border-left: 0 !important;
-  box-shadow: none !important;
-  backdrop-filter: none !important;
+  flex-direction: column !important;
+  justify-content: flex-end !important;
+  isolation: isolate !important;
+}
+
+body #root .intro-panel::after {
+  content: "" !important;
+  position: absolute !important;
+  z-index: 2 !important;
+  right: 0 !important;
+  bottom: 0 !important;
+  left: 0 !important;
+  height: 48% !important;
+  display: block !important;
+  background:
+    linear-gradient(
+      to top,
+      rgba(69, 65, 61, 0.82),
+      rgba(69, 65, 61, 0.62) 46%,
+      rgba(69, 65, 61, 0.18) 76%,
+      transparent 100%
+    ) !important;
+  -webkit-mask-image:
+    linear-gradient(
+      to top,
+      #000 0%,
+      #000 58%,
+      rgba(0, 0, 0, 0.62) 80%,
+      transparent 100%
+    ) !important;
+  mask-image:
+    linear-gradient(
+      to top,
+      #000 0%,
+      #000 58%,
+      rgba(0, 0, 0, 0.62) 80%,
+      transparent 100%
+    ) !important;
+  pointer-events: none !important;
+}
+
+body #root .intro-panel
+  .avatar-placeholder {
+  position: absolute !important;
+  z-index: 1 !important;
+  inset: -12% -20% -4% -20% !important;
+  width: auto !important;
+  height: auto !important;
+  min-height: 0 !important;
+  max-height: none !important;
+  margin: 0 !important;
+  overflow: visible !important;
+  pointer-events: none !important;
+}
+
+body #root .intro-panel
+  .avatar-placeholder::before {
+  inset: 0 !important;
+  background-repeat: no-repeat !important;
+  background-position: center bottom !important;
+  background-size: contain !important;
+  animation:
+    lifeform-login-sprite-cycle 22s
+      steps(1, end)
+      infinite,
+    lifeform-sprite-gentle-motion
+      6.2s
+      ease-in-out
+      infinite !important;
+}
+
+body #root .intro-panel
+  .avatar-placeholder::after {
+  opacity: 0.34 !important;
+}
+
+body #root .intro-panel h1,
+body #root .intro-panel p,
+body #root .intro-panel .eyebrow {
+  position: relative !important;
+  z-index: 3 !important;
+  color: #fff !important;
+  text-shadow:
+    0 2px 14px
+    rgba(0, 0, 0, 0.34) !important;
+}
+
+body #root .intro-panel h1 {
+  max-width: 11ch !important;
+  margin-top: auto !important;
+  margin-bottom: 12px !important;
+}
+
+body #root .intro-panel p {
+  max-width: 38rem !important;
+  color: rgba(255, 255, 255, 0.84) !important;
+}
+
+/* Login and setup pages must remain scrollable on small screens. */
+@media (max-width: 820px) {
+  body:not(.lifeform-chat-active)
+    #root .intro-panel {
+    min-height: 78dvh !important;
+    padding-top: 28dvh !important;
+  }
+
+  body:not(.lifeform-chat-active)
+    #root .intro-panel
+      .avatar-placeholder {
+    inset: -8% -34% 0 -34% !important;
+  }
+
+  body:not(.lifeform-chat-active)
+    #root .intro-panel h1 {
+    max-width: 10ch !important;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  body #root .intro-panel
+    .avatar-placeholder::before {
+    animation:
+      lifeform-sprite-gentle-motion
+      6.2s
+      ease-in-out
+      infinite !important;
+  }
 }

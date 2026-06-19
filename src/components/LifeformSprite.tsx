@@ -5,7 +5,6 @@ import {
   useRef,
   useState,
 } from 'react'
-import type { KeyboardEvent } from 'react'
 import { EMOTION_LABELS } from '../lib/sprites'
 import type { EmotionalState } from '../types/lifeform'
 import './LifeformSprite.css'
@@ -306,7 +305,7 @@ export function LifeformSprite({
     useCallback(
       (
         event:
-          KeyboardEvent<HTMLDivElement>,
+          React.KeyboardEvent<HTMLDivElement>,
       ) => {
         if (
           event.key !== 'Enter' &&
