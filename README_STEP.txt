@@ -1,15 +1,14 @@
-DIGITAL LIFEFORM — LOGIN REPAIR V10
+DIGITAL LIFEFORM — LOGIN FIX V11
 
 Correzioni:
-- elimina il blocco diagonale scuro della pagina login;
-- crea una fascia grafite orizzontale e trasparente che sfuma verso l'alto;
-- mantiene il testo bianco sopra la fascia scura;
-- mantiene "Project Lifeform" grafite su pill chiara;
-- ingrandisce molto lo sprite login desktop;
-- ingrandisce e centra lo sprite login mobile;
-- fa ruotare gli sprite login ogni secondo;
-- usa un ordine mescolato/pseudo-random;
-- esclude tutte le varianti horny.
+- elimina definitivamente il blocco diagonale nella login;
+- crea una fascia grafite orizzontale che sfuma verso l'alto;
+- mantiene testo bianco leggibile sopra la fascia;
+- ingrandisce e centra lo sprite in mobile;
+- riduce l'altezza del pannello intro mobile così il form non finisce troppo in basso;
+- ruota gli sprite ogni secondo in ordine mescolato/pseudo-random;
+- esclude tutte le varianti horny;
+- traduce visivamente i testi rimasti in italiano nella schermata login/register.
 
 File modificato:
 src\components\IvoryGlassTheme.css
@@ -26,6 +25,6 @@ Installazione:
    npm run dev
 
 4. Ricaricare con CTRL+F5.
-   Su GitHub Pages attendere il deploy e aprire una scheda privata al primo test.
+   Su GitHub Pages attendere il deploy e usare una scheda privata al primo test.
 
 Nessuna modifica SQL richiesta.
