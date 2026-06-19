@@ -1,25 +1,15 @@
-DIGITAL LIFEFORM — CHANGE API PAGE ENGLISH TRANSLATION
+DIGITAL LIFEFORM — DARK FORM FIELD TEXT V14
 
-Questo pacchetto traduce la pagina CHANGE API in inglese intervenendo sui file sorgente esistenti.
+Questa patch rende più scuri e leggibili i testi dentro:
+- input;
+- select;
+- textarea;
+- placeholder;
+- opzioni dei menu a tendina;
+- campi autofill di Chrome/Safari.
 
-File bersaglio:
-- src\components\GeminiSetup.tsx
-- src\lib\gemini.ts
-
-Traduce:
-- intestazioni
-- descrizioni
-- dettagli provider/modello/token
-- link Google AI Studio
-- selettore modello
-- descrizione modello
-- soglia token giornaliera
-- campo API key
-- placeholder
-- pulsanti Show/Hide, Verify and connect, Sign out
-- note di sicurezza
-- messaggi di errore Gemini
-- descrizioni dei modelli
+Non sovrascrive il CSS: aggiunge solo un blocco finale a:
+src\components\IvoryGlassTheme.css
 
 Installazione:
 1. Estrarre nella root:
@@ -27,10 +17,10 @@ Installazione:
 
 2. Eseguire:
    cd /d C:\Projects\lifeform-web
-   node scripts\translate-change-api-page.mjs
+   node scripts\append-dark-form-field-text.mjs
 
 3. Poi:
    npm run build
    npm run dev
 
-Lo script stampa quante sostituzioni fa e segnala eventuali frammenti italiani sospetti rimasti nei due file.
+4. Ricaricare senza cache.

@@ -3504,3 +3504,65 @@ body #root .auth-form input::placeholder {
   color: var(--ivory-ink-soft) !important;
   opacity: 0.68 !important;
 }
+
+/* ============================================================
+   IVORY GLASS V14 — DARK FORM FIELD TEXT
+   ============================================================ */
+
+body #root input,
+body #root select,
+body #root textarea,
+body #root option,
+body #root .auth-form input,
+body #root .auth-form select,
+body #root .auth-form textarea,
+body #root .gemini-key-form input,
+body #root .gemini-key-form select,
+body #root .gemini-key-form textarea,
+body #root .gemini-model-select,
+body #root .gemini-token-limit-input,
+body #root .api-key-input-row input {
+  color: var(--ivory-ink, #3f3a35) !important;
+  -webkit-text-fill-color: var(--ivory-ink, #3f3a35) !important;
+  caret-color: var(--ivory-graphite, #45413d) !important;
+}
+
+body #root input::placeholder,
+body #root textarea::placeholder,
+body #root .auth-form input::placeholder,
+body #root .auth-form textarea::placeholder,
+body #root .gemini-key-form input::placeholder,
+body #root .gemini-key-form textarea::placeholder,
+body #root .api-key-input-row input::placeholder {
+  color: rgba(63, 58, 53, 0.68) !important;
+  -webkit-text-fill-color: rgba(63, 58, 53, 0.68) !important;
+  opacity: 1 !important;
+}
+
+body #root select option,
+body #root .gemini-model-select option {
+  color: #2f2b27 !important;
+  background: #fffdfb !important;
+}
+
+body #root input:disabled,
+body #root select:disabled,
+body #root textarea:disabled {
+  color: rgba(63, 58, 53, 0.52) !important;
+  -webkit-text-fill-color: rgba(63, 58, 53, 0.52) !important;
+  opacity: 1 !important;
+}
+
+/* Chrome/Safari autofill often makes text too pale unless forced. */
+body #root input:-webkit-autofill,
+body #root input:-webkit-autofill:hover,
+body #root input:-webkit-autofill:focus {
+  -webkit-text-fill-color: var(--ivory-ink, #3f3a35) !important;
+  box-shadow:
+    0 0 0 1000px
+    rgba(255, 253, 250, 0.82)
+    inset !important;
+  transition:
+    background-color 9999s ease-out 0s !important;
+}
+
