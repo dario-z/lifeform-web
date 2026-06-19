@@ -1,44 +1,141 @@
 import {
-  useCallback,
   useEffect,
+  useMemo,
   useRef,
   useState,
 } from 'react'
-import {
-  EMOTION_LABELS,
-  getEmotionSpriteUrl,
-  preloadCriticalSprites,
-} from '../lib/sprites'
+import { EMOTION_LABELS } from '../lib/sprites'
 import type { EmotionalState } from '../types/lifeform'
 import './LifeformSprite.css'
+
+type EmotionLevelsLike = Partial<
+  Record<string, number>
+>
 
 type LifeformSpriteProps = {
   emotion: EmotionalState
   lifeformName: string
+  emotionLevels?: EmotionLevelsLike
 }
 
-type SpriteVideoPlayback = {
-  emotion: EmotionalState
-  url: string
-  playKey: number
+const SPRITE_CYCLE_INTERVAL_MS = 3000
+
+const STATIC_SPRITE_FILES: Partial<
+  Record<EmotionalState, string[]>
+> = {
+  afraid: ['afraid.png'],
+  angry: ['angry.png'],
+  concerned: ['concerned.png'],
+  curious: [
+    'curious_1.png',
+    'curious_2.png',
+    'curious_3.png',
+  ],
+  dormant: ['dormant.png'],
+  happy: [
+    'happy_1.png',
+    'happy_2.png',
+  ],
+  horny: [
+    'horny_1.png',
+    'horny_2.png',
+    'horny_3.png',
+    'horny_4.png',
+  ],
+  irritated: ['irritated.png'],
+  neutral: ['neutral.png'],
+  reflective: ['reflective.png'],
+  sad: ['sad_1.png', 'sad_2.png'],
+  tired: ['tired.png'],
+  wary: ['wary.png'],
 }
 
-function getEmotionVideoUrl(
-  emotion: EmotionalState,
-): string {
+function getBaseUrl(): string {
   const baseUrl =
     import.meta.env.BASE_URL || '/'
 
-  const normalizedBaseUrl =
-    baseUrl.endsWith('/')
-      ? baseUrl
-      : baseUrl + '/'
+  return baseUrl.endsWith('/')
+    ? baseUrl
+    : baseUrl + '/'
+}
+
+function getSpriteUrl(
+  fileName: string,
+): string {
+  return (
+    getBaseUrl() +
+    'sprites/emotions/' +
+    fileName
+  )
+}
+
+function getLevel(
+  levels: EmotionLevelsLike | undefined,
+  key: string,
+): number {
+  const value = levels?.[key]
+
+  if (typeof value !== 'number') {
+    return 0
+  }
+
+  return Number.isFinite(value)
+    ? value
+    : 0
+}
+
+function chooseEngagedFile(
+  levels: EmotionLevelsLike | undefined,
+): string {
+  const concerned =
+    getLevel(levels, 'concerned')
+  const happy = getLevel(levels, 'happy')
+
+  if (
+    concerned > 70 ||
+    happy > 70
+  ) {
+    return happy >= concerned
+      ? 'engaged_happy.png'
+      : 'engaged_concerned.png'
+  }
+
+  return 'engaged_neutral.png'
+}
+
+function chooseThinkingFile(
+  levels: EmotionLevelsLike | undefined,
+): string {
+  const angry = getLevel(levels, 'angry')
+  const happy = getLevel(levels, 'happy')
+
+  if (
+    angry > 70 ||
+    happy > 70
+  ) {
+    return happy >= angry
+      ? 'thinking.happy.png'
+      : 'thinking.angry.png'
+  }
+
+  return 'thinking.neutral.png'
+}
+
+function getEmotionSpriteFiles(
+  emotion: EmotionalState,
+  levels: EmotionLevelsLike | undefined,
+): string[] {
+  if (emotion === 'engaged') {
+    return [chooseEngagedFile(levels)]
+  }
+
+  if (emotion === 'thinking') {
+    return [chooseThinkingFile(levels)]
+  }
 
   return (
-    normalizedBaseUrl +
-    'sprites/emotions/mp4/' +
-    emotion +
-    '.mp4'
+    STATIC_SPRITE_FILES[emotion] ??
+    ['neutral.png']
   )
 }
 
@@ -86,12 +183,61 @@ function loadImage(url: string): Promise<void> {
   })
 }
 
+async function loadFirstAvailable(
+  urls: string[],
+): Promise<{
+  url: string
+  index: number
+} | null> {
+  for (
+    let index = 0;
+    index < urls.length;
+    index += 1
+  ) {
+    const url = urls[index]
+
+    try {
+      await loadImage(url)
+
+      return { url, index }
+    } catch {
+      // Try the next candidate.
+    }
+  }
+
+  return null
+}
+
 export function LifeformSprite({
   emotion,
   lifeformName,
+  emotionLevels,
 }: LifeformSpriteProps) {
+  const spriteFiles = useMemo(
+    () =>
+      getEmotionSpriteFiles(
+        emotion,
+        emotionLevels,
+      ),
+    [
+      emotion,
+      emotionLevels?.angry,
+      emotionLevels?.concerned,
+      emotionLevels?.happy,
+    ],
+  )
+
+  const spriteUrls = useMemo(
+    () => spriteFiles.map(getSpriteUrl),
+    [spriteFiles],
+  )
+
+  const spriteUrlsKey =
+    spriteUrls.join('|')
+
   const initialUrl =
-    getEmotionSpriteUrl(emotion)
+    spriteUrls[0] ??
+    getSpriteUrl('neutral.png')
 
   const [visibleUrl, setVisibleUrl] =
     useState(initialUrl)
@@ -107,205 +253,52 @@ export function LifeformSprite({
     switchingSprite,
     setSwitchingSprite,
   ] = useState(false)
-  const [
-    activeVideo,
-    setActiveVideo,
-  ] = useState<SpriteVideoPlayback | null>(
-    null,
-  )
-  const [videoReady, setVideoReady] =
-    useState(false)
 
-  const videoRef =
-    useRef<HTMLVideoElement | null>(null)
-  const playCounterRef = useRef(0)
-  const firstSpriteLoadRef = useRef(true)
-
-  const startVideoForEmotion =
-    useCallback(
-      (requestedEmotion: EmotionalState) => {
-        playCounterRef.current += 1
-
-        setVideoReady(false)
-        setActiveVideo({
-          emotion: requestedEmotion,
-          url: getEmotionVideoUrl(
-            requestedEmotion,
-          ),
-          playKey: playCounterRef.current,
-        })
-      },
-      [],
-    )
-
-  const showStillSprite =
-    useCallback(
-      async (
-        requestedEmotion: EmotionalState,
-        playbackKey?: number,
-      ) => {
-        const requestedUrl =
-          getEmotionSpriteUrl(
-            requestedEmotion,
-          )
-        const neutralUrl =
-          getEmotionSpriteUrl('neutral')
-
-        try {
-          await loadImage(requestedUrl)
-
-          setVisibleUrl(requestedUrl)
-          setVisibleEmotion(
-            requestedEmotion,
-          )
-          setHasVisibleSprite(true)
-        } catch {
-          if (
-            requestedEmotion ===
-            'neutral'
-          ) {
-            setHasVisibleSprite(false)
-          } else {
-            try {
-              await loadImage(neutralUrl)
-
-              setVisibleUrl(neutralUrl)
-              setVisibleEmotion('neutral')
-              setHasVisibleSprite(true)
-            } catch {
-              setHasVisibleSprite(false)
-            }
-          }
-        } finally {
-          if (
-            typeof playbackKey ===
-            'number'
-          ) {
-            setActiveVideo(
-              (currentVideo) =>
-                currentVideo?.playKey ===
-                playbackKey
-                  ? null
-                  : currentVideo,
-            )
-          }
-
-          setVideoReady(false)
-        }
-      },
-      [],
-    )
-
-  const finishVideoPlayback =
-    useCallback(
-      (
-        playback:
-          | SpriteVideoPlayback
-          | null,
-      ) => {
-        if (!playback) {
-          return
-        }
-
-        void showStillSprite(
-          playback.emotion,
-          playback.playKey,
-        )
-      },
-      [showStillSprite],
-    )
-
-  const handleSpriteActivation =
-    useCallback(() => {
-      startVideoForEmotion(
-        activeVideo?.emotion ??
-          visibleEmotion,
-      )
-    }, [
-      activeVideo?.emotion,
-      startVideoForEmotion,
-      visibleEmotion,
-    ])
-
-  const handleSpriteKeyDown =
-    useCallback(
-      (
-        event:
-          React.KeyboardEvent<HTMLDivElement>,
-      ) => {
-        if (
-          event.key !== 'Enter' &&
-          event.key !== ' '
-        ) {
-          return
-        }
-
-        event.preventDefault()
-        handleSpriteActivation()
-      },
-      [handleSpriteActivation],
-    )
-
-  useEffect(() => {
-    preloadCriticalSprites()
-  }, [])
+  const currentVariantIndexRef =
+    useRef(0)
 
   useEffect(() => {
     let cancelled = false
 
-    const requestedUrl =
-      getEmotionSpriteUrl(emotion)
-    const neutralUrl =
-      getEmotionSpriteUrl('neutral')
-
     const updateSprite = async () => {
       setSwitchingSprite(true)
 
-      try {
-        await loadImage(requestedUrl)
+      const firstAvailable =
+        await loadFirstAvailable(
+          spriteUrls,
+        )
 
-        if (cancelled) {
-          return
-        }
+      if (cancelled) {
+        return
+      }
 
+      if (firstAvailable) {
+        currentVariantIndexRef.current =
+          firstAvailable.index
+        setVisibleUrl(firstAvailable.url)
+        setVisibleEmotion(emotion)
         setHasVisibleSprite(true)
+        setSwitchingSprite(false)
+        return
+      }
 
-        if (firstSpriteLoadRef.current) {
-          firstSpriteLoadRef.current =
-            false
+      const neutralUrl =
+        getSpriteUrl('neutral.png')
 
-          setVisibleUrl(requestedUrl)
-          setVisibleEmotion(emotion)
-        } else {
-          startVideoForEmotion(emotion)
-        }
-      } catch {
+      try {
+        await loadImage(neutralUrl)
+
         if (cancelled) {
           return
         }
 
-        firstSpriteLoadRef.current =
-          false
-
-        if (emotion === 'neutral') {
+        currentVariantIndexRef.current = 0
+        setVisibleUrl(neutralUrl)
+        setVisibleEmotion('neutral')
+        setHasVisibleSprite(true)
+      } catch {
+        if (!cancelled) {
           setHasVisibleSprite(false)
-          return
-        }
-
-        try {
-          await loadImage(neutralUrl)
-
-          if (cancelled) {
-            return
-          }
-
-          setVisibleUrl(neutralUrl)
-          setVisibleEmotion('neutral')
-          setHasVisibleSprite(true)
-        } catch {
-          if (!cancelled) {
-            setHasVisibleSprite(false)
-          }
         }
       } finally {
         if (!cancelled) {
@@ -319,56 +312,69 @@ export function LifeformSprite({
     return () => {
       cancelled = true
     }
-  }, [emotion, startVideoForEmotion])
+  }, [emotion, spriteUrlsKey])
 
   useEffect(() => {
-    if (!activeVideo || !videoReady) {
-      return
-    }
-
-    const video = videoRef.current
-
-    if (!video) {
+    if (spriteUrls.length <= 1) {
       return
     }
 
     let cancelled = false
 
-    video.currentTime = 0
+    const intervalId =
+      window.setInterval(() => {
+        const cycleToNextSprite =
+          async () => {
+            for (
+              let attempt = 0;
+              attempt < spriteUrls.length;
+              attempt += 1
+            ) {
+              const nextIndex =
+                (currentVariantIndexRef
+                  .current +
+                  1 +
+                  attempt) %
+                spriteUrls.length
+              const nextUrl =
+                spriteUrls[nextIndex]
 
-    const playbackPromise = video.play()
+              try {
+                await loadImage(nextUrl)
 
-    if (playbackPromise) {
-      playbackPromise.catch(() => {
-        if (!cancelled) {
-          finishVideoPlayback(
-            activeVideo,
-          )
-        }
-      })
-    }
+                if (cancelled) {
+                  return
+                }
+
+                currentVariantIndexRef.current =
+                  nextIndex
+                setVisibleUrl(nextUrl)
+                setVisibleEmotion(emotion)
+                setHasVisibleSprite(true)
+                return
+              } catch {
+                // Try the following variant.
+              }
+            }
+          }
+
+        void cycleToNextSprite()
+      }, SPRITE_CYCLE_INTERVAL_MS)
 
     return () => {
       cancelled = true
+      window.clearInterval(intervalId)
     }
-  }, [
-    activeVideo,
-    finishVideoPlayback,
-    videoReady,
-  ])
+  }, [emotion, spriteUrlsKey, spriteUrls])
 
   const classNames = [
     'chat-avatar',
-    'chat-avatar-interactive',
     'emotion-' + visibleEmotion,
     hasVisibleSprite
       ? 'sprite-loaded'
       : 'sprite-loading',
     switchingSprite
       ? 'sprite-switching'
-      : '',
-    activeVideo
-      ? 'sprite-video-playing'
       : '',
   ]
     .filter(Boolean)
@@ -377,33 +383,15 @@ export function LifeformSprite({
   const emotionLabel =
     EMOTION_LABELS[visibleEmotion]
 
-  const activeVideoLabel =
-    activeVideo
-      ? EMOTION_LABELS[
-          activeVideo.emotion
-        ]
-      : emotionLabel
-
   return (
     <div
       className={classNames}
-      role="button"
-      tabIndex={0}
       aria-label={
-        lifeformName +
-        ': ' +
-        activeVideoLabel +
-        '. Tocca per riprodurre l’animazione.'
+        lifeformName + ': ' + emotionLabel
       }
-      aria-busy={
-        switchingSprite ||
-        activeVideo !== null
-      }
-      onClick={handleSpriteActivation}
-      onKeyDown={handleSpriteKeyDown}
+      aria-busy={switchingSprite}
     >
       <img
-        className="chat-avatar-media chat-avatar-still"
         src={visibleUrl}
         alt={
           lifeformName +
@@ -412,42 +400,6 @@ export function LifeformSprite({
         }
         draggable={false}
       />
-
-      {activeVideo && (
-        <video
-          key={activeVideo.playKey}
-          ref={videoRef}
-          className={
-            videoReady
-              ? 'chat-avatar-media chat-avatar-video chat-avatar-video-active'
-              : 'chat-avatar-media chat-avatar-video'
-          }
-          src={activeVideo.url}
-          poster={getEmotionSpriteUrl(
-            activeVideo.emotion,
-          )}
-          muted
-          playsInline
-          preload="auto"
-          aria-hidden="true"
-          onLoadedData={() =>
-            setVideoReady(true)
-          }
-          onCanPlay={() =>
-            setVideoReady(true)
-          }
-          onEnded={() =>
-            finishVideoPlayback(
-              activeVideo,
-            )
-          }
-          onError={() =>
-            finishVideoPlayback(
-              activeVideo,
-            )
-          }
-        />
-      )}
 
       {!hasVisibleSprite && (
         <div

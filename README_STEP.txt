@@ -1,26 +1,63 @@
-DIGITAL LIFEFORM — MP4 EMOTION TRANSITIONS
+DIGITAL LIFEFORM — PNG EMOTION VARIANTS
 
-Nuova funzione:
-- quando cambia emozione, viene riprodotto prima il video MP4 relativo;
-- al termine del video, la UI torna automaticamente alla PNG della stessa emozione;
-- il passaggio video -> PNG è pensato per essere seamless;
-- toccando/cliccando lo sprite, il video dell'emozione corrente viene riprodotto in qualsiasi momento;
-- anche la riproduzione manuale mantiene il lieve movimento zoom/bounce già applicato agli sprite;
-- se un MP4 manca o non viene caricato, la UI torna alla PNG senza bloccare la chat.
+Questa versione rimuove completamente l'esperimento MP4 e torna a usare solo PNG.
 
-Percorso previsto dei video:
-public\sprites\emotions\mp4\neutral.mp4
-public\sprites\emotions\mp4\happy.mp4
-public\sprites\emotions\mp4\sad.mp4
-...
+Nuovo comportamento:
+- niente video;
+- le emozioni con più PNG ciclano automaticamente ogni 3 secondi;
+- il lieve zoom/bounce già presente resta attivo;
+- engaged e thinking scelgono una variante contestuale in base ai livelli emotivi.
 
-I nomi devono corrispondere alle chiavi interne degli sprite:
-neutral, curious, engaged, happy, concerned, sad, wary, irritated,
-angry, afraid, reflective, tired, dormant, thinking, horny.
+Cicli automatici:
+- curious_1.png -> curious_2.png -> curious_3.png
+- happy_1.png -> happy_2.png
+- sad_1.png -> sad_2.png
+- horny_1.png -> horny_2.png -> horny_3.png -> horny_4.png
+
+Varianti contestuali:
+- engaged_concerned.png se concerned > 70;
+- engaged_happy.png se happy > 70;
+- se concerned e happy sono entrambe > 70, vince quella con valore maggiore;
+- altrimenti engaged_neutral.png.
+
+- thinking.angry.png se angry > 70;
+- thinking.happy.png se happy > 70;
+- se angry e happy sono entrambe > 70, vince quella con valore maggiore;
+- altrimenti thinking.neutral.png.
+
+File previsti in:
+public\sprites\emotions
+
+Elenco supportato:
+afraid.png
+angry.png
+concerned.png
+curious_1.png
+curious_2.png
+curious_3.png
+dormant.png
+engaged_concerned.png
+engaged_happy.png
+engaged_neutral.png
+happy_1.png
+happy_2.png
+horny_1.png
+horny_2.png
+horny_3.png
+horny_4.png
+irritated.png
+neutral.png
+reflective.png
+sad_1.png
+sad_2.png
+thinking.angry.png
+thinking.happy.png
+thinking.neutral.png
+tired.png
+wary.png
 
 Nota:
-la UI mostra "Excited", ma la chiave interna e quindi il file restano:
-horny.mp4
+neutral.nosfondo.png resta usata per la schermata di login.
 
 Installazione:
 1. Estrarre nella root:
@@ -28,16 +65,14 @@ Installazione:
 
 2. Sovrascrivere:
    src\components\LifeformSprite.tsx
+   src\components\LifeformChat.tsx
    src\components\IvoryGlassTheme.css
 
-3. Verificare che i video siano in:
-   public\sprites\emotions\mp4
-
-4. Eseguire:
+3. Eseguire:
    npm run build
    npm run dev
 
-5. Aggiornare con CTRL+F5.
-   Su telefono usare una scheda privata al primo test.
+4. Aggiornare con CTRL+F5.
+   Sul telefono usare una scheda privata al primo test.
 
 Nessuna modifica SQL richiesta.

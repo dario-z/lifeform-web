@@ -2363,6 +2363,9 @@ export function LifeformChat({
               lifeformName={
                 lifeform.name
               }
+              emotionLevels={
+                emotionLevels
+              }
             />
 
             <p className="chat-emotion">

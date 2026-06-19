@@ -1369,100 +1369,35 @@ body #root .chat-send-button:disabled {
 
 
 /* ============================================================
-   IVORY GLASS V5 — MP4 EMOTION TRANSITIONS
+   IVORY GLASS V6 — PNG-ONLY EMOTION VARIANT CYCLING
    ============================================================ */
 
 /*
- * The sprite container remains the animated element.
- * Both PNG and MP4 inherit the same gentle breathing / bouncing motion.
+ * The MP4 experiment has been removed. Sprites are PNG-only again.
+ * The existing gentle zoom/bounce motion remains on the avatar
+ * container, so every PNG variant inherits the same soft movement.
  */
-body #root .chat-avatar-interactive {
-  position: relative !important;
-  isolation: isolate !important;
-  border: 0 !important;
-  background: transparent !important;
-  cursor: pointer !important;
-  outline: none !important;
-  -webkit-tap-highlight-color:
-    transparent !important;
+
+body #root .chat-avatar {
+  cursor: default !important;
 }
 
-body #root .chat-avatar-interactive:focus-visible {
-  outline:
-    2px solid
-    rgba(69, 65, 61, 0.42) !important;
-  outline-offset: 6px !important;
-  border-radius: 18px !important;
-}
-
-body #root .chat-avatar-media {
-  display: block !important;
-  width: 100% !important;
-  height: 100% !important;
-  max-width: none !important;
-  object-fit: contain !important;
-  object-position:
-    center bottom !important;
-  user-select: none !important;
-  -webkit-user-drag: none !important;
-}
-
-body #root .chat-avatar-still {
-  position: relative !important;
-  z-index: 1 !important;
-  opacity: 1 !important;
+body #root .chat-avatar img {
   transition:
-    opacity 140ms ease !important;
+    opacity 180ms ease,
+    filter 180ms ease !important;
 }
 
-body #root .chat-avatar-video {
-  position: absolute !important;
-  z-index: 3 !important;
-  inset: 0 !important;
-  opacity: 0 !important;
-  pointer-events: none !important;
-  transition:
-    opacity 120ms ease !important;
-  background: transparent !important;
-}
-
-body #root .chat-avatar-video-active {
-  opacity: 1 !important;
+body #root .chat-avatar.sprite-switching img {
+  opacity: 0.96 !important;
 }
 
 /*
- * During playback the PNG remains underneath the video. Because the
- * MP4 starts and ends on the same frame as the PNG, the handoff should
- * feel continuous.
+ * Make sure any browser cache from the former MP4 implementation does
+ * not leave video-specific positioning rules active after overwrite.
  */
-body #root .sprite-video-playing
-  .chat-avatar-still {
-  opacity: 1 !important;
-}
-
-/*
- * Keep click/tap enabled on the sprite even in the immersive mobile
- * layout, where the avatar panel itself is intentionally transparent
- * to pointer events.
- */
-@media (max-width: 820px) {
-  body #root .chat-avatar-panel {
-    pointer-events: none !important;
-  }
-
-  body #root .chat-avatar-interactive {
-    pointer-events: auto !important;
-    touch-action: manipulation !important;
-  }
-
-  body #root .chat-avatar-media,
-  body #root .chat-avatar img.chat-avatar-media,
-  body #root .chat-avatar video.chat-avatar-media {
-    width: 100% !important;
-    height: 100% !important;
-    max-width: none !important;
-    object-fit: contain !important;
-    object-position:
-      center top !important;
-  }
+body #root .chat-avatar video,
+body #root .chat-avatar-video,
+body #root .chat-avatar-media.chat-avatar-video {
+  display: none !important;
 }
