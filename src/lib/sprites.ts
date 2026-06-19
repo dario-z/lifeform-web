@@ -8,6 +8,7 @@ export const EMOTION_SPRITE_FILES: Record<
   string
 > = {
   afraid: 'afraid.png',
+  amused: 'Humor',
   angry: 'angry.png',
   concerned: 'concerned.png',
   curious: 'curious.png',
@@ -29,6 +30,7 @@ export const EMOTION_LABELS: Record<
   string
 > = {
   afraid: 'Afraid',
+  amused: 'Humor',
   angry: 'Angry',
   concerned: 'Concerned',
   curious: 'Curious',

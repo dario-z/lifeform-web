@@ -29,6 +29,7 @@ export const EMOTIONAL_STATES = [
 
 export type EmotionalState =
   (typeof EMOTIONAL_STATES)[number]
+  | 'amused'
 
 export type SensitivityKey = Exclude<
   EmotionalState,

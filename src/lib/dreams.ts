@@ -157,6 +157,7 @@ export function buildDreamsContext(
     'If the user asks about dreams, answer using only these saved Dreams.',
     'You may interpret them symbolically, but do not claim the interpretation is factual.',
     'Avoid making every interpretation tragic, grandiose or melodramatic.',
+    'When Humor/Amusement is present, allow playful, funny, mundane, absurd or unresolved readings.',
     'Some interpretations can be playful, funny, mundane, absurd or unresolved.',
     'Do not invent dreams that are not listed here.',
   ].join('\n')
@@ -268,6 +269,7 @@ export async function generateDailyDream(options: {
     '',
     'Rules:',
     '- The Dream is not a summary.',
+    '- If the emotion vector contains high amused/Humor, the Dream may include playful, ridiculous, weirdly funny or absurd imagery instead of solemn symbolism.',
     '- Transform recent context into abstract symbols.',
     '- Do not directly mention software, APIs, bugs, UI, code, database, implementation details, account settings, or user requests.',
     '- Do not quote the user.',

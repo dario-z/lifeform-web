@@ -25,6 +25,11 @@ const STATIC_SPRITE_FILES: Partial<
   Record<EmotionalState, string[]>
 > = {
   afraid: ['afraid.png'],
+  amused: [
+    'amused_1.png',
+    'amused_2.png',
+    'amused_3.png',
+  ],
   angry: ['angry.png'],
   concerned: ['concerned.png'],
   curious: [

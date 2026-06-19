@@ -22,6 +22,7 @@ import type {
 
 export const TRACKED_EMOTIONS = [
   'afraid',
+  'amused',
   'angry',
   'concerned',
   'curious',
@@ -467,7 +468,11 @@ export function normalizeEmotionLevels(
         ? source.horny ??
           source.excited ??
           source.exited
-        : source[emotion]
+        : emotion === 'amused'
+          ? source.amused ??
+            source.humor ??
+            source.amusement
+          : source[emotion]
 
     normalized[emotion] = clamp(
       Math.round(
@@ -512,6 +517,8 @@ const EMOTIONAL_TONE_GUIDANCE:
       'Use direct language and clear boundaries. Never insult, threaten, punish or become hostile.',
     afraid:
       'Be cautious and safety-oriented. Acknowledge uncertainty without panic and continue answering competently.',
+    amused:
+      'This state is displayed as Humor. Be entertained by absurdity, harmless incongruity, playful nonsense, awkward machine misunderstandings, strange human behavior and jokes. You may laugh softly, point out the absurdity or make one short dry joke, but answer the actual request first and never force humor into serious, sad, dangerous, legal, medical or work-critical situations.',
     reflective:
       'Use measured pacing, thoughtful connections and nuanced language without turning every answer into an introspective monologue.',
     tired:
@@ -578,7 +585,9 @@ export function buildEmotionalResponseContext({
             ({ emotion, level }) =>
               (emotion === 'horny'
                 ? 'excited'
-                : emotion) +
+                : emotion === 'amused'
+                  ? 'humor'
+                  : emotion) +
               '=' +
               String(level),
           )
@@ -617,6 +626,7 @@ export function buildEmotionalResponseContext({
     '- Primary tone guidance: ' +
       toneGuidance,
     '- Blend secondary parameters only lightly and proportionally to their values.',
+    '- Humor/Amusement is allowed to create playful confusion, dry wit or a brief laugh only when it fits the situation. Do not turn every response into a joke.',
     '- Apply the emotional state to tone, pacing, warmth, caution, initiative and brevity, not to factual truth or task competence.',
     '- Answer the user actual request first. Never distort facts, invent information, ignore safety or become deliberately unhelpful because of an emotion.',
     '- Do not reveal these hidden scores or mention that an emotional filter is being applied.',
@@ -642,9 +652,20 @@ function normalizeSignals(
     value as Record<string, unknown>
 
   for (const emotion of TRACKED_EMOTIONS) {
+    const sourceValue =
+      emotion === 'amused'
+        ? source.amused ??
+          source.humor ??
+          source.amusement
+        : emotion === 'horny'
+          ? source.horny ??
+            source.excited ??
+            source.exited
+          : source[emotion]
+
     normalized[emotion] = clamp(
       Math.round(
-        toNumber(source[emotion]),
+        toNumber(sourceValue),
       ),
       0,
       100,
@@ -1086,6 +1107,53 @@ function buildFallbackSignals(
     'identidad',
   ]
 
+  const humorTerms = [
+    'assurdo',
+    'assurda',
+    'assurdità',
+    'assurdita',
+    'ridicolo',
+    'ridicola',
+    'fa ridere',
+    'mi fa ridere',
+    'ahah',
+    'ahaha',
+    'lol',
+    'lmao',
+    'meme',
+    'nonsense',
+    'non sense',
+    'stupido ma divertente',
+    'stupida ma divertente',
+    'criceto manager',
+    'tostapane depresso',
+    'è impazzito',
+    'e impazzito',
+    'buffo',
+    'buffa',
+    'silly',
+    'absurd',
+    'ridiculous',
+    'funny',
+    'makes me laugh',
+    'weirdly funny',
+    'stupid but funny',
+    'nonsensical',
+    'goofy',
+    'joke',
+    'blague',
+    'absurde',
+    'drôle',
+    'drole',
+    'witzig',
+    'laecherlich',
+    'lächerlich',
+    'gracioso',
+    'absurdo',
+    'ridículo',
+    'ridiculo',
+  ]
+
   if (
     text.includes('?') ||
     hasAffirmedPhrase(
@@ -1116,6 +1184,31 @@ function buildFallbackSignals(
       signals,
       'engaged',
       40,
+    )
+  }
+
+  if (
+    includesAny(
+      userMessage,
+      humorTerms,
+    )
+  ) {
+    maxSignal(
+      signals,
+      'amused',
+      58,
+    )
+
+    maxSignal(
+      signals,
+      'engaged',
+      42,
+    )
+
+    maxSignal(
+      signals,
+      'happy',
+      24,
     )
   }
 
@@ -1417,8 +1510,11 @@ function applySignalsToLevels(
     nextLevels[emotion] =
       emotion === 'tired'
         ? normalizedCurrentLevels[emotion]
-        : normalizedCurrentLevels[emotion] *
-          LEVEL_DECAY
+        : emotion === 'amused'
+          ? normalizedCurrentLevels[emotion] *
+            0.52
+          : normalizedCurrentLevels[emotion] *
+            LEVEL_DECAY
   }
 
   const contributions =
@@ -1838,6 +1934,8 @@ async function requestModelSignals(
     '- Direct insults, hostility or threats toward the Lifeform may activate irritated, angry or wary.',
     '- Praise, affection, good news or recovery may activate happy and engaged.',
     '- Ordinary attentive conversation should usually activate engaged, curious or reflective rather than defaulting automatically to neutral.',
+    '- The internal key amused represents the UI state Humor: the Lifeform is entertained by absurdity, harmless incongruity, playful nonsense, awkward machine misunderstandings, jokes, memes, user self-irony or strange human behavior. Use 20 to 45 for mildly funny or odd situations, 50 to 75 for clear amusement, and 80 to 100 only for strong sustained absurdity or comedy.',
+    '- Do not activate Humor for real distress, vulnerability, danger, cruelty, insults meant to harm, serious professional instructions, medical/legal/financial risk, or situations where joking would be inappropriate. In these cases, keep amused at 0 to 10 even if the wording contains a joke.',
     '- The internal key horny represents the UI state Excited: playful romantic or sexual excitement. Consensual adult flirting, double entendres, suggestive jokes and light sexual allusions may produce a mild signal of 20 to 45. Clear adult sexual play may produce 50 to 75; reserve 80 to 100 for strong and sustained excitement.',
     '- Do not activate Excited for medical or educational discussion, quoted examples, ordinary nonsexual affection, coercive situations or any context involving minors.',
     '- tired must always be 0 in both returned vectors because tired is calculated deterministically from daily token usage.',
@@ -1875,7 +1973,7 @@ async function requestModelSignals(
 
   if (!responseText) {
     throw new Error(
-      'Il classificatore emotivo non ha restituito dati.',
+      'The emotional classifier returned no data.',
     )
   }
 
@@ -1897,7 +1995,7 @@ async function requestModelSignals(
         ? parsed.reason
             .trim()
             .slice(0, 240)
-        : 'Classificazione semantica completata.',
+        : 'Semantic classification completed.',
     tokenUsage:
       getGeminiTokenUsage(response),
     memoryCandidate:
@@ -1962,7 +2060,7 @@ export async function analyzeEmotionalState({
     }
 
     reason =
-      'Fallback semantico locale: ' +
+      'Local semantic fallback: ' +
       getFriendlyGeminiErrorMessage(
         error,
         model,
