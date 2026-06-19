@@ -3001,7 +3001,7 @@ export function LifeformChat({
             <p
               className="chat-emotion chat-emotion-stack"
               aria-label={
-                'Top emotions: ' +
+                'Emotions principali: ' +
                 topEmotionSummary
               }
             >
@@ -3284,8 +3284,8 @@ export function LifeformChat({
               <div className="composer-footer">
                 <span>
                   Enter to send ·
-                  Shift+Enter for
-                  a new line
+                  Shift+Enter to
+                  new line
                 </span>
 
                 <button

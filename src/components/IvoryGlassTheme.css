@@ -1852,3 +1852,564 @@ body #root .intro-panel p {
       infinite !important;
   }
 }
+
+
+/* ============================================================
+   IVORY GLASS V9 — REPAIR DESKTOP MENU, LOGIN SPRITE, CONTRAST
+   ============================================================ */
+
+/* 1) Chat bubble contrast: force all metadata on graphite bubbles to white. */
+body #root article.chat-message.chat-message-user,
+body #root article.chat-message.chat-message-assistant,
+body #root article.chat-message.chat-message-user *,
+body #root article.chat-message.chat-message-assistant *,
+body #root article.chat-message.chat-message-streaming,
+body #root article.chat-message.chat-message-streaming * {
+  color: #fff !important;
+  text-shadow: none !important;
+}
+
+body #root article.chat-message .message-meta,
+body #root article.chat-message .message-meta *,
+body #root article.chat-message .message-meta span:first-child,
+body #root article.chat-message .message-meta time {
+  color: rgba(255, 255, 255, 0.86) !important;
+}
+
+/* 2) Context cards must not use white text on ivory glass. */
+body #root .chat-context-info,
+body #root .chat-context-info *,
+body #root .chat-context-info span,
+body #root .chat-context-info strong {
+  color: var(--ivory-ink) !important;
+  text-shadow: none !important;
+}
+
+body #root .chat-context-info {
+  background:
+    rgba(255, 253, 250, 0.72) !important;
+  border-color:
+    rgba(62, 56, 51, 0.17) !important;
+}
+
+/* 3) Login repair: centered sprite, no off-screen mobile drift. */
+body #root .intro-panel {
+  position: relative !important;
+  min-height: min(900px, calc(100vh - 32px)) !important;
+  overflow: hidden !important;
+  display: flex !important;
+  flex-direction: column !important;
+  justify-content: flex-end !important;
+  background:
+    rgba(255, 253, 250, 0.16) !important;
+  isolation: isolate !important;
+}
+
+body #root .intro-panel::before {
+  display: none !important;
+}
+
+body #root .intro-panel::after {
+  content: "" !important;
+  position: absolute !important;
+  z-index: 2 !important;
+  right: 0 !important;
+  bottom: 0 !important;
+  left: 0 !important;
+  height: 52% !important;
+  display: block !important;
+  background:
+    linear-gradient(
+      to top,
+      rgba(69, 65, 61, 0.84) 0%,
+      rgba(69, 65, 61, 0.72) 44%,
+      rgba(69, 65, 61, 0.22) 78%,
+      transparent 100%
+    ) !important;
+  pointer-events: none !important;
+}
+
+body #root .intro-panel
+  .avatar-placeholder {
+  position: absolute !important;
+  z-index: 1 !important;
+  inset: 0 !important;
+  width: 100% !important;
+  height: 100% !important;
+  min-width: 0 !important;
+  min-height: 0 !important;
+  max-width: none !important;
+  max-height: none !important;
+  margin: 0 !important;
+  overflow: visible !important;
+  background: transparent !important;
+  border: 0 !important;
+  clip-path: none !important;
+  transform: none !important;
+  pointer-events: none !important;
+}
+
+body #root .intro-panel
+  .avatar-placeholder::before {
+  content: "" !important;
+  position: absolute !important;
+  z-index: 1 !important;
+  inset: 3% -2% 8% -2% !important;
+  display: block !important;
+  background-repeat: no-repeat !important;
+  background-position: center center !important;
+  background-size: contain !important;
+  border: 0 !important;
+  clip-path: none !important;
+  transform: none !important;
+  filter:
+    drop-shadow(
+      0 22px 36px
+      rgba(74, 68, 63, 0.18)
+    ) !important;
+  animation:
+    lifeform-login-sprite-cycle-repaired 23s
+      steps(1, end)
+      infinite,
+    lifeform-sprite-gentle-motion 6.2s
+      ease-in-out
+      infinite !important;
+}
+
+body #root .intro-panel
+  .avatar-placeholder::after {
+  content: "" !important;
+  position: absolute !important;
+  z-index: 0 !important;
+  inset: 12% 7% 10% 7% !important;
+  display: block !important;
+  background:
+    radial-gradient(
+      ellipse at center,
+      rgba(255, 255, 255, 0.46),
+      transparent 72%
+    ) !important;
+  filter: blur(12px) !important;
+  clip-path: none !important;
+  transform: none !important;
+  pointer-events: none !important;
+}
+
+body #root .intro-panel
+  .avatar-placeholder span {
+  display: none !important;
+}
+
+/* Top label must be graphite, not white on ivory. */
+body #root .intro-panel .eyebrow {
+  position: relative !important;
+  z-index: 4 !important;
+  width: fit-content !important;
+  margin-bottom: auto !important;
+  color: var(--ivory-graphite) !important;
+  background:
+    rgba(255, 253, 250, 0.64) !important;
+  border: 1px solid
+    rgba(62, 56, 51, 0.14) !important;
+  border-radius: 999px !important;
+  padding: 6px 10px !important;
+  text-shadow: none !important;
+  backdrop-filter: blur(10px) !important;
+}
+
+/* Main intro text sits on the lower graphite fade. */
+body #root .intro-panel h1,
+body #root .intro-panel p:not(.eyebrow) {
+  position: relative !important;
+  z-index: 4 !important;
+  color: #fff !important;
+  text-shadow:
+    0 2px 14px
+    rgba(0, 0, 0, 0.34) !important;
+}
+
+body #root .intro-panel h1 {
+  max-width: 11ch !important;
+  margin-top: auto !important;
+  margin-bottom: 12px !important;
+}
+
+body #root .intro-panel p:not(.eyebrow) {
+  max-width: 38rem !important;
+  color: rgba(255, 255, 255, 0.86) !important;
+}
+
+@media (max-width: 820px) {
+  body:not(.lifeform-chat-active)
+    #root .intro-panel {
+    min-height: 74dvh !important;
+    padding-top: 18px !important;
+  }
+
+  body:not(.lifeform-chat-active)
+    #root .intro-panel
+      .avatar-placeholder {
+    inset: 0 !important;
+  }
+
+  body:not(.lifeform-chat-active)
+    #root .intro-panel
+      .avatar-placeholder::before {
+    inset: 2% -6% 10% -6% !important;
+    background-position:
+      center center !important;
+    background-size: contain !important;
+  }
+
+  body:not(.lifeform-chat-active)
+    #root .intro-panel h1 {
+    max-width: 10ch !important;
+  }
+}
+
+/* 4) Desktop chat now uses the same hamburger/off-canvas model as mobile. */
+@media (min-width: 821px) {
+  body #root .chat-page {
+    overflow: hidden !important;
+  }
+
+  body #root .chat-shell {
+    position: relative !important;
+    display: block !important;
+    overflow: hidden !important;
+  }
+
+  body #root .chat-body {
+    position: absolute !important;
+    inset: 0 !important;
+    width: 100% !important;
+    height: 100% !important;
+    min-height: 0 !important;
+    display: grid !important;
+    grid-template-columns:
+      minmax(360px, 44%)
+      minmax(420px, 56%) !important;
+    grid-template-rows: minmax(0, 1fr) !important;
+    overflow: hidden !important;
+  }
+
+  body #root .chat-avatar-panel {
+    grid-column: 1 !important;
+    grid-row: 1 !important;
+    position: relative !important;
+    width: 100% !important;
+    height: 100% !important;
+    min-height: 0 !important;
+    padding: 0 !important;
+    overflow: hidden !important;
+    background: transparent !important;
+    border-right:
+      1px solid
+      rgba(62, 56, 51, 0.13) !important;
+  }
+
+  body #root .chat-conversation {
+    grid-column: 2 !important;
+    grid-row: 1 !important;
+    width: 100% !important;
+    height: 100% !important;
+    min-height: 0 !important;
+  }
+
+  body #root .mobile-stage-divider {
+    display: none !important;
+  }
+
+  body #root .mobile-menu-toggle {
+    position: absolute !important;
+    z-index: 5400 !important;
+    top: 16px !important;
+    left: 16px !important;
+    width: 44px !important;
+    height: 44px !important;
+    display: grid !important;
+    align-content: center !important;
+    justify-items: center !important;
+    gap: 5px !important;
+    padding: 0 !important;
+    color: var(--ivory-ink) !important;
+    background:
+      rgba(255, 253, 250, 0.72) !important;
+    border: 1px solid
+      rgba(62, 56, 51, 0.2) !important;
+    border-radius: 12px !important;
+    box-shadow:
+      0 10px 28px
+      rgba(78, 69, 61, 0.14) !important;
+    backdrop-filter: blur(12px) !important;
+    cursor: pointer !important;
+  }
+
+  body #root .mobile-menu-toggle span {
+    width: 22px !important;
+    height: 2px !important;
+    display: block !important;
+    border-radius: 999px !important;
+    background:
+      var(--ivory-ink) !important;
+  }
+
+  body #root .mobile-menu-backdrop {
+    position: absolute !important;
+    z-index: 5200 !important;
+    inset: 0 !important;
+    display: block !important;
+    visibility: hidden !important;
+    opacity: 0 !important;
+    background:
+      rgba(89, 80, 72, 0.2) !important;
+    border: 0 !important;
+    backdrop-filter: blur(5px) !important;
+    pointer-events: none !important;
+    transition:
+      opacity 180ms ease,
+      visibility 180ms ease !important;
+  }
+
+  body #root .mobile-menu-backdrop-open {
+    visibility: visible !important;
+    opacity: 1 !important;
+    pointer-events: auto !important;
+  }
+
+  body #root .chat-header {
+    position: absolute !important;
+    z-index: 5300 !important;
+    inset: 0 auto 0 0 !important;
+    width: min(390px, 90vw) !important;
+    height: 100% !important;
+    min-height: 0 !important;
+    display: flex !important;
+    flex-direction: column !important;
+    align-items: stretch !important;
+    justify-content: flex-start !important;
+    gap: 0 !important;
+    padding: 22px 18px !important;
+    overflow-y: auto !important;
+    color: var(--ivory-ink) !important;
+    background:
+      rgba(232, 227, 222, 0.96) !important;
+    border: 0 !important;
+    border-right: 1px solid
+      rgba(62, 56, 51, 0.14) !important;
+    border-radius: 0 !important;
+    clip-path: none !important;
+    box-shadow:
+      22px 0 60px
+      rgba(78, 69, 61, 0.18) !important;
+    backdrop-filter:
+      blur(24px)
+      saturate(0.9) !important;
+    transform: translateX(-105%) !important;
+    transition: transform 210ms ease !important;
+  }
+
+  body #root .chat-header.mobile-menu-open {
+    transform: translateX(0) !important;
+  }
+
+  body #root .mobile-menu-close {
+    position: absolute !important;
+    top: 12px !important;
+    right: 12px !important;
+    width: 38px !important;
+    height: 38px !important;
+    display: grid !important;
+    place-items: center !important;
+    padding: 0 !important;
+    color: var(--ivory-ink) !important;
+    background:
+      rgba(255, 253, 250, 0.58) !important;
+    border: 1px solid
+      rgba(62, 56, 51, 0.14) !important;
+    border-radius: 10px !important;
+    font-size: 1.65rem !important;
+    line-height: 1 !important;
+    cursor: pointer !important;
+  }
+
+  body #root .chat-identity {
+    width: calc(100% - 48px) !important;
+    margin: 0 0 18px !important;
+  }
+
+  body #root .mobile-drawer-meta {
+    width: 100% !important;
+    display: grid !important;
+    grid-template-columns:
+      repeat(2, minmax(0, 1fr)) !important;
+    gap: 8px !important;
+    margin-bottom: 14px !important;
+  }
+
+  body #root .mobile-drawer-meta > div {
+    padding: 10px !important;
+    background:
+      rgba(255, 253, 250, 0.48) !important;
+    border: 1px solid
+      rgba(62, 56, 51, 0.12) !important;
+    border-radius: 10px !important;
+  }
+
+  body #root .mobile-drawer-meta > div:last-child {
+    grid-column: 1 / -1 !important;
+  }
+
+  body #root .chat-header-actions {
+    width: 100% !important;
+    display: grid !important;
+    grid-template-columns:
+      repeat(2, minmax(0, 1fr)) !important;
+    gap: 8px !important;
+    align-content: start !important;
+  }
+
+  body #root .chat-model-picker {
+    grid-column: 1 / -1 !important;
+    display: grid !important;
+    gap: 6px !important;
+  }
+
+  body #root .chat-model-picker select {
+    width: 100% !important;
+    min-height: 44px !important;
+  }
+
+  body #root .chat-header-actions > button {
+    width: 100% !important;
+    min-height: 42px !important;
+    padding: 8px 9px !important;
+    justify-content: center !important;
+    text-align: center !important;
+    color: var(--ivory-ink) !important;
+    background:
+      rgba(255, 253, 250, 0.56) !important;
+    border: 1px solid
+      rgba(62, 56, 51, 0.12) !important;
+    border-radius: 10px !important;
+  }
+
+  body #root .chat-header-actions > .secondary-button {
+    color: #fff !important;
+    background:
+      rgba(75, 69, 64, 0.78) !important;
+  }
+
+  body #root .chat-avatar-panel
+    > .chat-emotion.chat-emotion-stack {
+    top: 16px !important;
+    left: 72px !important;
+  }
+
+  body #root .chat-provider {
+    bottom: 86px !important;
+  }
+
+  body #root .chat-context-info {
+    bottom: 14px !important;
+  }
+}
+
+@keyframes lifeform-login-sprite-cycle-repaired {
+  0.0000% {
+    background-image:
+      url("/lifeform-web/sprites/emotions/neutral.nosfondo.png");
+  }
+  4.3478% {
+    background-image:
+      url("/lifeform-web/sprites/emotions/neutral.png");
+  }
+  8.6957% {
+    background-image:
+      url("/lifeform-web/sprites/emotions/happy_1.png");
+  }
+  13.0435% {
+    background-image:
+      url("/lifeform-web/sprites/emotions/happy_2.png");
+  }
+  17.3913% {
+    background-image:
+      url("/lifeform-web/sprites/emotions/curious_1.png");
+  }
+  21.7391% {
+    background-image:
+      url("/lifeform-web/sprites/emotions/curious_2.png");
+  }
+  26.0870% {
+    background-image:
+      url("/lifeform-web/sprites/emotions/curious_3.png");
+  }
+  30.4348% {
+    background-image:
+      url("/lifeform-web/sprites/emotions/engaged_neutral.png");
+  }
+  34.7826% {
+    background-image:
+      url("/lifeform-web/sprites/emotions/engaged_happy.png");
+  }
+  39.1304% {
+    background-image:
+      url("/lifeform-web/sprites/emotions/engaged_concerned.png");
+  }
+  43.4783% {
+    background-image:
+      url("/lifeform-web/sprites/emotions/concerned.png");
+  }
+  47.8261% {
+    background-image:
+      url("/lifeform-web/sprites/emotions/reflective.png");
+  }
+  52.1739% {
+    background-image:
+      url("/lifeform-web/sprites/emotions/thinking.neutral.png");
+  }
+  56.5217% {
+    background-image:
+      url("/lifeform-web/sprites/emotions/thinking.happy.png");
+  }
+  60.8696% {
+    background-image:
+      url("/lifeform-web/sprites/emotions/thinking.angry.png");
+  }
+  65.2174% {
+    background-image:
+      url("/lifeform-web/sprites/emotions/sad_1.png");
+  }
+  69.5652% {
+    background-image:
+      url("/lifeform-web/sprites/emotions/sad_2.png");
+  }
+  73.9130% {
+    background-image:
+      url("/lifeform-web/sprites/emotions/wary.png");
+  }
+  78.2609% {
+    background-image:
+      url("/lifeform-web/sprites/emotions/afraid.png");
+  }
+  82.6087% {
+    background-image:
+      url("/lifeform-web/sprites/emotions/irritated.png");
+  }
+  86.9565% {
+    background-image:
+      url("/lifeform-web/sprites/emotions/angry.png");
+  }
+  91.3043% {
+    background-image:
+      url("/lifeform-web/sprites/emotions/tired.png");
+  }
+  95.6522% {
+    background-image:
+      url("/lifeform-web/sprites/emotions/dormant.png");
+  }
+  100% {
+    background-image:
+      url("/lifeform-web/sprites/emotions/neutral.nosfondo.png");
+  }
+}
