@@ -62,7 +62,7 @@ function getErrorMessage(
     return error.message
   }
 
-  return 'Non è stato possibile verificare la chiave API.'
+  return 'The API key could not be verified.'
 }
 
 export function GeminiSetup({
@@ -112,7 +112,7 @@ export function GeminiSetup({
 
     if (cleanApiKey.length < 20) {
       setError(
-        'La chiave inserita non sembra essere una chiave Gemini valida.',
+        'The key you entered does not look like a valid Gemini API key.',
       )
       return
     }
@@ -124,7 +124,7 @@ export function GeminiSetup({
 
     if (normalizedTokenLimit === null) {
       setError(
-        'Inserisci un numero valido di token giornalieri.',
+        'Enter a valid number of daily tokens.',
       )
       return
     }
@@ -174,11 +174,11 @@ export function GeminiSetup({
         <header className="gemini-setup-header">
           <div>
             <p className="eyebrow">
-              Modello IA
+              AI model
             </p>
 
             <h1>
-              Connetti {lifeformName}.
+              Connect {lifeformName}.
             </h1>
           </div>
 
@@ -195,7 +195,7 @@ export function GeminiSetup({
         <div className="gemini-setup-content">
           <div className="gemini-description">
             <p>
-              La Lifeform utilizzerà la tua chiave Gemini per generare le risposte e aggiornare il proprio stato emotivo.
+              The Lifeform will use your Gemini key to generate replies and update its emotional state.
             </p>
 
             <dl className="gemini-details">
@@ -205,20 +205,20 @@ export function GeminiSetup({
               </div>
 
               <div>
-                <dt>Modello selezionato</dt>
+                <dt>Selected model</dt>
                 <dd>{selectedModel}</dd>
               </div>
 
               <div>
-                <dt>Token giornalieri</dt>
+                <dt>Daily tokens</dt>
                 <dd>
-                  {dailyTokenLimit.toLocaleString('it-IT')}
+                  {dailyTokenLimit.toLocaleString('en-US')}
                 </dd>
               </div>
 
               <div>
-                <dt>Salvataggio cloud</dt>
-                <dd>Disattivato</dd>
+                <dt>Cloud storage</dt>
+                <dd>Disabled</dd>
               </div>
             </dl>
 
@@ -228,7 +228,7 @@ export function GeminiSetup({
               target="_blank"
               rel="noreferrer"
             >
-              Crea o gestisci la chiave in Google AI Studio
+              Create or manage your key in Google AI Studio
             </a>
           </div>
 
@@ -237,7 +237,7 @@ export function GeminiSetup({
             onSubmit={handleSubmit}
           >
             <label htmlFor="gemini-model">
-              Modello Gemini
+              Gemini model
             </label>
 
             <select
@@ -271,11 +271,11 @@ export function GeminiSetup({
             </select>
 
             <p className="gemini-model-explanation">
-              Gemini Flash-Lite Latest è il modello predefinito. La scelta viene ricordata nel browser e verrà usata sia per la chat sia per l’analisi emotiva.
+              Gemini Flash-Lite Latest is the default model. Your choice is remembered in the browser and will be used for both chat and emotional analysis.
             </p>
 
             <label htmlFor="daily-token-limit">
-              Soglia token giornaliera
+              Daily token threshold
             </label>
 
             <input
@@ -329,11 +329,11 @@ export function GeminiSetup({
               id="daily-token-limit-help"
               className="gemini-model-explanation"
             >
-              Puoi digitare liberamente un valore intero preciso. Valore standard: {DEFAULT_DAILY_TOKEN_LIMIT.toLocaleString('it-IT')}. Il parametro Tired crescerà dallo 0 al 100 in proporzione ai token realmente usati ogni giorno da chat e classificatore emotivo.
+              You can enter any precise whole-number value. Default value: {DEFAULT_DAILY_TOKEN_LIMIT.toLocaleString('en-US')}. The Tired parameter will rise from 0 to 100 in proportion to the tokens actually used each day by chat and the emotional classifier.
             </p>
 
             <label htmlFor="gemini-api-key">
-              Chiave API Gemini
+              Gemini API key
             </label>
 
             <div className="api-key-input-row">
@@ -350,7 +350,7 @@ export function GeminiSetup({
                     event.target.value,
                   )
                 }
-                placeholder="Incolla qui la chiave API"
+                placeholder="Paste the API key here"
                 autoComplete="off"
                 spellCheck={false}
                 disabled={testing}
@@ -368,8 +368,8 @@ export function GeminiSetup({
                 disabled={testing}
               >
                 {showApiKey
-                  ? 'Nascondi'
-                  : 'Mostra'}
+                  ? 'Hide'
+                  : 'Show'}
               </button>
             </div>
 
@@ -386,12 +386,12 @@ export function GeminiSetup({
               />
 
               <span>
-                Ricorda la chiave su questo dispositivo
+                Remember the key on this device
               </span>
             </label>
 
             <p className="storage-explanation">
-              Se non selezioni questa opzione, la chiave rimarrà disponibile soltanto nella sessione corrente del browser.
+              If you do not select this option, the key will remain available only for the current browser session.
             </p>
 
             {error && (
@@ -409,12 +409,12 @@ export function GeminiSetup({
               disabled={testing}
             >
               {testing
-                ? 'Verifica della connessione…'
-                : 'Verifica e connetti'}
+                ? 'Checking connection…'
+                : 'Verify and connect'}
             </button>
 
             <p className="api-key-warning">
-              La chiave non verrà salvata nel database né inclusa nell’esportazione della Lifeform. Un’applicazione eseguita nel browser non può però proteggerla con la stessa sicurezza di un backend.
+              The key will not be saved in the database or included in the Lifeform export. A browser-based application, however, cannot protect it with the same security as a backend.
             </p>
           </form>
         </div>

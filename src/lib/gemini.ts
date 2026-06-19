@@ -7,17 +7,17 @@ export const GEMINI_MODEL_OPTIONS = [
   {
     id: 'gemini-flash-lite-latest',
     label: 'Gemini Flash-Lite Latest',
-    note: 'Predefinito e consigliato',
+    note: 'Default and recommended',
   },
   {
     id: 'gemini-3.1-flash-lite',
     label: 'Gemini 3.1 Flash-Lite',
-    note: 'Versione stabile corrente',
+    note: 'Current stable version',
   },
   {
     id: 'gemini-2.5-flash-lite',
     label: 'Gemini 2.5 Flash-Lite',
-    note: 'Versione stabile precedente',
+    note: 'Previous stable version',
   },
 ] as const
 
@@ -404,10 +404,10 @@ export function getFriendlyGeminiErrorMessage(
     comparable.includes('rate limit')
   ) {
     return (
-      'La quota disponibile per ' +
+      'The available quota for ' +
       modelLabel +
-      ' è temporaneamente esaurita. ' +
-      'Seleziona un altro modello oppure riprova dopo il ripristino della quota.'
+      ' is temporarily exhausted. ' +
+      'Select another model or try again after the quota resets.'
     )
   }
 
@@ -420,7 +420,7 @@ export function getFriendlyGeminiErrorMessage(
   ) {
     return (
       modelLabel +
-      ' non è disponibile per questa chiave API o regione. Seleziona un altro modello.'
+      ' is not available for this API key or region. Select another model.'
     )
   }
 
@@ -433,9 +433,9 @@ export function getFriendlyGeminiErrorMessage(
     )
   ) {
     return (
-      'La chiave Google non è autorizzata a usare ' +
+      'The Google key is not authorized to use ' +
       modelLabel +
-      '. Controlla la chiave o seleziona un altro modello.'
+      '. Check the key or select another model.'
     )
   }
 
@@ -446,7 +446,7 @@ export function getFriendlyGeminiErrorMessage(
   ) {
     return (
       modelLabel +
-      ' è temporaneamente sovraccarico. Riprova tra poco oppure seleziona un altro modello.'
+      ' is temporarily overloaded. Try again shortly or select another model.'
     )
   }
 
@@ -455,14 +455,14 @@ export function getFriendlyGeminiErrorMessage(
     comparable.includes('network')
   ) {
     return (
-      'Impossibile raggiungere Gemini. Controlla la connessione e riprova.'
+      'Gemini could not be reached. Check your connection and try again.'
     )
   }
 
   return (
-    'Gemini non ha completato la richiesta con ' +
+    'Gemini did not complete the request with ' +
     modelLabel +
-    '. Riprova oppure seleziona un altro modello.'
+    '. Try again or select another model.'
   )
 }
 
@@ -491,7 +491,7 @@ export async function verifyGeminiApiKey(
 
     if (!responseText) {
       throw new Error(
-        'Gemini ha risposto senza restituire testo.',
+        'Gemini replied without returning text.',
       )
     }
   } catch (error: unknown) {
