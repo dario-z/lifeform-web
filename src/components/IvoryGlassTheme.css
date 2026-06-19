@@ -224,7 +224,7 @@ body #root input[type="range"] {
 }
 
 /* ============================================================
-   LOGIN / REGISTRATION
+   LOGIN / REGISTERON
    ============================================================ */
 
 body #root .app-shell {
@@ -2934,7 +2934,7 @@ body #root .auth-layout .intro-panel
 
 body #root .auth-layout .intro-panel
   .eyebrow::after {
-  content: "PROJECT LIFEFORM" !important;
+  content: "" !important;
   color: var(--ivory-graphite) !important;
   font: inherit !important;
   letter-spacing: inherit !important;
@@ -3062,7 +3062,7 @@ body #root .auth-layout .intro-panel
 }
 
 /* ============================================================
-   VISUAL ENGLISH OVERRIDES FOR LOGIN / REGISTRATION
+   VISUAL ENGLISH OVERRIDES FOR LOGIN / REGISTERON
    ============================================================ */
 
 /*
@@ -3179,7 +3179,7 @@ body #root .auth-form .primary-button::after {
 }
 
 /*
- * Registration mode usually marks the second tab as active. In that
+ * Registeron mode usually marks the second tab as active. In that
  * visual state, replace heading and submit button with registration copy.
  */
 body #root .auth-tabs button:nth-child(2).active
@@ -3302,7 +3302,7 @@ body #root .auth-tabs button:nth-child(2).active
    ============================================================ */
 
 /*
- * 1) Remove the upper "PROJECT LIFEFORM" badge completely.
+ * 1) Remove the upper "" badge completely.
  */
 body #root .auth-layout .intro-panel .eyebrow,
 body #root .auth-layout .intro-panel .eyebrow::before,
@@ -3415,3 +3415,92 @@ body #root .auth-form input::placeholder {
   opacity: 0.62 !important;
 }
 
+
+
+/* ============================================================
+   IVORY GLASS V13 — SOURCE-TRANSLATED LOGIN CLEANUP
+   ============================================================ */
+
+/*
+ * The login copy is now translated in source files by the included
+ * script. Disable all previous CSS-generated text replacements so no
+ * duplicate words are drawn over buttons or headings.
+ */
+
+body #root .auth-tabs button,
+body #root .auth-form .primary-button,
+body #root .auth-heading .eyebrow,
+body #root .auth-heading > p:first-child,
+body #root .auth-heading h2,
+body #root .auth-heading > p:last-child,
+body #root .temporary-note,
+body #root .auth-layout .intro-panel p:not(.eyebrow) {
+  color: inherit !important;
+  position: relative !important;
+}
+
+body #root .auth-tabs button.active,
+body #root .auth-tabs button {
+  color: var(--ivory-ink) !important;
+}
+
+body #root .auth-form .primary-button {
+  color: #fff !important;
+}
+
+body #root .auth-heading .eyebrow,
+body #root .auth-heading > p:first-child,
+body #root .auth-heading h2 {
+  color: var(--ivory-ink) !important;
+}
+
+body #root .auth-heading > p:last-child,
+body #root .temporary-note {
+  color: var(--ivory-ink-soft) !important;
+}
+
+body #root .auth-layout .intro-panel p:not(.eyebrow) {
+  color: rgba(255, 255, 255, 0.88) !important;
+}
+
+/* Remove every former pseudo-label used as temporary translation. */
+body #root .auth-tabs button::before,
+body #root .auth-tabs button::after,
+body #root .auth-form .primary-button::before,
+body #root .auth-form .primary-button::after,
+body #root .auth-heading .eyebrow::before,
+body #root .auth-heading .eyebrow::after,
+body #root .auth-heading > p:first-child::before,
+body #root .auth-heading > p:first-child::after,
+body #root .auth-heading h2::before,
+body #root .auth-heading h2::after,
+body #root .auth-heading > p:last-child::before,
+body #root .auth-heading > p:last-child::after,
+body #root .temporary-note::before,
+body #root .temporary-note::after,
+body #root .auth-layout .intro-panel p:not(.eyebrow)::before,
+body #root .auth-layout .intro-panel p:not(.eyebrow)::after {
+  content: none !important;
+  display: none !important;
+}
+
+/* Keep the removed top project badge removed. */
+body #root .auth-layout .intro-panel .eyebrow,
+body #root .auth-layout .intro-panel .eyebrow::before,
+body #root .auth-layout .intro-panel .eyebrow::after {
+  content: none !important;
+  display: none !important;
+  visibility: hidden !important;
+  opacity: 0 !important;
+}
+
+body #root .auth-form label,
+body #root .auth-form label span,
+body #root .auth-form input {
+  color: var(--ivory-ink) !important;
+}
+
+body #root .auth-form input::placeholder {
+  color: var(--ivory-ink-soft) !important;
+  opacity: 0.68 !important;
+}

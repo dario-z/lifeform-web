@@ -43,7 +43,7 @@ export function LifeformHome({
             onClick={() => void onSignOut()}
             disabled={signingOut}
           >
-            {signingOut ? 'Disconnessione…' : 'Esci'}
+            {signingOut ? 'Disconnessione…' : 'Sign out'}
           </button>
         </header>
 

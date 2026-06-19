@@ -1,18 +1,11 @@
-DIGITAL LIFEFORM — LOGIN TEXT CLEANUP V12
+DIGITAL LIFEFORM — LOGIN ENGLISH SOURCE TRANSLATION V13
 
-Correzioni:
-- rimosso completamente il badge "PROJECT LIFEFORM";
-- rimosse le scritte extra sovrapposte ai pulsanti LOGIN / REGISTER;
-- sostituito il sottotitolo sotto "Give your AI a presence." con testo inglese;
-- rimossi gli overlay CSS che duplicavano titoli e testi nella zona login;
-- ripristinato contrasto leggibile per label, input e placeholder.
-
-Nota:
-questa patch è volutamente conservativa e corregge il casino visivo attuale via CSS.
-Per tradurre perfettamente anche ogni placeholder/testo sorgente della login, il passo successivo ideale è modificare direttamente il componente React che contiene la schermata di autenticazione.
-
-File modificato:
-src\components\IvoryGlassTheme.css
+Questa volta non usa overlay CSS per tradurre la login:
+- rimuove le vecchie scritte generate via CSS;
+- lascia visibile il testo reale dei componenti;
+- include uno script che traduce direttamente le stringhe sorgente dentro src;
+- traduce bottoni, tab, titoli, sottotitoli, note e placeholder/esempi dei campi login/register;
+- mantiene rimosso il badge "PROJECT LIFEFORM".
 
 Installazione:
 1. Estrarre nella root:
@@ -21,8 +14,17 @@ Installazione:
 2. Sovrascrivere:
    src\components\IvoryGlassTheme.css
 
-3. Eseguire:
+3. Copiare anche:
+   scripts\translate-login-to-english.mjs
+
+4. Eseguire UNA VOLTA:
+   node scripts\translate-login-to-english.mjs
+
+5. Poi:
    npm run build
    npm run dev
 
-4. Ricaricare senza cache.
+6. Refresh senza cache / scheda privata.
+
+Nota:
+lo script modifica direttamente i file sorgente dentro src cercando le stringhe italiane esistenti.

@@ -188,7 +188,7 @@ export function GeminiSetup({
             onClick={() => void onSignOut()}
             disabled={testing}
           >
-            Esci
+            Sign out
           </button>
         </header>
 

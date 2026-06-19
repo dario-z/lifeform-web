@@ -47,7 +47,7 @@ export function LifeformOnboarding({
 
       if (cleanName.length < 2 || cleanName.length > 40) {
         setValidationError(
-          'Il tuo nome deve contenere da 2 a 40 caratteri.',
+          'Your name deve contenere da 2 a 40 caratteri.',
         )
         return false
       }
@@ -126,7 +126,7 @@ export function LifeformOnboarding({
             onClick={() => void onSignOut()}
             disabled={submitting}
           >
-            Esci
+            Sign out
           </button>
         </header>
 
@@ -152,7 +152,7 @@ export function LifeformOnboarding({
             <section className="onboarding-step">
               <p className="step-number">01 / 03</p>
 
-              <h1>Come vuoi essere chiamato?</h1>
+              <h1>How should you be called?</h1>
 
               <p className="step-description">
                 Questo sarà il nome normalmente utilizzato dalla
@@ -160,7 +160,7 @@ export function LifeformOnboarding({
               </p>
 
               <label htmlFor="display-name">
-                Il tuo nome o soprannome
+                Your name o soprannome
               </label>
 
               <input
@@ -191,7 +191,7 @@ export function LifeformOnboarding({
               </p>
 
               <label htmlFor="lifeform-name">
-                Nome della Lifeform
+                Lifeform name
               </label>
 
               <input

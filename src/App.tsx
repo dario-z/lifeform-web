@@ -223,7 +223,7 @@ function App() {
         if (!data.session) {
           setFeedback({
             type: 'success',
-            text: 'Account creato. Controlla eventualmente la tua email.',
+            text: 'Account created. Controlla eventualmente la tua email.',
           })
         }
       } else {
@@ -367,7 +367,7 @@ function App() {
               <span />
             </div>
 
-            <p className="eyebrow">Project Lifeform</p>
+            <p className="eyebrow"></p>
 
             <h1>Give your AI a presence.</h1>
 
@@ -387,7 +387,7 @@ function App() {
                 className={mode === 'login' ? 'active' : ''}
                 onClick={() => changeMode('login')}
               >
-                Accedi
+                Sign in
               </button>
 
               <button
@@ -397,26 +397,26 @@ function App() {
                 }
                 onClick={() => changeMode('register')}
               >
-                Registrati
+                Register
               </button>
             </div>
 
             <div className="auth-heading">
               <p className="eyebrow">
                 {mode === 'login'
-                  ? 'Bentornato'
+                  ? 'Welcome back'
                   : 'Nuova connessione'}
               </p>
 
               <h2>
                 {mode === 'login'
-                  ? 'Accedi alla tua Lifeform'
+                  ? 'Sign in alla tua Lifeform'
                   : 'Crea il tuo account'}
               </h2>
 
               <p>
                 {mode === 'login'
-                  ? 'Riprendi la tua unica sessione personale.'
+                  ? 'Resume your unique personal session.'
                   : 'Ogni account potrà essere associato a una sola Lifeform.'}
               </p>
             </div>
@@ -479,8 +479,8 @@ function App() {
                 {authSubmitting
                   ? 'Attendi…'
                   : mode === 'login'
-                    ? 'Accedi'
-                    : 'Crea account'}
+                    ? 'Sign in'
+                    : 'Create account'}
               </button>
             </form>
 
@@ -531,7 +531,7 @@ function App() {
               className="secondary-button"
               onClick={() => void handleSignOut()}
             >
-              Esci
+              Sign out
             </button>
           </div>
         </section>
