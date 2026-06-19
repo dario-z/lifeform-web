@@ -3295,3 +3295,123 @@ body #root .auth-tabs button:nth-child(2).active
       url("/lifeform-web/sprites/emotions/neutral.nosfondo.png");
   }
 }
+
+
+/* ============================================================
+   IVORY GLASS V12 — LOGIN TEXT CLEANUP
+   ============================================================ */
+
+/*
+ * 1) Remove the upper "PROJECT LIFEFORM" badge completely.
+ */
+body #root .auth-layout .intro-panel .eyebrow,
+body #root .auth-layout .intro-panel .eyebrow::before,
+body #root .auth-layout .intro-panel .eyebrow::after {
+  content: none !important;
+  display: none !important;
+  visibility: hidden !important;
+  opacity: 0 !important;
+}
+
+/*
+ * 2) Stop the previous CSS-only translations from drawing extra text
+ * over the login/register buttons.
+ *
+ * The real button text remains visible. No pseudo-label is drawn above it.
+ */
+body #root .auth-tabs button,
+body #root .auth-form .primary-button {
+  color: var(--ivory-ink) !important;
+}
+
+body #root .auth-form .primary-button {
+  color: #fff !important;
+}
+
+body #root .auth-tabs button::before,
+body #root .auth-tabs button::after,
+body #root .auth-form .primary-button::before,
+body #root .auth-form .primary-button::after {
+  content: none !important;
+  display: none !important;
+}
+
+/*
+ * 3) Translate the intro subtitle under "Give your AI a presence."
+ * The source text is still rendered by the React component, so this
+ * visually replaces it without changing auth logic.
+ */
+body #root .auth-layout .intro-panel
+  p:not(.eyebrow) {
+  color: transparent !important;
+  position: relative !important;
+}
+
+body #root .auth-layout .intro-panel
+  p:not(.eyebrow)::after {
+  content: "A visual and relational identity applied to the AI model chosen by the user." !important;
+  position: absolute !important;
+  inset: 0 auto auto 0 !important;
+  max-width: 100% !important;
+  color: rgba(255, 255, 255, 0.88) !important;
+  font: inherit !important;
+  line-height: inherit !important;
+  text-align: inherit !important;
+  text-shadow:
+    0 2px 14px
+    rgba(0, 0, 0, 0.45) !important;
+  pointer-events: none !important;
+}
+
+/*
+ * 4) Clean the remaining CSS-generated auth-heading overlays.
+ * They caused duplicated or stacked text in some states.
+ */
+body #root .auth-heading .eyebrow::before,
+body #root .auth-heading .eyebrow::after,
+body #root .auth-heading > p:first-child::before,
+body #root .auth-heading > p:first-child::after,
+body #root .auth-heading h2::before,
+body #root .auth-heading h2::after,
+body #root .auth-heading > p:last-child::before,
+body #root .auth-heading > p:last-child::after,
+body #root .temporary-note::before,
+body #root .temporary-note::after {
+  content: none !important;
+  display: none !important;
+}
+
+/*
+ * Re-enable the original login text rather than stacking generated text.
+ * The React source is the right place for a perfect full translation;
+ * this prevents the broken duplicated visual state immediately.
+ */
+body #root .auth-heading .eyebrow,
+body #root .auth-heading > p:first-child,
+body #root .auth-heading h2,
+body #root .auth-heading > p:last-child,
+body #root .temporary-note {
+  color: var(--ivory-ink) !important;
+  position: static !important;
+}
+
+body #root .auth-heading > p:last-child,
+body #root .temporary-note {
+  color: var(--ivory-ink-soft) !important;
+}
+
+/*
+ * 5) Field labels/placeholders: keep readable contrast and prevent
+ * previous overlay rules from affecting form fields.
+ */
+body #root .auth-form label,
+body #root .auth-form label span,
+body #root .auth-form input,
+body #root .auth-form input::placeholder {
+  color: var(--ivory-ink) !important;
+}
+
+body #root .auth-form input::placeholder {
+  opacity: 0.62 !important;
+}
+

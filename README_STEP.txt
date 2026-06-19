@@ -1,14 +1,15 @@
-DIGITAL LIFEFORM — LOGIN FIX V11
+DIGITAL LIFEFORM — LOGIN TEXT CLEANUP V12
 
 Correzioni:
-- elimina definitivamente il blocco diagonale nella login;
-- crea una fascia grafite orizzontale che sfuma verso l'alto;
-- mantiene testo bianco leggibile sopra la fascia;
-- ingrandisce e centra lo sprite in mobile;
-- riduce l'altezza del pannello intro mobile così il form non finisce troppo in basso;
-- ruota gli sprite ogni secondo in ordine mescolato/pseudo-random;
-- esclude tutte le varianti horny;
-- traduce visivamente i testi rimasti in italiano nella schermata login/register.
+- rimosso completamente il badge "PROJECT LIFEFORM";
+- rimosse le scritte extra sovrapposte ai pulsanti LOGIN / REGISTER;
+- sostituito il sottotitolo sotto "Give your AI a presence." con testo inglese;
+- rimossi gli overlay CSS che duplicavano titoli e testi nella zona login;
+- ripristinato contrasto leggibile per label, input e placeholder.
+
+Nota:
+questa patch è volutamente conservativa e corregge il casino visivo attuale via CSS.
+Per tradurre perfettamente anche ogni placeholder/testo sorgente della login, il passo successivo ideale è modificare direttamente il componente React che contiene la schermata di autenticazione.
 
 File modificato:
 src\components\IvoryGlassTheme.css
@@ -24,7 +25,4 @@ Installazione:
    npm run build
    npm run dev
 
-4. Ricaricare con CTRL+F5.
-   Su GitHub Pages attendere il deploy e usare una scheda privata al primo test.
-
-Nessuna modifica SQL richiesta.
+4. Ricaricare senza cache.
