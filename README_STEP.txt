@@ -1,26 +1,48 @@
-DIGITAL LIFEFORM — CHANGE API HIGH CONTRAST V15
+DIGITAL LIFEFORM — SPRINT 01 DREAMS
 
-La patch precedente agiva quasi solo su input/select/placeholder.
-Questa invece forza il contrasto di tutta la pagina Change API / Gemini setup:
-- descrizione;
-- riquadri Provider / Selected model / Daily tokens / Cloud storage;
-- label;
-- testo dentro input e select;
-- placeholder;
-- note descrittive;
-- checkbox "Remember the key";
-- Sign out.
+This package implements the first Dreams system.
 
-Installazione:
-1. Estrarre nella root:
+Features:
+- new Supabase table: dreams
+- one Dream per Lifeform per local day
+- Dream generated automatically when the user returns after midnight
+- Gemini-generated short surreal dream
+- Dream prompt uses:
+  - current emotion
+  - full emotion levels
+  - last emotion reason
+  - recent messages
+  - Key Memories
+  - previous Dream
+  - one required random anchor
+- 100 random anchors for each emotional state:
+  neutral, curious, engaged, happy, concerned, sad, wary, irritated, angry,
+  afraid, reflective, tired, dormant, thinking, horny
+- Dreams panel in hamburger menu
+- only last 3 Dreams are kept
+- recent Dreams are added to Gemini context so the user can ask about them
+
+Install:
+1. Extract this ZIP in:
    C:\Projects\lifeform-web
 
-2. Eseguire:
-   cd /d C:\Projects\lifeform-web
-   node scripts\append-change-api-contrast.mjs
+2. In Supabase SQL Editor, run:
+   supabase\lifeform_dreams_migration.sql
 
-3. Poi:
+3. In terminal:
+   cd /d C:\Projects\lifeform-web
    npm run build
    npm run dev
 
-4. Refresh senza cache.
+4. Refresh without cache.
+
+Expected UI:
+- hamburger menu contains "Dreams 0/3" or similar
+- opening Dreams shows the Dreams panel
+- after returning on a new local day, the app generates one Dream in background
+- only the latest 3 Dreams remain saved
+
+Important:
+- This sprint does not add gacha, inventory, rituals, currencies, rewards, or evolution.
+- Dreams are symbolic fragments, not factual memories.
+- If generation fails, chat should continue working and the Dreams panel will show the error.

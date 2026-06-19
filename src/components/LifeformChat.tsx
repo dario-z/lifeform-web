@@ -12,6 +12,7 @@ import type {
   KeyboardEvent,
   PointerEvent as ReactPointerEvent,
 } from 'react'
+import { DreamsPanel } from './DreamsPanel'
 import { EmotionMonitor } from './EmotionMonitor'
 import { KeyMemoriesPanel } from './KeyMemoriesPanel'
 import { LifeformSprite } from './LifeformSprite'
@@ -28,6 +29,13 @@ import {
   type EmotionLevels,
   type TrackedEmotion,
 } from '../lib/emotions'
+import {
+  buildDreamAnchorSeed,
+  buildDreamsContext,
+  generateDailyDream,
+  getLocalDreamDate,
+  sortDreams,
+} from '../lib/dreams'
 import {
   AUTO_MEMORY_REPLACEMENT_MARGIN,
   MAX_KEY_MEMORIES,
@@ -61,6 +69,7 @@ import type {
   Profile,
 } from '../types/lifeform'
 import type { ChatMessage } from '../types/message'
+import type { Dream } from '../types/dream'
 import {
   KEY_MEMORY_CATEGORIES,
   type KeyMemory,
@@ -581,8 +590,20 @@ export function LifeformChat({
   const [keyMemories, setKeyMemories] =
     useState<KeyMemory[]>([])
 
+  const [dreams, setDreams] =
+    useState<Dream[]>([])
+
   const [loadingKeyMemories, setLoadingKeyMemories] =
     useState(true)
+
+  const [loadingDreams, setLoadingDreams] =
+    useState(true)
+
+  const [generatingDream, setGeneratingDream] =
+    useState(false)
+
+  const [dreamError, setDreamError] =
+    useState<string | null>(null)
 
   const [savingKeyMemory, setSavingKeyMemory] =
     useState(false)
@@ -686,6 +707,9 @@ export function LifeformChat({
   const [keyMemoryPanelOpen, setKeyMemoryPanelOpen] =
     useState(false)
 
+  const [dreamsPanelOpen, setDreamsPanelOpen] =
+    useState(false)
+
   const [
     mobileMenuOpen,
     setMobileMenuOpen,
@@ -729,6 +753,15 @@ export function LifeformChat({
 
   const keyMemoriesRef =
     useRef<KeyMemory[]>([])
+
+  const dreamsRef =
+    useRef<Dream[]>([])
+
+  const dreamCheckStartedRef =
+    useRef(false)
+
+  const generatingDreamRef =
+    useRef(false)
 
   const transientEmotionTimerRef =
     useRef<number | null>(null)
@@ -1010,6 +1043,57 @@ export function LifeformChat({
     [lifeform.id],
   )
 
+  const commitDreams = (
+    nextDreams: Dream[],
+  ) => {
+    const sortedDreams =
+      sortDreams(nextDreams).slice(0, 3)
+
+    dreamsRef.current = sortedDreams
+    setDreams(sortedDreams)
+  }
+
+  const loadDreams = useCallback(
+    async () => {
+      setLoadingDreams(true)
+      setDreamError(null)
+
+      try {
+        const {
+          data,
+          error: queryError,
+        } = await supabase
+          .from('dreams')
+          .select(
+            'id,user_id,lifeform_id,dream_date,title,dream_text,random_anchor,dominant_emotion,emotion_snapshot,source_context,created_at',
+          )
+          .eq('lifeform_id', lifeform.id)
+          .order('dream_date', {
+            ascending: false,
+          })
+          .order('created_at', {
+            ascending: false,
+          })
+          .limit(3)
+
+        if (queryError) {
+          throw queryError
+        }
+
+        commitDreams(
+          (data ?? []) as Dream[],
+        )
+      } catch (loadError: unknown) {
+        setDreamError(
+          getErrorMessage(loadError),
+        )
+      } finally {
+        setLoadingDreams(false)
+      }
+    },
+    [lifeform.id],
+  )
+
   const loadKeyMemories = useCallback(
     async () => {
       setLoadingKeyMemories(true)
@@ -1117,14 +1201,262 @@ export function LifeformChat({
     [lifeform.id],
   )
 
+  const loadRecentMessagesForDream = useCallback(
+    async () => {
+      const {
+        data,
+        error: queryError,
+      } = await supabase
+        .from('messages')
+        .select('role,content')
+        .eq('lifeform_id', lifeform.id)
+        .order('created_at', {
+          ascending: false,
+        })
+        .limit(16)
+
+      if (queryError) {
+        throw queryError
+      }
+
+      return ((data ?? []) as Array<{
+        role: 'user' | 'assistant'
+        content: string
+      }>).reverse()
+    },
+    [lifeform.id],
+  )
+
+  const pruneStoredDreams = useCallback(
+    async () => {
+      const {
+        data,
+        error: queryError,
+      } = await supabase
+        .from('dreams')
+        .select('id')
+        .eq('lifeform_id', lifeform.id)
+        .order('dream_date', {
+          ascending: false,
+        })
+        .order('created_at', {
+          ascending: false,
+        })
+
+      if (queryError) {
+        throw queryError
+      }
+
+      const oldDreamIds =
+        (data ?? [])
+          .slice(3)
+          .map((row) => row.id)
+
+      if (oldDreamIds.length === 0) {
+        return
+      }
+
+      const { error: deleteError } =
+        await supabase
+          .from('dreams')
+          .delete()
+          .in('id', oldDreamIds)
+
+      if (deleteError) {
+        throw deleteError
+      }
+    },
+    [lifeform.id],
+  )
+
+  const ensureDailyDream = useCallback(
+    async () => {
+      if (
+        generatingDreamRef.current ||
+        !apiKey
+      ) {
+        return
+      }
+
+      const dreamDate =
+        getLocalDreamDate()
+
+      const existingDream =
+        dreamsRef.current.find(
+          (dream) =>
+            dream.dream_date ===
+            dreamDate,
+        )
+
+      if (existingDream) {
+        return
+      }
+
+      generatingDreamRef.current = true
+      setGeneratingDream(true)
+      setDreamError(null)
+
+      try {
+        const recentHistory =
+          await loadRecentMessagesForDream()
+
+        const previousDream =
+          dreamsRef.current[0] ?? null
+
+        const seed =
+          buildDreamAnchorSeed({
+            lifeformId: lifeform.id,
+            dreamDate,
+            previousDreamId:
+              previousDream?.id ?? null,
+            messageCount:
+              recentHistory.length,
+          })
+
+        const generation =
+          await generateDailyDream({
+            apiKey,
+            model: selectedModel,
+            lifeformName: lifeform.name,
+            lifeformLanguage:
+              lifeform.language,
+            dreamDate,
+            currentEmotion:
+              settledEmotionRef.current,
+            emotionIntensity,
+            emotionLevels:
+              emotionLevelsRef.current,
+            keyMemories:
+              keyMemoriesRef.current,
+            recentHistory,
+            previousDream,
+            lastEmotionReason,
+            seed,
+          })
+
+        const {
+          data,
+          error: insertError,
+        } = await supabase
+          .from('dreams')
+          .upsert(
+            {
+              user_id: lifeform.user_id,
+              lifeform_id: lifeform.id,
+              dream_date: dreamDate,
+              title: generation.title,
+              dream_text:
+                generation.dreamText,
+              random_anchor:
+                generation.randomAnchor,
+              dominant_emotion:
+                generation.dominantEmotion,
+              emotion_snapshot: {
+                currentEmotion:
+                  settledEmotionRef.current,
+                emotionIntensity,
+                levels:
+                  emotionLevelsRef.current,
+                lastEmotionReason,
+              },
+              source_context: {
+                messageCountUsed:
+                  recentHistory.length,
+                keyMemoryCountUsed:
+                  keyMemoriesRef.current.length,
+                previousDreamId:
+                  previousDream?.id ?? null,
+                generatedOnReturn:
+                  true,
+              },
+            },
+            {
+              onConflict:
+                'lifeform_id,dream_date',
+            },
+          )
+          .select()
+          .single()
+
+        if (insertError) {
+          throw insertError
+        }
+
+        if (!data) {
+          throw new Error(
+            'Dream was generated but not returned by the database.',
+          )
+        }
+
+        commitDreams([
+          data as Dream,
+          ...dreamsRef.current.filter(
+            (dream) =>
+              dream.id !==
+              (data as Dream).id,
+          ),
+        ])
+
+        await pruneStoredDreams()
+      } catch (dreamGenerationError: unknown) {
+        console.warn(
+          'Daily Dream generation failed:',
+          dreamGenerationError,
+        )
+
+        setDreamError(
+          getErrorMessage(
+            dreamGenerationError,
+          ),
+        )
+      } finally {
+        generatingDreamRef.current = false
+        setGeneratingDream(false)
+      }
+    },
+    [
+      apiKey,
+      selectedModel,
+      lifeform.id,
+      lifeform.user_id,
+      lifeform.name,
+      lifeform.language,
+      emotionIntensity,
+      lastEmotionReason,
+      loadRecentMessagesForDream,
+      pruneStoredDreams,
+    ],
+  )
+
   useEffect(() => {
     void loadInitialMessages()
     void loadEmotionState()
     void loadKeyMemories()
+    void loadDreams()
   }, [
     loadInitialMessages,
     loadEmotionState,
     loadKeyMemories,
+    loadDreams,
+  ])
+
+  useEffect(() => {
+    if (
+      dreamCheckStartedRef.current ||
+      loadingMessages ||
+      loadingKeyMemories ||
+      loadingDreams
+    ) {
+      return
+    }
+
+    dreamCheckStartedRef.current = true
+    void ensureDailyDream()
+  }, [
+    loadingMessages,
+    loadingKeyMemories,
+    loadingDreams,
+    ensureDailyDream,
   ])
 
   useEffect(() => {
@@ -2034,6 +2366,11 @@ export function LifeformChat({
           keyMemoriesRef.current,
         )
 
+      const dreamsContext =
+        buildDreamsContext(
+          dreamsRef.current,
+        )
+
       return [
         'Your name is ' +
           lifeform.name +
@@ -2049,7 +2386,9 @@ export function LifeformChat({
         'You may sound natural, warm and recognizable, but do not turn every answer into an introspective monologue.',
         emotionalResponseContext,
         keyMemoryContext,
+        dreamsContext,
         'The supplied Key Memories are the only long-term memories currently available. Use them as persistent context, but never invent additional memories.',
+        'Saved Dreams are symbolic fragments, not factual memories. If the user asks about Dreams, use the supplied Recent Dreams and do not invent unsaved Dreams.',
         'If the user explicitly asks you to create, save, register or update a Key Memory, acknowledge that the application will save it after your reply. Do not falsely claim that it has already been saved before storage has completed.',
         'If a Key Memory conflicts with the latest explicit statement from the user, follow the latest statement and allow the memory system to update afterward.',
         'Do not pretend to have used tools, searched the web, opened files or performed actions unless those tools were actually provided in the request.',
@@ -2934,6 +3273,24 @@ export function LifeformChat({
               className="text-button"
               onClick={() => {
                 setMobileMenuOpen(false)
+                setDreamsPanelOpen(true)
+              }}
+              aria-expanded={
+                dreamsPanelOpen
+              }
+            >
+              Dreams
+              {' '}
+              {dreams.length}
+              {'/'}
+              3
+            </button>
+
+            <button
+              type="button"
+              className="text-button"
+              onClick={() => {
+                setMobileMenuOpen(false)
                 void handleClearChat()
               }}
               disabled={
@@ -3001,7 +3358,7 @@ export function LifeformChat({
             <p
               className="chat-emotion chat-emotion-stack"
               aria-label={
-                'Emotions principali: ' +
+                'Top emotions: ' +
                 topEmotionSummary
               }
             >
@@ -3315,6 +3672,17 @@ export function LifeformChat({
             </form>
           </section>
         </div>
+
+        <DreamsPanel
+          open={dreamsPanelOpen}
+          dreams={dreams}
+          loading={loadingDreams}
+          generating={generatingDream}
+          error={dreamError}
+          onClose={() =>
+            setDreamsPanelOpen(false)
+          }
+        />
 
         <KeyMemoriesPanel
           open={keyMemoryPanelOpen}
