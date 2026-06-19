@@ -3566,3 +3566,125 @@ body #root input:-webkit-autofill:focus {
     background-color 9999s ease-out 0s !important;
 }
 
+/* ============================================================
+   IVORY GLASS V15 — CHANGE API HIGH CONTRAST
+   ============================================================ */
+
+/*
+ * Stronger than the previous patch: this targets the whole Change API
+ * / Gemini setup page, not only the characters typed inside inputs.
+ */
+
+body #root .gemini-setup-card,
+body #root .gemini-setup-card *,
+body #root .gemini-setup-content,
+body #root .gemini-setup-content *,
+body #root .gemini-description,
+body #root .gemini-description *,
+body #root .gemini-details,
+body #root .gemini-details *,
+body #root .gemini-key-form,
+body #root .gemini-key-form *,
+body #root .api-key-input-row,
+body #root .api-key-input-row * {
+  opacity: 1 !important;
+  text-shadow: none !important;
+}
+
+body #root .gemini-setup-card p,
+body #root .gemini-setup-card span,
+body #root .gemini-setup-card label,
+body #root .gemini-setup-card dt,
+body #root .gemini-setup-card dd,
+body #root .gemini-setup-card a,
+body #root .gemini-setup-card .eyebrow,
+body #root .gemini-setup-card .gemini-model-explanation,
+body #root .gemini-setup-card .storage-explanation,
+body #root .gemini-setup-card .api-key-warning,
+body #root .gemini-setup-card .checkbox-row span,
+body #root .gemini-setup-card .external-link {
+  color: #3f3a35 !important;
+  -webkit-text-fill-color: #3f3a35 !important;
+  opacity: 1 !important;
+}
+
+body #root .gemini-setup-card h1,
+body #root .gemini-setup-card h2,
+body #root .gemini-setup-card h3,
+body #root .gemini-setup-card strong,
+body #root .gemini-setup-card .gemini-details dt,
+body #root .gemini-setup-card .gemini-key-form > label,
+body #root .gemini-setup-card .external-link {
+  color: #2f2b27 !important;
+  -webkit-text-fill-color: #2f2b27 !important;
+  opacity: 1 !important;
+}
+
+body #root .gemini-setup-card input,
+body #root .gemini-setup-card select,
+body #root .gemini-setup-card textarea,
+body #root .gemini-setup-card option,
+body #root .gemini-setup-card .gemini-model-select,
+body #root .gemini-setup-card .gemini-token-limit-input,
+body #root .gemini-setup-card .api-key-input-row input {
+  color: #2f2b27 !important;
+  -webkit-text-fill-color: #2f2b27 !important;
+  caret-color: #2f2b27 !important;
+  opacity: 1 !important;
+}
+
+body #root .gemini-setup-card input::placeholder,
+body #root .gemini-setup-card textarea::placeholder,
+body #root .gemini-setup-card .api-key-input-row input::placeholder {
+  color: #5f5750 !important;
+  -webkit-text-fill-color: #5f5750 !important;
+  opacity: 1 !important;
+}
+
+body #root .gemini-setup-card select option,
+body #root .gemini-setup-card .gemini-model-select option {
+  color: #2f2b27 !important;
+  -webkit-text-fill-color: #2f2b27 !important;
+  background: #fffdfb !important;
+}
+
+/* The checkbox itself must remain visible. */
+body #root .gemini-setup-card input[type='checkbox'] {
+  accent-color: #4b4540 !important;
+}
+
+/* Buttons are the exception: graphite buttons keep white labels. */
+body #root .gemini-setup-card button.primary-button,
+body #root .gemini-setup-card button.primary-button *,
+body #root .gemini-setup-card .primary-button,
+body #root .gemini-setup-card .primary-button *,
+body #root .gemini-setup-card button.small-secondary-button,
+body #root .gemini-setup-card button.small-secondary-button * {
+  color: #ffffff !important;
+  -webkit-text-fill-color: #ffffff !important;
+  opacity: 1 !important;
+}
+
+/* The top Sign out button is light, so it needs graphite text even when disabled. */
+body #root .gemini-setup-header button.secondary-button,
+body #root .gemini-setup-header button.secondary-button *,
+body #root .gemini-setup-header .secondary-button,
+body #root .gemini-setup-header .secondary-button * {
+  color: #3f3a35 !important;
+  -webkit-text-fill-color: #3f3a35 !important;
+  opacity: 1 !important;
+}
+
+/* Autofill text in Chrome/Safari. */
+body #root .gemini-setup-card input:-webkit-autofill,
+body #root .gemini-setup-card input:-webkit-autofill:hover,
+body #root .gemini-setup-card input:-webkit-autofill:focus {
+  -webkit-text-fill-color: #2f2b27 !important;
+  box-shadow:
+    0 0 0 1000px
+    rgba(255, 253, 250, 0.86)
+    inset !important;
+  transition:
+    background-color 9999s ease-out 0s !important;
+}
+

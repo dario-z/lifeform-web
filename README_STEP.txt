@@ -1,15 +1,15 @@
-DIGITAL LIFEFORM — DARK FORM FIELD TEXT V14
+DIGITAL LIFEFORM — CHANGE API HIGH CONTRAST V15
 
-Questa patch rende più scuri e leggibili i testi dentro:
-- input;
-- select;
-- textarea;
+La patch precedente agiva quasi solo su input/select/placeholder.
+Questa invece forza il contrasto di tutta la pagina Change API / Gemini setup:
+- descrizione;
+- riquadri Provider / Selected model / Daily tokens / Cloud storage;
+- label;
+- testo dentro input e select;
 - placeholder;
-- opzioni dei menu a tendina;
-- campi autofill di Chrome/Safari.
-
-Non sovrascrive il CSS: aggiunge solo un blocco finale a:
-src\components\IvoryGlassTheme.css
+- note descrittive;
+- checkbox "Remember the key";
+- Sign out.
 
 Installazione:
 1. Estrarre nella root:
@@ -17,10 +17,10 @@ Installazione:
 
 2. Eseguire:
    cd /d C:\Projects\lifeform-web
-   node scripts\append-dark-form-field-text.mjs
+   node scripts\append-change-api-contrast.mjs
 
 3. Poi:
    npm run build
    npm run dev
 
-4. Ricaricare senza cache.
+4. Refresh senza cache.
