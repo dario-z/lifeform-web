@@ -105,7 +105,7 @@ function App() {
 
         if (!profileResponse.data) {
           throw new Error(
-            'Il profilo dell’utente non è stato trovato.',
+            'user profile not found.',
           )
         }
 
@@ -193,7 +193,7 @@ function App() {
     if (!normalizedEmail) {
       setFeedback({
         type: 'error',
-        text: 'Inserisci un indirizzo email.',
+        text: 'Insert email.',
       })
       return
     }
@@ -201,7 +201,7 @@ function App() {
     if (password.length < 8) {
       setFeedback({
         type: 'error',
-        text: 'La password deve contenere almeno 8 caratteri.',
+        text: 'Password must contain at least 8 characters.',
       })
       return
     }
@@ -223,7 +223,7 @@ function App() {
         if (!data.session) {
           setFeedback({
             type: 'success',
-            text: 'Account created. Controlla eventualmente la tua email.',
+            text: 'Account created.',
           })
         }
       } else {
@@ -275,7 +275,7 @@ function App() {
     data: OnboardingData,
   ) => {
     if (!session) {
-      setAccountError('Sessione utente non disponibile.')
+      setAccountError('Session error.')
       return
     }
 
@@ -302,7 +302,7 @@ function App() {
 
       if (!insertedData) {
         throw new Error(
-          'La Lifeform è stata creata ma non restituita dal database.',
+          'Lifeform created but unavailable.',
         )
       }
 
@@ -331,7 +331,7 @@ function App() {
 
       if (!updatedProfile) {
         throw new Error(
-          'Il profilo aggiornato non è stato restituito.',
+          'Profile unavailable.',
         )
       }
 
@@ -349,7 +349,7 @@ function App() {
       <main className="app-shell">
         <section className="loading-card" aria-live="polite">
           <div className="loading-orb" />
-          <p>Inizializzazione…</p>
+          <p>loading…</p>
         </section>
       </main>
     )
@@ -372,15 +372,14 @@ function App() {
             <h1>Give your AI a presence.</h1>
 
             <p>
-              Un’identità visiva e relazionale applicata al
-              modello IA scelto dall’utente.
+              A visual and relational identity applied to the AI model chosen by the user.
             </p>
           </div>
 
           <div className="auth-panel">
             <div
               className="auth-tabs"
-              aria-label="Tipo di accesso"
+              aria-label="Access type"
             >
               <button
                 type="button"
@@ -405,19 +404,19 @@ function App() {
               <p className="eyebrow">
                 {mode === 'login'
                   ? 'Welcome back'
-                  : 'Nuova connessione'}
+                  : 'New connection'}
               </p>
 
               <h2>
                 {mode === 'login'
-                  ? 'Sign in alla tua Lifeform'
-                  : 'Crea il tuo account'}
+                  ? 'Sign in'
+                  : 'Create your account'}
               </h2>
 
               <p>
                 {mode === 'login'
                   ? 'Resume your unique personal session.'
-                  : 'Ogni account potrà essere associato a una sola Lifeform.'}
+                  : 'One account = One lifeform.'}
               </p>
             </div>
 
@@ -436,7 +435,7 @@ function App() {
                   setEmail(event.target.value)
                 }
                 autoComplete="email"
-                placeholder="nome@esempio.com"
+                placeholder="name@example.com"
                 disabled={authSubmitting}
                 required
               />
@@ -456,7 +455,7 @@ function App() {
                     ? 'new-password'
                     : 'current-password'
                 }
-                placeholder="Almeno 8 caratteri"
+                placeholder="At least 8 characters"
                 minLength={8}
                 disabled={authSubmitting}
                 required
@@ -485,9 +484,7 @@ function App() {
             </form>
 
             <p className="temporary-note">
-              Versione di sviluppo: la conferma
-              dell’indirizzo email è temporaneamente
-              disattivata.
+              Development version: email confirmation is temporarily disabled.
             </p>
           </div>
         </section>
@@ -510,8 +507,8 @@ function App() {
     return (
       <main className="app-shell">
         <section className="authenticated-card">
-          <p className="eyebrow">Errore di connessione</p>
-          <h1>Dati non disponibili</h1>
+          <p className="eyebrow">Connection Error</p>
+          <h1>No data</h1>
 
           <p className="feedback feedback-error">
             {accountError}
@@ -546,7 +543,7 @@ function App() {
   if (!lifeform) {
     return (
       <LifeformOnboarding
-        userEmail={session.user.email ?? 'Email non disponibile'}
+        userEmail={session.user.email ?? 'Email unavailable'}
         submitting={creatingLifeform || authSubmitting}
         serverError={accountError}
         onCreate={handleCreateLifeform}

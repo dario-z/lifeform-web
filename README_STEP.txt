@@ -1,30 +1,38 @@
-DIGITAL LIFEFORM — LOGIN ENGLISH SOURCE TRANSLATION V13
+DIGITAL LIFEFORM — EXACT LOGIN ENGLISH REPLACEMENTS
 
-Questa volta non usa overlay CSS per tradurre la login:
-- rimuove le vecchie scritte generate via CSS;
-- lascia visibile il testo reale dei componenti;
-- include uno script che traduce direttamente le stringhe sorgente dentro src;
-- traduce bottoni, tab, titoli, sottotitoli, note e placeholder/esempi dei campi login/register;
-- mantiene rimosso il badge "PROJECT LIFEFORM".
+Questo pacchetto contiene uno script mirato che sostituisce esattamente le quattro stringhe indicate:
+
+1.
+Un’identità visiva e relazionale applicata al modello IA scelto dall’utente.
+->
+A visual and relational identity applied to the AI model chosen by the user.
+
+2.
+Versione di sviluppo: la conferma dell’indirizzo email è temporaneamente disattivata.
+->
+Development version: email confirmation is temporarily disabled.
+
+3.
+nome@esempio.com
+->
+name@example.com
+
+4.
+almeno 8 caratteri
+->
+at least 8 characters
 
 Installazione:
 1. Estrarre nella root:
    C:\Projects\lifeform-web
 
-2. Sovrascrivere:
-   src\components\IvoryGlassTheme.css
+2. Eseguire:
+   cd /d C:\Projects\lifeform-web
+   node scripts\fix-login-exact-english.mjs
 
-3. Copiare anche:
-   scripts\translate-login-to-english.mjs
-
-4. Eseguire UNA VOLTA:
-   node scripts\translate-login-to-english.mjs
-
-5. Poi:
+3. Poi:
    npm run build
    npm run dev
 
-6. Refresh senza cache / scheda privata.
-
-Nota:
-lo script modifica direttamente i file sorgente dentro src cercando le stringhe italiane esistenti.
+Lo script stampa esattamente quante sostituzioni ha fatto e in quali file.
+Se una stringa non viene trovata, lo segnala chiaramente.
