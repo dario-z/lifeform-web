@@ -1,9 +1,11 @@
 import {
   useCallback,
   useEffect,
+  useMemo,
   useRef,
   useState,
 } from 'react'
+import { GoogleGenAI } from '@google/genai'
 import type {
   CSSProperties,
   FormEvent,
@@ -20,6 +22,7 @@ import {
   createDefaultEmotionLevels,
   normalizeEmotionLevels,
   selectEmotionFromLevels,
+  TRACKED_EMOTIONS,
   type EmotionalAnalysis,
   type EmotionalAnalysisSource,
   type EmotionLevels,
@@ -37,6 +40,7 @@ import {
   GEMINI_MODEL_OPTIONS,
   addGeminiTokenUsage,
   getGeminiModelLabel,
+  getGeminiTokenUsage,
   getLocalTokenUsageDate,
   loadStoredDailyTokenLimit,
   loadStoredGeminiModel,
@@ -57,10 +61,11 @@ import type {
   Profile,
 } from '../types/lifeform'
 import type { ChatMessage } from '../types/message'
-import type {
-  KeyMemory,
-  KeyMemoryCandidate,
-  KeyMemoryInput,
+import {
+  KEY_MEMORY_CATEGORIES,
+  type KeyMemory,
+  type KeyMemoryCandidate,
+  type KeyMemoryInput,
 } from '../types/keyMemory'
 import './GeminiModelSelect.css'
 import './MobileChatLayout.css'
@@ -180,6 +185,361 @@ function getEmotionUiLabel(
   }
 
   return EMOTION_LABELS[emotion]
+}
+
+type EmotionReadout = {
+  emotion: EmotionalState
+  score: number
+}
+
+type RawRequestedKeyMemory = {
+  category?: unknown
+  content?: unknown
+  importance?: unknown
+  reason?: unknown
+}
+
+const requestedKeyMemorySchema = {
+  type: 'object',
+  properties: {
+    category: {
+      type: 'string',
+      enum: [...KEY_MEMORY_CATEGORIES],
+    },
+    content: {
+      type: 'string',
+    },
+    importance: {
+      type: 'integer',
+      minimum: 0,
+      maximum: 100,
+    },
+    reason: {
+      type: 'string',
+    },
+  },
+  required: [
+    'category',
+    'content',
+    'importance',
+    'reason',
+  ],
+  additionalProperties: false,
+}
+
+function isTrackedEmotion(
+  emotion: EmotionalState,
+): emotion is TrackedEmotion {
+  return TRACKED_EMOTIONS.includes(
+    emotion as TrackedEmotion,
+  )
+}
+
+function getTopEmotionReadouts({
+  levels,
+  displayedEmotion,
+  displayedEmotionIntensity,
+  transientEmotion,
+  transientEmotionIntensity,
+}: {
+  levels: EmotionLevels
+  displayedEmotion: EmotionalState
+  displayedEmotionIntensity: number
+  transientEmotion: EmotionalState | null
+  transientEmotionIntensity: number
+}): EmotionReadout[] {
+  const displayLevels: Partial<
+    Record<TrackedEmotion, number>
+  > = {
+    ...levels,
+  }
+
+  if (
+    transientEmotion &&
+    isTrackedEmotion(transientEmotion)
+  ) {
+    displayLevels[transientEmotion] =
+      Math.max(
+        displayLevels[transientEmotion] ??
+          0,
+        transientEmotionIntensity,
+      )
+  }
+
+  if (
+    isTrackedEmotion(displayedEmotion)
+  ) {
+    displayLevels[displayedEmotion] =
+      Math.max(
+        displayLevels[displayedEmotion] ??
+          0,
+        displayedEmotionIntensity,
+      )
+  }
+
+  const readouts = TRACKED_EMOTIONS
+    .map((emotion) => ({
+      emotion,
+      score: Math.max(
+        0,
+        Math.round(
+          displayLevels[emotion] ?? 0,
+        ),
+      ),
+    }))
+    .sort((left, right) => {
+      const scoreDifference =
+        right.score - left.score
+
+      if (scoreDifference !== 0) {
+        return scoreDifference
+      }
+
+      return getEmotionUiLabel(
+        left.emotion,
+      ).localeCompare(
+        getEmotionUiLabel(
+          right.emotion,
+        ),
+      )
+    })
+    .filter(
+      (readout) => readout.score > 0,
+    )
+    .slice(0, 3)
+
+  if (readouts.length > 0) {
+    return readouts
+  }
+
+  return [
+    {
+      emotion:
+        displayedEmotion === 'thinking' ||
+        displayedEmotion === 'dormant'
+          ? displayedEmotion
+          : 'neutral',
+      score: Math.max(
+        0,
+        Math.round(
+          displayedEmotionIntensity,
+        ),
+      ),
+    },
+  ]
+}
+
+function formatEmotionReadouts(
+  readouts: EmotionReadout[],
+): string {
+  return readouts
+    .map(
+      (readout) =>
+        getEmotionUiLabel(
+          readout.emotion,
+        ) +
+        ' ' +
+        String(readout.score),
+    )
+    .join(' · ')
+}
+
+function normalizeMemoryRequestText(
+  value: string,
+): string {
+  return value
+    .toLowerCase()
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+}
+
+function isExplicitKeyMemoryRequest(
+  message: string,
+): boolean {
+  const normalized =
+    normalizeMemoryRequestText(message)
+
+  if (
+    /\b(non|don't|do not)\s+(salvare|salva|memorizzare|memorizza|ricordare|ricorda|registrare|registra|creare|crea|aggiungere|aggiungi|save|remember|store|record|create|add)\b/.test(
+      normalized,
+    )
+  ) {
+    return false
+  }
+
+  const mentionsKeyMemory =
+    normalized.includes('key memory') ||
+    normalized.includes('key memories') ||
+    normalized.includes('memoria chiave') ||
+    normalized.includes('memorie chiave')
+
+  const action =
+    /(ricorda|ricordati|memorizza|salva|registra|registrare|inserisci|inserire|aggiungi|aggiungere|crea|creare|segna|annota|store|remember|save|record|create|add)/.test(
+      normalized,
+    )
+
+  if (mentionsKeyMemory && action) {
+    return true
+  }
+
+  return /(ricorda che|ricordati che|memorizza che|salva in memoria|salvalo in memoria|registralo in memoria|aggiungilo alla memoria|save this memory|remember that|remember this|store this|record this)/.test(
+    normalized,
+  )
+}
+
+function getValidKeyMemoryCategory(
+  value: unknown,
+): KeyMemoryInput['category'] {
+  if (
+    typeof value === 'string' &&
+    KEY_MEMORY_CATEGORIES.includes(
+      value as KeyMemoryInput['category'],
+    )
+  ) {
+    return value as KeyMemoryInput['category']
+  }
+
+  return 'other'
+}
+
+function keyMemoryCandidateToInput(
+  candidate: KeyMemoryCandidate,
+): KeyMemoryInput {
+  return normalizeKeyMemoryInput({
+    category: candidate.category,
+    content: candidate.content,
+    importance:
+      candidate.importance,
+  })
+}
+
+async function extractRequestedKeyMemory({
+  apiKey,
+  model,
+  lifeformName,
+  keyMemories,
+  recentHistory,
+  userMessage,
+  assistantResponse,
+}: {
+  apiKey: string
+  model: GeminiModelId
+  lifeformName: string
+  keyMemories: KeyMemory[]
+  recentHistory: Array<{
+    role: 'user' | 'assistant'
+    content: string
+  }>
+  userMessage: string
+  assistantResponse: string
+}): Promise<{
+  input: KeyMemoryInput | null
+  tokenUsage: GeminiTokenUsage
+}> {
+  const client = new GoogleGenAI({
+    apiKey,
+  })
+
+  const prompt = [
+    'You extract exactly one Key Memory for a persistent AI Lifeform.',
+    '',
+    'The user explicitly asked to save, register or create a Key Memory.',
+    'Create the memory from the recent conversation context, not merely from the literal command.',
+    'If the user says "what we were talking about", "questo", "questa cosa", "the above", or similar, infer the durable memory from the recent conversation.',
+    '',
+    'Lifeform name: ' + lifeformName,
+    '',
+    'Existing Key Memories:',
+    JSON.stringify(
+      keyMemories.map((memory) => ({
+        id: memory.id,
+        category: memory.category,
+        content: memory.content,
+        importance: memory.importance,
+        source: memory.source,
+      })),
+    ),
+    '',
+    'Recent conversation before the latest request:',
+    JSON.stringify(recentHistory),
+    '',
+    'Latest user request:',
+    userMessage,
+    '',
+    'Latest Lifeform response:',
+    assistantResponse,
+    '',
+    'Return JSON only.',
+    'content must be concise, self-contained and useful in future conversations.',
+    'Do not write that the user asked to save a memory; write the memory itself.',
+    'Do not save API keys, passwords, authentication tokens, payment data or other secrets.',
+    'Do not create duplicates of existing memories.',
+    'If there is genuinely no durable memory to save, return an empty content string and importance 0.',
+    'Choose the best category from the allowed enum.',
+  ].join('\n')
+
+  const response =
+    await client.models.generateContent({
+      model,
+      contents: prompt,
+      config: {
+        responseMimeType:
+          'application/json',
+        responseSchema:
+          requestedKeyMemorySchema,
+        maxOutputTokens: 500,
+        temperature: 0.05,
+      } as any,
+    })
+
+  const tokenUsage =
+    getGeminiTokenUsage(response)
+
+  const responseText =
+    response.text?.trim()
+
+  if (!responseText) {
+    return {
+      input: null,
+      tokenUsage,
+    }
+  }
+
+  const parsed = JSON.parse(
+    responseText,
+  ) as RawRequestedKeyMemory
+
+  const normalized =
+    normalizeKeyMemoryInput({
+      category:
+        getValidKeyMemoryCategory(
+          parsed.category,
+        ),
+      content:
+        typeof parsed.content ===
+        'string'
+          ? parsed.content
+          : '',
+      importance:
+        typeof parsed.importance ===
+        'number'
+          ? parsed.importance
+          : Number(
+              parsed.importance,
+            ),
+    })
+
+  if (normalized.content.length < 8) {
+    return {
+      input: null,
+      tokenUsage,
+    }
+  }
+
+  return {
+    input: normalized,
+    tokenUsage,
+  }
 }
 
 function sortKeyMemories(
@@ -1234,6 +1594,181 @@ export function LifeformChat({
       )
     }
 
+  const saveUserRequestedKeyMemory =
+    async (input: KeyMemoryInput) => {
+      const normalized =
+        normalizeKeyMemoryInput(input)
+
+      if (!normalized.content) {
+        throw new Error(
+          'Non è stato possibile estrarre una Key Memory utile dal contesto recente.',
+        )
+      }
+
+      setSavingKeyMemory(true)
+      setKeyMemoryError(null)
+
+      try {
+        const currentMemories =
+          keyMemoriesRef.current
+
+        const similarMemory =
+          findSimilarKeyMemory(
+            currentMemories,
+            normalized.content,
+          )
+
+        if (similarMemory) {
+          const {
+            data,
+            error: updateError,
+          } = await supabase
+            .from('key_memories')
+            .update({
+              category:
+                normalized.category,
+              content:
+                normalized.content,
+              importance: Math.max(
+                similarMemory.importance,
+                normalized.importance,
+              ),
+              source: 'manual',
+            })
+            .eq('id', similarMemory.id)
+            .eq('lifeform_id', lifeform.id)
+            .select()
+            .single()
+
+          if (updateError) {
+            throw updateError
+          }
+
+          if (!data) {
+            throw new Error(
+              'La Key Memory richiesta non è stata restituita dopo l’aggiornamento.',
+            )
+          }
+
+          commitKeyMemories([
+            ...currentMemories.filter(
+              (memory) =>
+                memory.id !==
+                similarMemory.id,
+            ),
+            data as KeyMemory,
+          ])
+
+          return
+        }
+
+        if (
+          currentMemories.length <
+          MAX_KEY_MEMORIES
+        ) {
+          const {
+            data,
+            error: insertError,
+          } = await supabase
+            .from('key_memories')
+            .insert({
+              user_id: lifeform.user_id,
+              lifeform_id: lifeform.id,
+              category:
+                normalized.category,
+              content:
+                normalized.content,
+              importance:
+                normalized.importance,
+              source: 'manual',
+            })
+            .select()
+            .single()
+
+          if (insertError) {
+            throw insertError
+          }
+
+          if (!data) {
+            throw new Error(
+              'La Key Memory richiesta non è stata restituita dopo il salvataggio.',
+            )
+          }
+
+          commitKeyMemories([
+            ...currentMemories,
+            data as KeyMemory,
+          ])
+
+          return
+        }
+
+        const replaceableMemory = [
+          ...currentMemories,
+        ]
+          .filter(
+            (memory) =>
+              memory.source === 'auto',
+          )
+          .sort(
+            (left, right) =>
+              left.importance -
+              right.importance,
+          )[0]
+
+        if (!replaceableMemory) {
+          throw new Error(
+            'Hai già raggiunto il limite di 10 Key Memories manuali. Eliminane una dal pannello Key Memories prima di salvarne un’altra.',
+          )
+        }
+
+        const {
+          data,
+          error: replaceError,
+        } = await supabase
+          .from('key_memories')
+          .update({
+            category:
+              normalized.category,
+            content:
+              normalized.content,
+            importance:
+              normalized.importance,
+            source: 'manual',
+          })
+          .eq('id', replaceableMemory.id)
+          .eq('lifeform_id', lifeform.id)
+          .select()
+          .single()
+
+        if (replaceError) {
+          throw replaceError
+        }
+
+        if (!data) {
+          throw new Error(
+            'La Key Memory sostituita non è stata restituita dal database.',
+          )
+        }
+
+        commitKeyMemories([
+          ...currentMemories.filter(
+            (memory) =>
+              memory.id !==
+              replaceableMemory.id,
+          ),
+          data as KeyMemory,
+        ])
+      } catch (saveError: unknown) {
+        setKeyMemoryError(
+          getErrorMessage(saveError),
+        )
+        throw saveError
+      } finally {
+        setSavingKeyMemory(false)
+      }
+    }
+
   const clearImmediateReaction =
     () => {
       if (
@@ -1515,6 +2050,7 @@ export function LifeformChat({
         emotionalResponseContext,
         keyMemoryContext,
         'The supplied Key Memories are the only long-term memories currently available. Use them as persistent context, but never invent additional memories.',
+        'If the user explicitly asks you to create, save, register or update a Key Memory, acknowledge that the application will save it after your reply. Do not falsely claim that it has already been saved before storage has completed.',
         'If a Key Memory conflicts with the latest explicit statement from the user, follow the latest statement and allow the memory system to update afterward.',
         'Do not pretend to have used tools, searched the web, opened files or performed actions unless those tools were actually provided in the request.',
         'Do not repeatedly announce that you are an AI unless it is directly relevant.',
@@ -1652,6 +2188,11 @@ export function LifeformChat({
           content: message.content,
         }))
 
+    const explicitKeyMemoryRequest =
+      isExplicitKeyMemoryRequest(
+        cleanMessage,
+      )
+
     let immediateReaction:
       | {
           emotion: EmotionalState
@@ -1788,10 +2329,62 @@ export function LifeformChat({
             assistantResponse,
           })
 
+        let requestedMemoryInput:
+          KeyMemoryInput | null = null
+
+        let requestedMemoryTokenUsage: GeminiTokenUsage =
+          {
+            ...EMPTY_GEMINI_TOKEN_USAGE,
+          }
+
+        if (explicitKeyMemoryRequest) {
+          if (analysis.memoryCandidate) {
+            requestedMemoryInput =
+              keyMemoryCandidateToInput(
+                analysis.memoryCandidate,
+              )
+          }
+
+          if (!requestedMemoryInput) {
+            try {
+              const requestedMemory =
+                await extractRequestedKeyMemory({
+                  apiKey,
+                  model: selectedModel,
+                  lifeformName:
+                    lifeform.name,
+                  keyMemories:
+                    keyMemoriesRef.current,
+                  recentHistory:
+                    previousContext.slice(
+                      -GEMINI_CONTEXT_SIZE,
+                    ),
+                  userMessage:
+                    cleanMessage,
+                  assistantResponse,
+                })
+
+              requestedMemoryInput =
+                requestedMemory.input
+
+              requestedMemoryTokenUsage =
+                requestedMemory.tokenUsage
+            } catch (memoryExtractionError: unknown) {
+              console.warn(
+                'Estrazione della Key Memory richiesta non riuscita:',
+                memoryExtractionError,
+              )
+            }
+          }
+        }
+
         const completeTokenUsage =
           addGeminiTokenUsage(
-            replyTokenUsage,
-            analysis.tokenUsage,
+            addGeminiTokenUsage(
+              replyTokenUsage,
+              analysis.tokenUsage,
+            ),
+            requestedMemoryTokenUsage,
           )
 
         await updatePersistentEmotion(
@@ -1800,14 +2393,35 @@ export function LifeformChat({
         )
 
         try {
-          await applyAutonomousMemoryCandidate(
-            analysis.memoryCandidate,
-          )
+          if (explicitKeyMemoryRequest) {
+            if (!requestedMemoryInput) {
+              throw new Error(
+                'Non sono riuscita a estrarre una Key Memory utile dal contesto recente.',
+              )
+            }
+
+            await saveUserRequestedKeyMemory(
+              requestedMemoryInput,
+            )
+          } else {
+            await applyAutonomousMemoryCandidate(
+              analysis.memoryCandidate,
+            )
+          }
         } catch (memoryError: unknown) {
           console.warn(
-            'Aggiornamento automatico delle Key Memories non disponibile:',
+            'Aggiornamento delle Key Memories non disponibile:',
             memoryError,
           )
+
+          if (explicitKeyMemoryRequest) {
+            setError(
+              'La risposta è stata inviata, ma non sono riuscita a salvare la Key Memory: ' +
+                getErrorMessage(
+                  memoryError,
+                ),
+            )
+          }
         }
 
         immediateReaction = {
@@ -1969,6 +2583,29 @@ export function LifeformChat({
       : transientEmotion !== null
         ? transientEmotionIntensity
         : emotionIntensity
+
+  const topEmotionReadouts = useMemo(
+    () =>
+      getTopEmotionReadouts({
+        levels: emotionLevels,
+        displayedEmotion,
+        displayedEmotionIntensity,
+        transientEmotion,
+        transientEmotionIntensity,
+      }),
+    [
+      emotionLevels,
+      displayedEmotion,
+      displayedEmotionIntensity,
+      transientEmotion,
+      transientEmotionIntensity,
+    ],
+  )
+
+  const topEmotionSummary =
+    formatEmotionReadouts(
+      topEmotionReadouts,
+    )
 
   const updateMobileSpriteShareFromPointer =
     (clientY: number) => {
@@ -2195,14 +2832,7 @@ export function LifeformChat({
               <span>Stato</span>
 
               <strong>
-                {getEmotionUiLabel(
-                  settledEmotion,
-                )}
-
-                {settledEmotion !==
-                  'neutral' &&
-                  ' · ' +
-                    emotionIntensity}
+                {topEmotionSummary}
               </strong>
             </div>
 
@@ -2368,23 +2998,39 @@ export function LifeformChat({
               }
             />
 
-            <p className="chat-emotion">
-              {
-                getEmotionUiLabel(
-                  displayedEmotion,
-                )
+            <p
+              className="chat-emotion chat-emotion-stack"
+              aria-label={
+                'Emozioni principali: ' +
+                topEmotionSummary
               }
+            >
+              {topEmotionReadouts.map(
+                (readout) => (
+                  <span
+                    key={readout.emotion}
+                    className="chat-emotion-chip"
+                  >
+                    <span>
+                      {getEmotionUiLabel(
+                        readout.emotion,
+                      )}
+                    </span>
 
-              {!sending &&
-                displayedEmotion !==
-                  'neutral' &&
-                ' · ' +
-                  displayedEmotionIntensity}
+                    <strong>
+                      {readout.score}
+                    </strong>
+                  </span>
+                ),
+              )}
 
               {!sending &&
                 transientEmotion !==
-                  null &&
-                ' · reazione'}
+                  null && (
+                  <span className="chat-emotion-note">
+                    reazione
+                  </span>
+                )}
             </p>
 
             <p className="chat-provider">

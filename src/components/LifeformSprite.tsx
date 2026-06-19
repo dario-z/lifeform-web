@@ -1,9 +1,11 @@
 import {
+  useCallback,
   useEffect,
   useMemo,
   useRef,
   useState,
 } from 'react'
+import type { KeyboardEvent } from 'react'
 import { EMOTION_LABELS } from '../lib/sprites'
 import type { EmotionalState } from '../types/lifeform'
 import './LifeformSprite.css'
@@ -257,6 +259,68 @@ export function LifeformSprite({
   const currentVariantIndexRef =
     useRef(0)
 
+  const hasMultipleVariants =
+    spriteUrls.length > 1
+
+  const cycleToNextSprite =
+    useCallback(async () => {
+      if (spriteUrls.length <= 1) {
+        return
+      }
+
+      for (
+        let attempt = 0;
+        attempt < spriteUrls.length;
+        attempt += 1
+      ) {
+        const nextIndex =
+          (currentVariantIndexRef
+            .current +
+            1 +
+            attempt) %
+          spriteUrls.length
+        const nextUrl =
+          spriteUrls[nextIndex]
+
+        try {
+          await loadImage(nextUrl)
+
+          currentVariantIndexRef.current =
+            nextIndex
+          setVisibleUrl(nextUrl)
+          setVisibleEmotion(emotion)
+          setHasVisibleSprite(true)
+          return
+        } catch {
+          // Try the following variant.
+        }
+      }
+    }, [emotion, spriteUrls])
+
+  const handleSpriteActivation =
+    useCallback(() => {
+      void cycleToNextSprite()
+    }, [cycleToNextSprite])
+
+  const handleSpriteKeyDown =
+    useCallback(
+      (
+        event:
+          KeyboardEvent<HTMLDivElement>,
+      ) => {
+        if (
+          event.key !== 'Enter' &&
+          event.key !== ' '
+        ) {
+          return
+        }
+
+        event.preventDefault()
+        void cycleToNextSprite()
+      },
+      [cycleToNextSprite],
+    )
+
   useEffect(() => {
     let cancelled = false
 
@@ -319,56 +383,21 @@ export function LifeformSprite({
       return
     }
 
-    let cancelled = false
-
     const intervalId =
       window.setInterval(() => {
-        const cycleToNextSprite =
-          async () => {
-            for (
-              let attempt = 0;
-              attempt < spriteUrls.length;
-              attempt += 1
-            ) {
-              const nextIndex =
-                (currentVariantIndexRef
-                  .current +
-                  1 +
-                  attempt) %
-                spriteUrls.length
-              const nextUrl =
-                spriteUrls[nextIndex]
-
-              try {
-                await loadImage(nextUrl)
-
-                if (cancelled) {
-                  return
-                }
-
-                currentVariantIndexRef.current =
-                  nextIndex
-                setVisibleUrl(nextUrl)
-                setVisibleEmotion(emotion)
-                setHasVisibleSprite(true)
-                return
-              } catch {
-                // Try the following variant.
-              }
-            }
-          }
-
         void cycleToNextSprite()
       }, SPRITE_CYCLE_INTERVAL_MS)
 
     return () => {
-      cancelled = true
       window.clearInterval(intervalId)
     }
-  }, [emotion, spriteUrlsKey, spriteUrls])
+  }, [cycleToNextSprite, spriteUrls.length])
 
   const classNames = [
     'chat-avatar',
+    hasMultipleVariants
+      ? 'chat-avatar-interactive'
+      : '',
     'emotion-' + visibleEmotion,
     hasVisibleSprite
       ? 'sprite-loaded'
@@ -386,10 +415,33 @@ export function LifeformSprite({
   return (
     <div
       className={classNames}
+      role={
+        hasMultipleVariants
+          ? 'button'
+          : undefined
+      }
+      tabIndex={
+        hasMultipleVariants ? 0 : undefined
+      }
       aria-label={
-        lifeformName + ': ' + emotionLabel
+        hasMultipleVariants
+          ? lifeformName +
+            ': ' +
+            emotionLabel +
+            '. Tocca per cambiare variante dello sprite.'
+          : lifeformName + ': ' + emotionLabel
       }
       aria-busy={switchingSprite}
+      onClick={
+        hasMultipleVariants
+          ? handleSpriteActivation
+          : undefined
+      }
+      onKeyDown={
+        hasMultipleVariants
+          ? handleSpriteKeyDown
+          : undefined
+      }
     >
       <img
         src={visibleUrl}
