@@ -1,15 +1,18 @@
-DIGITAL LIFEFORM — UI REPAIR V9
+DIGITAL LIFEFORM — LOGIN REPAIR V10
 
 Correzioni:
-- ripristina lo sprite nella schermata login desktop;
-- centra lo sprite login su mobile evitando che finisca di lato;
-- rende "Project Lifeform" grafite su pill chiara, non più bianco su sfondo chiaro;
-- mantiene il testo principale del login su una sfumatura grafite dal basso;
-- corregge il nome della Lifeform e i metadati dentro le bolle: ora sono chiari su bolla scura;
-- corregge il box "Emotional parameters": testo grafite su vetro chiaro;
-- su desktop sposta i controlli extra dentro lo stesso menu hamburger già usato su mobile;
-- elimina il caos del menu orizzontale superiore desktop;
-- mantiene gli sprite desktop grandi nella sezione sinistra.
+- elimina il blocco diagonale scuro della pagina login;
+- crea una fascia grafite orizzontale e trasparente che sfuma verso l'alto;
+- mantiene il testo bianco sopra la fascia scura;
+- mantiene "Project Lifeform" grafite su pill chiara;
+- ingrandisce molto lo sprite login desktop;
+- ingrandisce e centra lo sprite login mobile;
+- fa ruotare gli sprite login ogni secondo;
+- usa un ordine mescolato/pseudo-random;
+- esclude tutte le varianti horny.
+
+File modificato:
+src\components\IvoryGlassTheme.css
 
 Installazione:
 1. Estrarre nella root:
