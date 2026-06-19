@@ -1,48 +1,36 @@
-DIGITAL LIFEFORM — SPRINT 01 DREAMS
+DIGITAL LIFEFORM — SPRINT 02 DREAM ARRIVAL
 
-This package implements the first Dreams system.
+This package improves the Dreams feature without adding gacha, rituals, inventory, or stats.
 
-Features:
-- new Supabase table: dreams
-- one Dream per Lifeform per local day
-- Dream generated automatically when the user returns after midnight
-- Gemini-generated short surreal dream
-- Dream prompt uses:
-  - current emotion
-  - full emotion levels
-  - last emotion reason
-  - recent messages
-  - Key Memories
-  - previous Dream
-  - one required random anchor
-- 100 random anchors for each emotional state:
-  neutral, curious, engaged, happy, concerned, sad, wary, irritated, angry,
-  afraid, reflective, tired, dormant, thinking, horny
-- Dreams panel in hamburger menu
-- only last 3 Dreams are kept
-- recent Dreams are added to Gemini context so the user can ask about them
+New behavior:
+- When a new Dream exists and has not been read, the hamburger menu shows a small "NEW DREAM" pill.
+- While a Dream is being generated, the Dreams button shows "Dreaming…".
+- While the Dream is being generated, the Lifeform sprite switches to the dormant state.
+- The Dreams panel highlights the unread Dream with a "NEW DREAM" label.
+- Each Dream has:
+  - "Ask about this dream"
+  - "Copy dream"
+- Asking about a Dream sends a direct chat prompt that tells the Lifeform to interpret the saved Dream without inventing a new one.
+- The interpretation instructions now explicitly avoid constant melodrama; interpretations may be calm, playful, funny, mundane, absurd, or unresolved.
+- No new Supabase migration is required.
 
 Install:
 1. Extract this ZIP in:
    C:\Projects\lifeform-web
 
-2. In Supabase SQL Editor, run:
-   supabase\lifeform_dreams_migration.sql
-
-3. In terminal:
+2. Run:
    cd /d C:\Projects\lifeform-web
    npm run build
    npm run dev
 
-4. Refresh without cache.
+3. Refresh without cache.
 
-Expected UI:
-- hamburger menu contains "Dreams 0/3" or similar
-- opening Dreams shows the Dreams panel
-- after returning on a new local day, the app generates one Dream in background
-- only the latest 3 Dreams remain saved
-
-Important:
-- This sprint does not add gacha, inventory, rituals, currencies, rewards, or evolution.
-- Dreams are symbolic fragments, not factual memories.
-- If generation fails, chat should continue working and the Dreams panel will show the error.
+Test:
+1. Open the app.
+2. If the app generates a Dream, the sprite should become dormant during generation.
+3. The menu should show "Dreaming…" while generation is active.
+4. After generation, the menu should show "NEW DREAM".
+5. Open Dreams.
+6. The newest Dream should be highlighted.
+7. Click "Ask about this dream".
+8. The chat should send a prompt asking for an interpretation of that saved Dream.

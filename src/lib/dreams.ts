@@ -156,6 +156,8 @@ export function buildDreamsContext(
     ),
     'If the user asks about dreams, answer using only these saved Dreams.',
     'You may interpret them symbolically, but do not claim the interpretation is factual.',
+    'Avoid making every interpretation tragic, grandiose or melodramatic.',
+    'Some interpretations can be playful, funny, mundane, absurd or unresolved.',
     'Do not invent dreams that are not listed here.',
   ].join('\n')
 }

@@ -95,6 +95,48 @@ const MIN_MOBILE_SPRITE_SHARE = 24
 const MAX_MOBILE_SPRITE_SHARE = 96
 const MOBILE_SPRITE_SHARE_STEP = 2
 
+const DREAMS_LAST_SEEN_STORAGE_PREFIX =
+  'lifeform.dreams.last-seen.'
+
+function getDreamsLastSeenStorageKey(
+  lifeformId: string,
+): string {
+  return (
+    DREAMS_LAST_SEEN_STORAGE_PREFIX +
+    lifeformId
+  )
+}
+
+function loadLastSeenDreamId(
+  lifeformId: string,
+): string | null {
+  if (typeof window === 'undefined') {
+    return null
+  }
+
+  return window.localStorage.getItem(
+    getDreamsLastSeenStorageKey(
+      lifeformId,
+    ),
+  )
+}
+
+function saveLastSeenDreamId(
+  lifeformId: string,
+  dreamId: string,
+): void {
+  if (typeof window === 'undefined') {
+    return
+  }
+
+  window.localStorage.setItem(
+    getDreamsLastSeenStorageKey(
+      lifeformId,
+    ),
+    dreamId,
+  )
+}
+
 type LifeformChatProps = {
   profile: Profile
   lifeform: Lifeform
@@ -605,6 +647,13 @@ export function LifeformChat({
   const [dreamError, setDreamError] =
     useState<string | null>(null)
 
+  const [
+    lastSeenDreamId,
+    setLastSeenDreamId,
+  ] = useState<string | null>(() =>
+    loadLastSeenDreamId(lifeform.id),
+  )
+
   const [savingKeyMemory, setSavingKeyMemory] =
     useState(false)
 
@@ -1090,6 +1139,37 @@ export function LifeformChat({
       } finally {
         setLoadingDreams(false)
       }
+    },
+    [lifeform.id],
+  )
+
+  const latestDreamId =
+    dreams[0]?.id ?? null
+
+  const hasNewDream =
+    Boolean(
+      latestDreamId &&
+        latestDreamId !==
+          lastSeenDreamId,
+    )
+
+  const markDreamsSeen = useCallback(
+    () => {
+      const latestDream =
+        dreamsRef.current[0]
+
+      if (!latestDream) {
+        return
+      }
+
+      saveLastSeenDreamId(
+        lifeform.id,
+        latestDream.id,
+      )
+
+      setLastSeenDreamId(
+        latestDream.id,
+      )
     },
     [lifeform.id],
   )
@@ -2389,6 +2469,7 @@ export function LifeformChat({
         dreamsContext,
         'The supplied Key Memories are the only long-term memories currently available. Use them as persistent context, but never invent additional memories.',
         'Saved Dreams are symbolic fragments, not factual memories. If the user asks about Dreams, use the supplied Recent Dreams and do not invent unsaved Dreams.',
+        'When interpreting Dreams, avoid making every interpretation tragic, grandiose or melodramatic. Some interpretations can be calm, playful, funny, mundane, absurd or unresolved.',
         'If the user explicitly asks you to create, save, register or update a Key Memory, acknowledge that the application will save it after your reply. Do not falsely claim that it has already been saved before storage has completed.',
         'If a Key Memory conflicts with the latest explicit statement from the user, follow the latest statement and allow the memory system to update afterward.',
         'Do not pretend to have used tools, searched the web, opened files or performed actions unless those tools were actually provided in the request.',
@@ -2493,13 +2574,11 @@ export function LifeformChat({
       }
     }
 
-  const handleSubmit = async (
-    event: FormEvent<HTMLFormElement>,
+  const sendMessage = async (
+    rawMessage: string,
   ) => {
-    event.preventDefault()
-
     const cleanMessage =
-      draft.trim()
+      rawMessage.trim()
 
     if (!cleanMessage || sending) {
       return
@@ -2797,6 +2876,60 @@ export function LifeformChat({
     }
   }
 
+  const handleSubmit = async (
+    event: FormEvent<HTMLFormElement>,
+  ) => {
+    event.preventDefault()
+
+    await sendMessage(draft)
+  }
+
+  const handleAskAboutDream = async (
+    dream: Dream,
+  ) => {
+    if (sending) {
+      return
+    }
+
+    setDreamsPanelOpen(false)
+    markDreamsSeen()
+
+    await sendMessage(
+      'Tell me about the dream titled “' +
+        dream.title +
+        '” from ' +
+        dream.dream_date +
+        '. What do you think it might mean? Use the saved dream as your only source. Keep the interpretation symbolic and grounded, but not too melodramatic; it can also be playful, funny or absurd if that fits.',
+    )
+  }
+
+  const handleCopyDream = async (
+    dream: Dream,
+  ) => {
+    const text =
+      dream.title +
+      '\n\n' +
+      dream.dream_text +
+      '\n\nAnchor: ' +
+      dream.random_anchor
+
+    try {
+      await navigator.clipboard.writeText(
+        text,
+      )
+    } catch (copyError: unknown) {
+      setDreamError(
+        'The Dream could not be copied to the clipboard: ' +
+          getErrorMessage(copyError),
+      )
+    }
+  }
+
+  const handleDreamsPanelClose = () => {
+    markDreamsSeen()
+    setDreamsPanelOpen(false)
+  }
+
   const handleTextareaKeyDown = (
     event:
       KeyboardEvent<HTMLTextAreaElement>,
@@ -2876,7 +3009,7 @@ export function LifeformChat({
 
         if (resetError) {
           throw new Error(
-            'La chat è stata eliminata, ma non è stato possibile azzerare i parametri emotivi: ' +
+            'The chat was deleted, but the emotional parameters could not be reset: ' +
               resetError.message,
           )
         }
@@ -2911,10 +3044,12 @@ export function LifeformChat({
     }
 
   const displayedEmotion:
-    EmotionalState = sending
-      ? 'thinking'
-      : transientEmotion ??
-        settledEmotion
+    EmotionalState = generatingDream
+      ? 'dormant'
+      : sending
+        ? 'thinking'
+        : transientEmotion ??
+          settledEmotion
 
   const displayedEmotionIntensity =
     sending
@@ -3284,6 +3419,22 @@ export function LifeformChat({
               {dreams.length}
               {'/'}
               3
+              {generatingDream && (
+                <>
+                  {' '}
+                  <span className="new-dream-pill new-dream-pill-dreaming">
+                    Dreaming…
+                  </span>
+                </>
+              )}
+              {hasNewDream && !generatingDream && (
+                <>
+                  {' '}
+                  <span className="new-dream-pill">
+                    NEW DREAM
+                  </span>
+                </>
+              )}
             </button>
 
             <button
@@ -3679,8 +3830,17 @@ export function LifeformChat({
           loading={loadingDreams}
           generating={generatingDream}
           error={dreamError}
-          onClose={() =>
-            setDreamsPanelOpen(false)
+          newDreamId={
+            hasNewDream
+              ? latestDreamId
+              : null
+          }
+          onClose={handleDreamsPanelClose}
+          onAskAboutDream={
+            handleAskAboutDream
+          }
+          onCopyDream={
+            handleCopyDream
           }
         />
 

@@ -8,7 +8,10 @@ type DreamsPanelProps = {
   loading: boolean
   generating: boolean
   error: string | null
+  newDreamId: string | null
   onClose: () => void
+  onAskAboutDream: (dream: Dream) => void
+  onCopyDream: (dream: Dream) => void
 }
 
 function formatDreamDate(
@@ -38,7 +41,10 @@ export function DreamsPanel({
   loading,
   generating,
   error,
+  newDreamId,
   onClose,
+  onAskAboutDream,
+  onCopyDream,
 }: DreamsPanelProps) {
   if (!open) {
     return null
@@ -115,7 +121,11 @@ export function DreamsPanel({
             dreams.map((dream) => (
               <article
                 key={dream.id}
-                className="dream-card"
+                className={
+                  dream.id === newDreamId
+                    ? 'dream-card dream-card-new'
+                    : 'dream-card'
+                }
               >
                 <div className="dream-card-topline">
                   <span>
@@ -129,12 +139,38 @@ export function DreamsPanel({
                   </span>
                 </div>
 
+                {dream.id === newDreamId && (
+                  <div className="dream-new-label">
+                    NEW DREAM
+                  </div>
+                )}
+
                 <h3>{dream.title}</h3>
 
                 <p>{dream.dream_text}</p>
 
                 <div className="dream-anchor">
                   Anchor: {dream.random_anchor}
+                </div>
+
+                <div className="dream-card-actions">
+                  <button
+                    type="button"
+                    onClick={() =>
+                      onAskAboutDream(dream)
+                    }
+                  >
+                    Ask about this dream
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={() =>
+                      onCopyDream(dream)
+                    }
+                  >
+                    Copy dream
+                  </button>
                 </div>
               </article>
             ))
