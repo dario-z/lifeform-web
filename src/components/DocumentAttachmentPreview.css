@@ -1,0 +1,92 @@
+.document-attachment-preview {
+  display: grid;
+  grid-template-columns: 66px minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 12px;
+  margin: 0 0 10px;
+  padding: 10px;
+  color: #2d2b29;
+  background: rgba(255, 255, 255, 0.56);
+  border: 1px solid rgba(45, 43, 41, 0.13);
+  border-radius: 16px;
+}
+
+.document-attachment-badge {
+  display: grid;
+  width: 66px;
+  height: 66px;
+  place-items: center;
+  overflow: hidden;
+  padding: 7px;
+  border-radius: 11px;
+  color: #2d2b29;
+  background: rgba(45, 43, 41, 0.08);
+  font-size: 0.72rem;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  line-height: 1.1;
+  text-align: center;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.document-attachment-copy {
+  display: grid;
+  min-width: 0;
+  gap: 3px;
+}
+
+.document-attachment-copy strong,
+.document-attachment-copy span,
+.document-attachment-copy small {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.document-attachment-copy strong {
+  font-size: 0.88rem;
+}
+
+.document-attachment-copy span,
+.document-attachment-copy small {
+  color: rgba(45, 43, 41, 0.68);
+  font-size: 0.78rem;
+}
+
+.document-attachment-remove {
+  width: 30px;
+  height: 30px;
+  border: 0;
+  border-radius: 999px;
+  color: #2d2b29;
+  background: rgba(45, 43, 41, 0.08);
+  font-size: 1.3rem;
+  line-height: 1;
+  cursor: pointer;
+}
+
+.document-attachment-remove:hover:not(:disabled) {
+  background: rgba(45, 43, 41, 0.16);
+}
+
+.document-attachment-remove:disabled {
+  cursor: not-allowed;
+  opacity: 0.55;
+}
+
+@media (max-width: 700px) {
+  .document-attachment-preview {
+    grid-template-columns: 54px minmax(0, 1fr) auto;
+  }
+
+  .document-attachment-badge {
+    width: 54px;
+    height: 54px;
+    font-size: 0.66rem;
+  }
+
+  .document-attachment-copy small {
+    white-space: normal;
+  }
+}

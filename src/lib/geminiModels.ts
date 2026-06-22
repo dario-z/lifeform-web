@@ -19,8 +19,11 @@ export {
 } from './gemini'
 
 export type {
+  GeminiAttachment,
   GeminiHistoryMessage,
   GeminiImageAttachment,
+  GeminiInlineAttachment,
+  GeminiTextAttachment,
   GeminiTokenUsage,
   GeminiModelId,
 } from './gemini'
