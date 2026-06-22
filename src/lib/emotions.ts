@@ -73,6 +73,7 @@ type AnalyzeEmotionalStateOptions = {
   apiKey: string
   model?: GeminiModelId
   lifeformName: string
+  lifeformLanguage: string
   currentEmotion: EmotionalState
   currentLevels: EmotionLevels
   sensitivities: EmotionalSensitivities
@@ -2062,6 +2063,7 @@ async function requestModelSignals(
   apiKey: string,
   model: GeminiModelId,
   lifeformName: string,
+  lifeformLanguage: string,
   currentEmotion: EmotionalState,
   keyMemories: KeyMemory[],
   recentHistory: Array<{
@@ -2092,6 +2094,8 @@ async function requestModelSignals(
     '',
     'Lifeform name: ' +
       lifeformName,
+    'Lifeform primary language: ' +
+      lifeformLanguage,
     'Current persistent emotion: ' +
       currentEmotion,
     '',
@@ -2141,18 +2145,21 @@ async function requestModelSignals(
     '- tired must always be 0 in both returned vectors because tired is calculated deterministically from daily token usage.',
     '- lonely must always be 0 in both returned vectors because Loneliness is calculated deterministically from real time away.',
     '',
-    'Key Memory decision rules:',
-    '- Return at most one Key Memory decision for this exchange.',
-    '- Use action none unless the exchange contains durable information that will probably remain useful beyond the recent-message window.',
-    '- Suitable memories include stable user preferences, important people, places or projects, long-term goals, key events, concise summaries of older conversation threads, and beliefs genuinely developed by the Lifeform.',
-    '- Do not store greetings, temporary moods, casual wording, repeated facts, uncertain guesses, one-off details, API keys, passwords, authentication tokens, payment data or other secrets.',
-    '- A memory must be concise, self-contained and understandable without the surrounding conversation.',
+    'Long-term proposal decision rules:',
+    '- Return at most one Key Memory proposal candidate for this exchange.',
+    '- Any non-none candidate will be shown to the user for explicit confirmation. It is never stored automatically.',
+    '- Use action none unless the exchange contains one truly durable fact, preference, person, place, project, long-term goal, key event, or Lifeform belief that will remain useful beyond the recent-message window.',
+    '- Do not propose casual wording, repeated filler words, single adjectives, temporary moods, jokes, greetings, uncertain guesses, one-off details, API keys, passwords, authentication tokens, payment data or other secrets.',
+    '- Never turn an isolated word such as "very", "much", "okay", "lol", or a repeated phrase into a proposal.',
+    '- Do not propose a generic conversation summary, an ordinary chat topic, or something the user merely mentioned once without presenting it as relevant or durable.',
+    '- A proposed memory must be concise, self-contained and understandable without surrounding messages.',
+    '- Write the proposed content in the Lifeform primary language.',
+    '- Only use create or update when importance is at least 70.',
     '- If an existing automatic memory already covers the same topic, use update with its exact id instead of creating a duplicate.',
-    '- Never update a memory whose source is manual. User-edited memories are authoritative.',
-    '- If there are already 10 memories, propose a new one only when it is clearly more important than a low-importance automatic memory.',
+    '- Never update a memory whose source is manual. User-confirmed memories are authoritative.',
     '- Use memoryId as an empty string when action is none or create.',
     '- When action is none, return an empty content string, importance 0 and a brief reason.',
-    '- The reason must explain the emotional meaning of the exchange in one short sentence.',
+    '- The reason must briefly explain why the proposal could matter in the future, not the emotional state.',
   ].join('\n')
 
   const response =
@@ -2211,6 +2218,7 @@ export async function analyzeEmotionalState({
   apiKey,
   model = DEFAULT_GEMINI_MODEL,
   lifeformName,
+  lifeformLanguage,
   currentEmotion,
   currentLevels,
   sensitivities,
@@ -2236,6 +2244,7 @@ export async function analyzeEmotionalState({
         apiKey,
         model,
         lifeformName,
+        lifeformLanguage,
         currentEmotion,
         keyMemories,
         recentHistory,

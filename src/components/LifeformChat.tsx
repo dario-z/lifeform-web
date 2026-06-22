@@ -15,6 +15,7 @@ import type {
 import { DreamsPanel } from './DreamsPanel'
 import { EmotionMonitor } from './EmotionMonitor'
 import { KeyMemoriesPanel } from './KeyMemoriesPanel'
+import { LifeformProposalCard } from './LifeformProposalCard'
 import { LifeformSprite } from './LifeformSprite'
 import {
   analyzeEmotionalState,
@@ -40,7 +41,6 @@ import {
   sortDreams,
 } from '../lib/dreams'
 import {
-  AUTO_MEMORY_REPLACEMENT_MARGIN,
   MAX_KEY_MEMORIES,
   buildKeyMemoriesContext,
   findSimilarKeyMemory,
@@ -73,6 +73,14 @@ import type {
 } from '../types/lifeform'
 import type { ChatMessage } from '../types/message'
 import type { Dream } from '../types/dream'
+import {
+  getProposalKind,
+  isProposalWorthyCandidate,
+  proposalToKeyMemoryInput,
+} from '../types/lifeformProposal'
+import type {
+  LifeformProposal,
+} from '../types/lifeformProposal'
 import {
   KEY_MEMORY_CATEGORIES,
   type KeyMemory,
@@ -666,6 +674,28 @@ export function LifeformChat({
   const [keyMemoryError, setKeyMemoryError] =
     useState<string | null>(null)
 
+  const [
+    pendingProposal,
+    setPendingProposal,
+  ] = useState<LifeformProposal | null>(
+    null,
+  )
+
+  const [
+    loadingProposal,
+    setLoadingProposal,
+  ] = useState(true)
+
+  const [
+    savingProposal,
+    setSavingProposal,
+  ] = useState(false)
+
+  const [
+    proposalError,
+    setProposalError,
+  ] = useState<string | null>(null)
+
   const [draft, setDraft] = useState('')
   const [loadingMessages, setLoadingMessages] =
     useState(true)
@@ -813,6 +843,11 @@ export function LifeformChat({
 
   const keyMemoriesRef =
     useRef<KeyMemory[]>([])
+
+  const pendingProposalRef =
+    useRef<LifeformProposal | null>(
+      null,
+    )
 
   const dreamsRef =
     useRef<Dream[]>([])
@@ -1265,6 +1300,50 @@ export function LifeformChat({
     [lifeform.id],
   )
 
+  const loadPendingProposal = useCallback(
+    async () => {
+      setLoadingProposal(true)
+      setProposalError(null)
+
+      try {
+        const {
+          data,
+          error: queryError,
+        } = await supabase
+          .from('lifeform_proposals')
+          .select(
+            'id,user_id,lifeform_id,kind,status,action,target_memory_id,category,content,importance,reason,created_at,decided_at',
+          )
+          .eq('lifeform_id', lifeform.id)
+          .eq('status', 'pending')
+          .order('created_at', {
+            ascending: false,
+          })
+          .limit(1)
+          .maybeSingle()
+
+        if (queryError) {
+          throw queryError
+        }
+
+        const proposal =
+          data as LifeformProposal | null
+
+        pendingProposalRef.current =
+          proposal
+
+        setPendingProposal(proposal)
+      } catch (loadError: unknown) {
+        setProposalError(
+          getErrorMessage(loadError),
+        )
+      } finally {
+        setLoadingProposal(false)
+      }
+    },
+    [lifeform.id],
+  )
+
   const loadInitialMessages = useCallback(
     async () => {
       setLoadingMessages(true)
@@ -1554,11 +1633,13 @@ export function LifeformChat({
     void loadInitialMessages()
     void loadEmotionState()
     void loadKeyMemories()
+    void loadPendingProposal()
     void loadDreams()
   }, [
     loadInitialMessages,
     loadEmotionState,
     loadKeyMemories,
+    loadPendingProposal,
     loadDreams,
   ])
 
@@ -1913,175 +1994,331 @@ export function LifeformChat({
     }
   }
 
-  const updateAutomaticKeyMemory = async (
-    memory: KeyMemory,
-    candidate: KeyMemoryCandidate,
+  const commitPendingProposal = (
+    proposal: LifeformProposal | null,
   ) => {
-    const {
-      data,
-      error: updateError,
-    } = await supabase
-      .from('key_memories')
-      .update({
-        category: candidate.category,
-        content: candidate.content,
-        importance: Math.max(
-          memory.importance,
-          candidate.importance,
-        ),
-        source: 'auto',
-      })
-      .eq('id', memory.id)
-      .eq('lifeform_id', lifeform.id)
-      .select()
-      .single()
+    pendingProposalRef.current =
+      proposal
 
-    if (updateError) {
-      throw updateError
-    }
-
-    if (!data) {
-      throw new Error(
-        'La Key Memory automatica aggiornata non è stata restituita.',
-      )
-    }
-
-    commitKeyMemories([
-      ...keyMemoriesRef.current.filter(
-        (currentMemory) =>
-          currentMemory.id !== memory.id,
-      ),
-      data as KeyMemory,
-    ])
+    setPendingProposal(proposal)
   }
 
-  const createAutomaticKeyMemory = async (
-    candidate: KeyMemoryCandidate,
-  ) => {
-    const {
-      data,
-      error: insertError,
-    } = await supabase
-      .from('key_memories')
-      .insert({
-        user_id: lifeform.user_id,
-        lifeform_id: lifeform.id,
-        category: candidate.category,
-        content: candidate.content,
-        importance:
-          candidate.importance,
-        source: 'auto',
-      })
-      .select()
-      .single()
-
-    if (insertError) {
-      throw insertError
-    }
-
-    if (!data) {
-      throw new Error(
-        'La nuova Key Memory automatica non è stata restituita.',
-      )
-    }
-
-    commitKeyMemories([
-      ...keyMemoriesRef.current,
-      data as KeyMemory,
-    ])
-  }
-
-  const applyAutonomousMemoryCandidate =
+  const queueAutonomousMemoryProposal =
     async (
       candidate:
         KeyMemoryCandidate | null,
     ) => {
-      if (!candidate) {
+      if (
+        !candidate ||
+        pendingProposalRef.current ||
+        !isProposalWorthyCandidate(candidate)
+      ) {
         return
       }
 
       const currentMemories =
         keyMemoriesRef.current
 
+      let targetMemoryId:
+        string | null =
+          candidate.memoryId
+
+      let proposalAction = candidate.action
+
       if (
-        candidate.action === 'update' &&
-        candidate.memoryId
+        candidate.action === 'create'
       ) {
-        const requestedMemory =
-          currentMemories.find(
-            (memory) =>
-              memory.id ===
-              candidate.memoryId,
+        const similarMemory =
+          findSimilarKeyMemory(
+            currentMemories,
+            candidate.content,
           )
 
         if (
-          requestedMemory &&
-          requestedMemory.source === 'auto'
+          similarMemory?.source === 'manual'
         ) {
-          await updateAutomaticKeyMemory(
-            requestedMemory,
-            candidate,
-          )
+          return
         }
 
+        if (similarMemory) {
+          targetMemoryId =
+            similarMemory.id
+          proposalAction = 'update'
+        }
+      }
+
+      const {
+        data: dismissedMatches,
+        error: dismissedQueryError,
+      } = await supabase
+        .from('lifeform_proposals')
+        .select('id')
+        .eq('lifeform_id', lifeform.id)
+        .eq('status', 'dismissed')
+        .eq('content', candidate.content)
+        .limit(1)
+
+      if (dismissedQueryError) {
+        throw dismissedQueryError
+      }
+
+      if (
+        dismissedMatches &&
+        dismissedMatches.length > 0
+      ) {
         return
       }
 
+      const {
+        data,
+        error: insertError,
+      } = await supabase
+        .from('lifeform_proposals')
+        .insert({
+          user_id: lifeform.user_id,
+          lifeform_id: lifeform.id,
+          kind: getProposalKind(
+            candidate.category,
+          ),
+          status: 'pending',
+          action: proposalAction,
+          target_memory_id:
+            targetMemoryId,
+          category: candidate.category,
+          content: candidate.content,
+          importance:
+            candidate.importance,
+          reason: candidate.reason,
+        })
+        .select()
+        .single()
+
+      if (insertError) {
+        // The database guarantees that a Lifeform can have one pending
+        // proposal only. Another tab can win this race harmlessly.
+        if (insertError.code === '23505') {
+          await loadPendingProposal()
+          return
+        }
+
+        throw insertError
+      }
+
+      if (!data) {
+        throw new Error(
+          'The proposal was not returned by the database.',
+        )
+      }
+
+      commitPendingProposal(
+        data as LifeformProposal,
+      )
+    }
+
+  const persistConfirmedProposal =
+    async (
+      proposal: LifeformProposal,
+    ) => {
+      const normalized =
+        normalizeKeyMemoryInput(
+          proposalToKeyMemoryInput(
+            proposal,
+          ),
+        )
+
+      if (!normalized.content) {
+        throw new Error(
+          'The proposed memory is empty.',
+        )
+      }
+
+      const currentMemories =
+        keyMemoriesRef.current
+
+      const requestedTarget =
+        proposal.target_memory_id
+          ? currentMemories.find(
+              (memory) =>
+                memory.id ===
+                proposal.target_memory_id,
+            )
+          : null
+
       const similarMemory =
+        requestedTarget ??
         findSimilarKeyMemory(
           currentMemories,
-          candidate.content,
+          normalized.content,
         )
 
       if (similarMemory) {
-        if (
-          similarMemory.source === 'auto'
-        ) {
-          await updateAutomaticKeyMemory(
-            similarMemory,
-            candidate,
+        const {
+          data,
+          error: updateError,
+        } = await supabase
+          .from('key_memories')
+          .update({
+            category: normalized.category,
+            content: normalized.content,
+            importance: Math.max(
+              similarMemory.importance,
+              normalized.importance,
+            ),
+            // An accepted proposal becomes user-confirmed.
+            source: 'manual',
+          })
+          .eq('id', similarMemory.id)
+          .eq('lifeform_id', lifeform.id)
+          .select()
+          .single()
+
+        if (updateError) {
+          throw updateError
+        }
+
+        if (!data) {
+          throw new Error(
+            'The confirmed memory was not returned after the update.',
           )
         }
 
+        commitKeyMemories([
+          ...currentMemories.filter(
+            (memory) =>
+              memory.id !==
+              similarMemory.id,
+          ),
+          data as KeyMemory,
+        ])
+
         return
       }
 
       if (
-        currentMemories.length <
+        currentMemories.length >=
         MAX_KEY_MEMORIES
       ) {
-        await createAutomaticKeyMemory(
-          candidate,
+        throw new Error(
+          'The Key Memories limit is reached. Open Key Memories and remove one before accepting this proposal.',
         )
-        return
       }
 
-      const replaceableMemory = [
+      const {
+        data,
+        error: insertError,
+      } = await supabase
+        .from('key_memories')
+        .insert({
+          user_id: lifeform.user_id,
+          lifeform_id: lifeform.id,
+          category: normalized.category,
+          content: normalized.content,
+          importance:
+            normalized.importance,
+          // This proposal was explicitly approved by the user.
+          source: 'manual',
+        })
+        .select()
+        .single()
+
+      if (insertError) {
+        throw insertError
+      }
+
+      if (!data) {
+        throw new Error(
+          'The confirmed memory was not returned by the database.',
+        )
+      }
+
+      commitKeyMemories([
         ...currentMemories,
-      ]
-        .filter(
-          (memory) =>
-            memory.source === 'auto',
-        )
-        .sort(
-          (left, right) =>
-            left.importance -
-            right.importance,
-        )[0]
+        data as KeyMemory,
+      ])
+    }
 
-      if (
-        !replaceableMemory ||
-        candidate.importance <
-          replaceableMemory.importance +
-            AUTO_MEMORY_REPLACEMENT_MARGIN
-      ) {
+  const handleAcceptProposal =
+    async () => {
+      const proposal =
+        pendingProposalRef.current
+
+      if (!proposal || savingProposal) {
         return
       }
 
-      await updateAutomaticKeyMemory(
-        replaceableMemory,
-        candidate,
-      )
+      setSavingProposal(true)
+      setProposalError(null)
+
+      try {
+        await persistConfirmedProposal(
+          proposal,
+        )
+
+        const {
+          error: updateError,
+        } = await supabase
+          .from('lifeform_proposals')
+          .update({
+            status: 'accepted',
+            decided_at:
+              new Date().toISOString(),
+          })
+          .eq('id', proposal.id)
+          .eq('lifeform_id', lifeform.id)
+          .eq('status', 'pending')
+
+        if (updateError) {
+          throw updateError
+        }
+
+        commitPendingProposal(null)
+      } catch (acceptError: unknown) {
+        setProposalError(
+          getErrorMessage(acceptError),
+        )
+      } finally {
+        setSavingProposal(false)
+      }
+    }
+
+  const handleDismissProposal =
+    async () => {
+      const proposal =
+        pendingProposalRef.current
+
+      if (!proposal || savingProposal) {
+        return
+      }
+
+      setSavingProposal(true)
+      setProposalError(null)
+
+      try {
+        const {
+          error: updateError,
+        } = await supabase
+          .from('lifeform_proposals')
+          .update({
+            status: 'dismissed',
+            decided_at:
+              new Date().toISOString(),
+          })
+          .eq('id', proposal.id)
+          .eq('lifeform_id', lifeform.id)
+          .eq('status', 'pending')
+
+        if (updateError) {
+          throw updateError
+        }
+
+        commitPendingProposal(null)
+      } catch (dismissError: unknown) {
+        setProposalError(
+          getErrorMessage(dismissError),
+        )
+      } finally {
+        setSavingProposal(false)
+      }
     }
 
   const saveUserRequestedKeyMemory =
@@ -2817,6 +3054,8 @@ export function LifeformChat({
             model: selectedModel,
             lifeformName:
               lifeform.name,
+            lifeformLanguage:
+              lifeform.language,
             currentEmotion:
               settledEmotion,
             currentLevels:
@@ -2909,13 +3148,13 @@ export function LifeformChat({
               requestedMemoryInput,
             )
           } else {
-            await applyAutonomousMemoryCandidate(
+            await queueAutonomousMemoryProposal(
               analysis.memoryCandidate,
             )
           }
         } catch (memoryError: unknown) {
           console.warn(
-            'Aggiornamento delle Key Memories non disponibile:',
+            'Key Memory proposal update was not available:',
             memoryError,
           )
 
@@ -3057,6 +3296,24 @@ export function LifeformChat({
       try {
         const resetLevels =
           createDefaultEmotionLevels()
+
+        const {
+          error: dismissProposalError,
+        } = await supabase
+          .from('lifeform_proposals')
+          .update({
+            status: 'dismissed',
+            decided_at:
+              new Date().toISOString(),
+          })
+          .eq('lifeform_id', lifeform.id)
+          .eq('status', 'pending')
+
+        if (dismissProposalError) {
+          throw dismissProposalError
+        }
+
+        commitPendingProposal(null)
 
         const {
           error: deleteError,
@@ -3848,6 +4105,21 @@ export function LifeformChat({
                 {error}
               </p>
             )}
+
+            {!loadingProposal &&
+              pendingProposal && (
+                <LifeformProposalCard
+                  proposal={pendingProposal}
+                  saving={savingProposal}
+                  error={proposalError}
+                  onAccept={() =>
+                    void handleAcceptProposal()
+                  }
+                  onDismiss={() =>
+                    void handleDismissProposal()
+                  }
+                />
+              )}
 
             <form
               className="chat-composer"

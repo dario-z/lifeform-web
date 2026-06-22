@@ -1,66 +1,150 @@
-DIGITAL LIFEFORM — SPRINT 05
-DREAM QUALITY: LOCALIZED CENTRAL ANCHORS
+DIGITAL LIFEFORM — SPRINT 06
+CONFIRMED MEMORY / GOAL / BELIEF PROPOSALS
 
-This sprint upgrades Dream generation only. It does not add database columns or change the Dreams UI.
+PURPOSE
+-------
+This sprint stops the Lifeform from autonomously writing important memories.
+Instead, it can create one conservative proposal at a time, and the user decides.
 
-WHAT CHANGES
-------------
-1. Shorter Dreams
-   - Old target: 55–170 words
-   - New hard limit: 35–70 words
-   - The app validates the word count. If Gemini misses the target, it retries once.
+A proposal can be displayed as:
+- Possible memory
+- Possible goal
+- Possible belief
 
-2. Localized anchors
-   - Anchor libraries can stay internally in English.
-   - The saved Dream anchor and the Dream itself must be written in the Lifeform language.
-   - Italian Lifeforms will save an Italian anchor; French Lifeforms a French anchor; etc.
-   - For non-English Lifeforms, the raw English source anchor is rejected.
+There is no separate Goals database yet: accepted Goals and Beliefs are stored as
+confirmed Key Memories using their existing categories:
+- long_term_goal
+- lifeform_belief
 
-3. Anchor is now the centre of the Dream
-   - The localized anchor must be in the first sentence.
-   - It must return in the final sentence.
-   - It must occur exactly twice.
-   - It must cause or transform at least two events.
-   - It cannot be mere scenery.
+This keeps the system small, safe and compatible with the current app.
 
-4. Automatic retry
-   - If Gemini gives a Dream that is too long/short, keeps the English anchor,
-     or fails the first/final-sentence anchor structure, the app asks once more
-     for a compliant replacement.
-   - If it still fails, Dream generation fails silently as before and retries
-     the next time the app is opened. Chat is never blocked.
+BEHAVIOUR
+---------
+1. Autonomous proposals are deliberately rare:
+   - one pending proposal maximum;
+   - importance must be at least 70;
+   - generic summaries, filler words, casual phrases, temporary moods and one-off details
+     are rejected before a card is created;
+   - exact dismissed content is not proposed again automatically.
+
+2. The card appears above the chat composer:
+   “I think this could matter.”
+   [Keep it] [Dismiss]
+
+3. Keep it:
+   - stores the item as a Key Memory with source = manual;
+   - user-confirmed memories are never changed automatically later;
+   - updates a very similar existing Key Memory instead of duplicating it.
+
+4. Dismiss:
+   - removes the pending card;
+   - does not create a Key Memory;
+   - prevents the exact same proposed text from being shown again automatically.
+
+5. Explicit commands still work directly:
+   If the user explicitly says “remember this”, “save this memory”, “ricorda che…”,
+   the existing manual Key Memory flow remains immediate. The user has already made
+   the decision in that case.
+
+6. Clear chat:
+   - dismisses any pending proposal tied to the old conversation;
+   - preserves already accepted Key Memories, exactly as before.
+
+IMPORTANT LIMIT
+---------------
+The existing Key Memories limit of 10 remains active.
+If all 10 slots are occupied and the proposed item does not update a similar memory,
+the app will show an error and will not silently delete another confirmed memory.
 
 INSTALLATION
 ------------
-1. Extract this ZIP in:
+0. Create a safety commit first:
+
+   cd /d C:\Projects\lifeform-web
+   git add .
+   git commit -m "Stable base before confirmed proposals"
+   git push
+
+1. Extract this ZIP into:
+
    C:\Projects\lifeform-web
 
-2. It replaces only:
-   src\lib\dreams.ts
+2. In Supabase Dashboard -> SQL Editor, run:
 
-3. No Supabase migration is needed.
+   supabase\lifeform_proposals_migration.sql
 
-4. Build:
+3. Then build and run:
+
    cd /d C:\Projects\lifeform-web
    npm run build
    npm run dev
 
-TESTING WITHOUT WAITING UNTIL TOMORROW
---------------------------------------
-To force a new Dream for testing, remove today's Dream row in Supabase:
+FILES ADDED
+-----------
+- src/types/lifeformProposal.ts
+- src/components/LifeformProposalCard.tsx
+- src/components/LifeformProposalCard.css
+- supabase/lifeform_proposals_migration.sql
 
-  delete from public.dreams
-  where lifeform_id = 'YOUR_LIFEFORM_ID'
-    and dream_date = current_date;
+FILES UPDATED
+-------------
+- src/lib/emotions.ts
+- src/components/LifeformChat.tsx
 
-Then reload the app. Wait for Dreaming… to finish.
+TESTING
+-------
+A. Build
+   npm run build
 
-Expected for an Italian Lifeform:
-- 35–70 words.
-- random anchor shown in Dreams is Italian, not English.
-- Same anchor appears in the first and final sentence.
-- The anchor visibly drives the whole Dream.
+B. Visual test without waiting for Gemini to decide naturally:
+   In Supabase SQL Editor, insert a test proposal. Replace YOUR_LIFEFORM_ID.
 
-Important:
-Existing saved Dreams are not modified. They naturally disappear once newer
-Dreams replace them in the three-Dream retention window.
+   insert into public.lifeform_proposals (
+     user_id,
+     lifeform_id,
+     kind,
+     status,
+     action,
+     target_memory_id,
+     category,
+     content,
+     importance,
+     reason
+   )
+   select
+     user_id,
+     id,
+     'goal',
+     'pending',
+     'create',
+     null,
+     'long_term_goal',
+     'Improve the Dream system so its central images feel meaningful.',
+     82,
+     'This is a durable direction that can guide future conversations.'
+   from public.lifeforms
+   where id = 'YOUR_LIFEFORM_ID';
+
+   Reload the app. The card should appear above the composer as “Possible goal”.
+
+C. Acceptance test
+   - Click Keep it.
+   - Open Key Memories.
+   - Confirm the item is present.
+   - Confirm it is now a manual / user-confirmed memory.
+
+D. Dismissal test
+   - Repeat the SQL test with a different content string.
+   - Click Dismiss.
+   - Confirm the card disappears and no Key Memory is created.
+
+NATURAL TEST
+------------
+The normal model is intentionally conservative. Use a genuinely durable statement,
+not a casual chat line. For example:
+
+“I am building Digital Lifeform as a long-term project, and I want it to preserve
+only memories that I explicitly confirm.”
+
+The Lifeform may propose it after the reply. It should not propose random repeated
+words or trivial wording.
