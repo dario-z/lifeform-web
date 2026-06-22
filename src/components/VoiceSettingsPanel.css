@@ -14,6 +14,23 @@
   margin: 0 0 18px;
 }
 
+.voice-settings-toggle {
+  display: flex;
+  gap: 10px;
+  min-height: 40px;
+  margin: 0 0 18px;
+  align-items: center;
+  color: rgba(45, 43, 41, 0.82);
+  font-size: 0.9rem;
+  font-weight: 700;
+}
+
+.voice-settings-toggle input {
+  width: 18px;
+  height: 18px;
+  accent-color: #2d2b29;
+}
+
 .voice-settings-field > span {
   color: rgba(45, 43, 41, 0.78);
   font-size: 0.8rem;

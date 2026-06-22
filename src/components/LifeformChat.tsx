@@ -90,11 +90,16 @@ import {
   type GeminiTokenUsage,
 } from '../lib/geminiModels'
 import {
+  VOICE_TEST_PHRASES,
+  chooseNativeVoice,
+  createVoiceSettingsForVoice,
   getCompatibleNativeVoices,
-  getVoiceModeLabel,
+  getNativeVoices,
+  getVoiceEnabledLabel,
   isNativeVoiceSupported,
   loadNativeVoiceSettings,
   normalizeNativeVoiceSettings,
+  normalizeVoiceLanguage,
   saveNativeVoiceSettings,
   speakNativeVoice,
   stopNativeVoice,
@@ -286,6 +291,14 @@ function getLocale(language: string): string {
   }
 
   return locales[language] ?? 'it-IT'
+}
+
+function getVoicePreviewText(
+  language: string,
+): string {
+  return VOICE_TEST_PHRASES[
+    normalizeVoiceLanguage(language)
+  ]
 }
 
 function getAttachmentOnlyPrompt(
@@ -1484,6 +1497,7 @@ export function LifeformChat({
     useState<NativeVoiceSettings>(() =>
       loadNativeVoiceSettings(
         lifeform.id,
+        lifeform.language,
       ),
     )
 
@@ -1492,9 +1506,7 @@ export function LifeformChat({
 
   const [availableVoices, setAvailableVoices] =
     useState<SpeechSynthesisVoice[]>(() =>
-      getCompatibleNativeVoices(
-        lifeform.language,
-      ),
+      getNativeVoices(),
     )
 
   const [
@@ -1643,9 +1655,7 @@ export function LifeformChat({
       )
 
       setAvailableVoices(
-        getCompatibleNativeVoices(
-          lifeform.language,
-        ),
+        getNativeVoices(),
       )
     }
 
@@ -1654,13 +1664,68 @@ export function LifeformChat({
     return subscribeToNativeVoiceChanges(
       refreshVoices,
     )
-  }, [lifeform.language])
+  }, [])
 
   useEffect(() => {
     return () => {
       stopNativeVoice()
     }
   }, [])
+
+  useEffect(() => {
+    if (!voiceSupported) {
+      return
+    }
+
+    const compatibleVoices =
+      getCompatibleNativeVoices(
+        voiceSettings.voiceLanguage,
+        availableVoices,
+      )
+
+    if (compatibleVoices.length === 0) {
+      return
+    }
+
+    const selectedVoice = chooseNativeVoice(
+      availableVoices,
+      voiceSettings,
+    )
+
+    const nextSettings =
+      createVoiceSettingsForVoice(
+        voiceSettings,
+        selectedVoice,
+      )
+
+    if (
+      nextSettings.voiceURI ===
+        voiceSettings.voiceURI &&
+      nextSettings.voiceName ===
+        voiceSettings.voiceName &&
+      nextSettings.voiceLang ===
+        voiceSettings.voiceLang
+    ) {
+      return
+    }
+
+    const timeoutId = window.setTimeout(() => {
+      setVoiceSettings(nextSettings)
+      saveNativeVoiceSettings(
+        lifeform.id,
+        nextSettings,
+      )
+    }, 0)
+
+    return () => {
+      window.clearTimeout(timeoutId)
+    }
+  }, [
+    availableVoices,
+    lifeform.id,
+    voiceSettings,
+    voiceSupported,
+  ])
 
   useEffect(() => {
     return () => {
@@ -4685,6 +4750,15 @@ export function LifeformChat({
       }
     }
 
+  const selectedVoice =
+    chooseNativeVoice(
+      availableVoices,
+      voiceSettings,
+    )
+
+  const selectedVoiceAvailable =
+    voiceSupported && selectedVoice !== null
+
   const stopVoicePlayback = () => {
     stopNativeVoice()
     setSpeakingMessageId(null)
@@ -4696,6 +4770,7 @@ export function LifeformChat({
     const normalized =
       normalizeNativeVoiceSettings(
         nextSettings,
+        voiceSettings.voiceLanguage,
       )
 
     setVoiceSettings(normalized)
@@ -4704,7 +4779,7 @@ export function LifeformChat({
       normalized,
     )
 
-    if (normalized.mode === 'off') {
+    if (!normalized.voiceEnabled) {
       stopVoicePlayback()
     }
   }
@@ -4714,15 +4789,16 @@ export function LifeformChat({
     text: string,
   ) => {
     if (
-      !voiceSupported ||
-      voiceSettings.mode === 'off'
+      !voiceSettings.voiceEnabled ||
+      !selectedVoiceAvailable
     ) {
       return
     }
 
+    stopVoicePlayback()
+
     const started = speakNativeVoice({
       text,
-      language: lifeform.language,
       settings: voiceSettings,
       onStart: () => {
         setSpeakingMessageId(messageId)
@@ -4756,9 +4832,9 @@ export function LifeformChat({
   const handleTestVoice = () => {
     speakAssistantMessage(
       'voice-preview',
-      'This is a voice preview for ' +
-        lifeform.name +
-        '.',
+      getVoicePreviewText(
+        voiceSettings.voiceLanguage,
+      ),
     )
   }
 
@@ -4965,19 +5041,6 @@ export function LifeformChat({
           insertedAssistantMessage as ChatMessage,
         ],
       )
-
-      if (voiceSettings.mode === 'auto') {
-        const voiceMessageId =
-          (insertedAssistantMessage as ChatMessage)
-            .id
-
-        window.setTimeout(() => {
-          speakAssistantMessage(
-            voiceMessageId,
-            assistantResponse,
-          )
-        }, 0)
-      }
 
       setStreamingText('')
       setAnalyzingEmotion(true)
@@ -5812,8 +5875,8 @@ export function LifeformChat({
             >
               Voice
               {' · '}
-              {getVoiceModeLabel(
-                voiceSettings.mode,
+              {getVoiceEnabledLabel(
+                voiceSettings.voiceEnabled,
               )}
             </button>
 
@@ -6236,9 +6299,8 @@ export function LifeformChat({
                               )
                             }}
                             disabled={
-                              !voiceSupported ||
-                              voiceSettings.mode ===
-                                'off'
+                              !selectedVoiceAvailable ||
+                              !voiceSettings.voiceEnabled
                             }
                             aria-label={
                               speakingMessageId ===
@@ -6486,10 +6548,9 @@ export function LifeformChat({
 
         <VoiceSettingsPanel
           open={voicePanelOpen}
-          supported={voiceSupported}
+          deviceSupported={voiceSupported}
           settings={voiceSettings}
           voices={availableVoices}
-          language={lifeform.language}
           speaking={
             speakingMessageId !== null
           }

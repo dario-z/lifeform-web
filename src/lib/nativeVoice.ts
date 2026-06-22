@@ -1,30 +1,145 @@
-export const VOICE_MODES = [
-  'off',
-  'manual',
-  'auto',
+export const VOICE_LANGUAGES = [
+  'it',
+  'en',
+  'fr',
+  'de',
+  'es',
+  'ja',
 ] as const
 
-export type VoiceMode =
-  (typeof VOICE_MODES)[number]
+export type VoiceLanguage =
+  (typeof VOICE_LANGUAGES)[number]
+
+export const VOICE_GENDER_PREFERENCES = [
+  'female',
+  'male',
+] as const
+
+export type VoiceGenderPreference =
+  (typeof VOICE_GENDER_PREFERENCES)[number]
 
 export type NativeVoiceSettings = {
-  mode: VoiceMode
-  voiceUri: string
-  rate: number
+  voiceEnabled: boolean
+  voiceLanguage: VoiceLanguage
+  voiceGenderPreference: VoiceGenderPreference
+  voiceURI: string
+  voiceName: string
+  voiceLang: string
 }
 
 export const DEFAULT_NATIVE_VOICE_SETTINGS: NativeVoiceSettings =
   {
-    mode: 'manual',
-    voiceUri: '',
-    rate: 0.95,
+    voiceEnabled: false,
+    voiceLanguage: 'it',
+    voiceGenderPreference: 'female',
+    voiceURI: '',
+    voiceName: '',
+    voiceLang: '',
   }
 
-const MIN_VOICE_RATE = 0.85
-const MAX_VOICE_RATE = 1.15
-const VOICE_RATE_STEP = 0.05
+export const VOICE_LANGUAGE_LABELS: Record<
+  VoiceLanguage,
+  string
+> = {
+  it: 'Italiano',
+  en: 'English',
+  fr: 'Français',
+  de: 'Deutsch',
+  es: 'Español',
+  ja: '日本語',
+}
+
+export const VOICE_TEST_PHRASES: Record<
+  VoiceLanguage,
+  string
+> = {
+  it: 'Ciao. Questa è la voce della tua Lifeform.',
+  en: "Hello. This is your Lifeform's voice.",
+  fr: 'Bonjour. Voici la voix de votre Lifeform.',
+  de: 'Hallo. Dies ist die Stimme deiner Lifeform.',
+  es: 'Hola. Esta es la voz de tu Lifeform.',
+  ja: 'こんにちは。これはあなたのライフフォームの声です。',
+}
+
 const NATIVE_VOICE_STORAGE_PREFIX =
   'lifeform.native-voice.'
+
+const FEMALE_VOICE_NAME_HINTS = [
+  'female',
+  'alice',
+  'amelie',
+  'anna',
+  'aria',
+  'audrey',
+  'ava',
+  'ayumi',
+  'catherine',
+  'denise',
+  'elsa',
+  'emma',
+  'federica',
+  'fiona',
+  'haruka',
+  'hazel',
+  'hedda',
+  'helena',
+  'hortense',
+  'isabella',
+  'joanna',
+  'julie',
+  'karen',
+  'katja',
+  'kendra',
+  'kimberly',
+  'kyoko',
+  'laura',
+  'linda',
+  'marlene',
+  'michelle',
+  'moira',
+  'monica',
+  'nanami',
+  'olivia',
+  'paulina',
+  'sabina',
+  'salli',
+  'samantha',
+  'susan',
+  'sylvie',
+  'tessa',
+  'victoria',
+  'zira',
+]
+
+const MALE_VOICE_NAME_HINTS = [
+  'male',
+  'alex',
+  'conrad',
+  'daniel',
+  'david',
+  'diego',
+  'enrique',
+  'fred',
+  'george',
+  'guy',
+  'hans',
+  'henri',
+  'ichiro',
+  'jorge',
+  'keita',
+  'klaus',
+  'luca',
+  'mark',
+  'markus',
+  'nicolas',
+  'otoya',
+  'pablo',
+  'paul',
+  'ralph',
+  'stefan',
+  'thomas',
+  'tom',
+]
 
 function getStorageKey(
   lifeformId: string,
@@ -35,59 +150,103 @@ function getStorageKey(
   )
 }
 
-function isVoiceMode(
+function isVoiceLanguage(
   value: unknown,
-): value is VoiceMode {
+): value is VoiceLanguage {
   return (
     typeof value === 'string' &&
-    VOICE_MODES.includes(
-      value as VoiceMode,
+    VOICE_LANGUAGES.includes(
+      value as VoiceLanguage,
     )
   )
 }
 
-export function normalizeVoiceRate(
-  value: number,
-): number {
-  if (!Number.isFinite(value)) {
-    return DEFAULT_NATIVE_VOICE_SETTINGS.rate
-  }
-
-  const clamped = Math.min(
-    MAX_VOICE_RATE,
-    Math.max(MIN_VOICE_RATE, value),
+function isVoiceGenderPreference(
+  value: unknown,
+): value is VoiceGenderPreference {
+  return (
+    typeof value === 'string' &&
+    VOICE_GENDER_PREFERENCES.includes(
+      value as VoiceGenderPreference,
+    )
   )
+}
 
-  return Math.round(
-    clamped / VOICE_RATE_STEP,
-  ) * VOICE_RATE_STEP
+export function normalizeVoiceLanguage(
+  value: unknown,
+  fallback: VoiceLanguage = DEFAULT_NATIVE_VOICE_SETTINGS.voiceLanguage,
+): VoiceLanguage {
+  return isVoiceLanguage(value)
+    ? value
+    : fallback
+}
+
+export function normalizeVoiceGenderPreference(
+  value: unknown,
+): VoiceGenderPreference {
+  return isVoiceGenderPreference(value)
+    ? value
+    : DEFAULT_NATIVE_VOICE_SETTINGS.voiceGenderPreference
 }
 
 export function normalizeNativeVoiceSettings(
-  value: Partial<NativeVoiceSettings>,
+  value: Partial<NativeVoiceSettings> & {
+    mode?: unknown
+    gender?: unknown
+    voiceUri?: unknown
+  },
+  fallbackLanguage: VoiceLanguage = DEFAULT_NATIVE_VOICE_SETTINGS.voiceLanguage,
 ): NativeVoiceSettings {
-  return {
-    mode: isVoiceMode(value.mode)
+  const storedMode =
+    typeof value.mode === 'string'
       ? value.mode
-      : DEFAULT_NATIVE_VOICE_SETTINGS.mode,
-    voiceUri:
-      typeof value.voiceUri === 'string'
-        ? value.voiceUri
-        : '',
-    rate: normalizeVoiceRate(
-      typeof value.rate === 'number'
-        ? value.rate
-        : DEFAULT_NATIVE_VOICE_SETTINGS.rate,
+      : null
+
+  return {
+    voiceEnabled:
+      typeof value.voiceEnabled === 'boolean'
+        ? value.voiceEnabled
+        : storedMode
+          ? storedMode !== 'off'
+          : DEFAULT_NATIVE_VOICE_SETTINGS.voiceEnabled,
+    voiceLanguage: normalizeVoiceLanguage(
+      value.voiceLanguage,
+      fallbackLanguage,
     ),
+    voiceGenderPreference:
+      normalizeVoiceGenderPreference(
+        value.voiceGenderPreference ??
+          value.gender,
+      ),
+    voiceURI:
+      typeof value.voiceURI === 'string'
+        ? value.voiceURI
+        : typeof value.voiceUri === 'string'
+          ? value.voiceUri
+          : '',
+    voiceName:
+      typeof value.voiceName === 'string'
+        ? value.voiceName
+        : '',
+    voiceLang:
+      typeof value.voiceLang === 'string'
+        ? value.voiceLang
+        : '',
   }
 }
 
 export function loadNativeVoiceSettings(
   lifeformId: string,
+  fallbackLanguage?: string,
 ): NativeVoiceSettings {
+  const normalizedFallbackLanguage =
+    normalizeVoiceLanguage(fallbackLanguage)
+
   if (typeof window === 'undefined') {
     return {
       ...DEFAULT_NATIVE_VOICE_SETTINGS,
+      voiceLanguage:
+        normalizedFallbackLanguage,
     }
   }
 
@@ -99,15 +258,20 @@ export function loadNativeVoiceSettings(
     if (!stored) {
       return {
         ...DEFAULT_NATIVE_VOICE_SETTINGS,
+        voiceLanguage:
+          normalizedFallbackLanguage,
       }
     }
 
     return normalizeNativeVoiceSettings(
       JSON.parse(stored) as Partial<NativeVoiceSettings>,
+      normalizedFallbackLanguage,
     )
   } catch {
     return {
       ...DEFAULT_NATIVE_VOICE_SETTINGS,
+      voiceLanguage:
+        normalizedFallbackLanguage,
     }
   }
 }
@@ -126,6 +290,7 @@ export function saveNativeVoiceSettings(
       JSON.stringify(
         normalizeNativeVoiceSettings(
           settings,
+          settings.voiceLanguage,
         ),
       ),
     )
@@ -148,31 +313,6 @@ function getSpeechSynthesis(): SpeechSynthesis | null {
   }
 
   return window.speechSynthesis
-}
-
-export function getSpeechLanguageTag(
-  language: string,
-): string {
-  const languageTags: Record<string, string> = {
-    it: 'it-IT',
-    en: 'en-US',
-    fr: 'fr-FR',
-    de: 'de-DE',
-    es: 'es-ES',
-  }
-
-  return (
-    languageTags[language] ??
-    languageTags.en
-  )
-}
-
-function getLanguagePrefix(
-  language: string,
-): string {
-  return getSpeechLanguageTag(language)
-    .split('-')[0]
-    .toLocaleLowerCase()
 }
 
 export function getNativeVoices(): SpeechSynthesisVoice[] {
@@ -199,16 +339,16 @@ export function getNativeVoices(): SpeechSynthesisVoice[] {
 }
 
 export function getCompatibleNativeVoices(
-  language: string,
+  language: VoiceLanguage,
+  voices: SpeechSynthesisVoice[] = getNativeVoices(),
 ): SpeechSynthesisVoice[] {
   const prefix =
-    getLanguagePrefix(language)
+    language.toLocaleLowerCase()
 
-  return getNativeVoices().filter(
-    (voice) =>
-      voice.lang
-        .toLocaleLowerCase()
-        .startsWith(prefix),
+  return voices.filter((voice) =>
+    voice.lang
+      .toLocaleLowerCase()
+      .startsWith(prefix),
   )
 }
 
@@ -222,57 +362,171 @@ export function subscribeToNativeVoiceChanges(
     return () => undefined
   }
 
-  speechSynthesis.addEventListener(
-    'voiceschanged',
-    listener,
-  )
+  const previousHandler =
+    speechSynthesis.onvoiceschanged
+
+  speechSynthesis.onvoiceschanged = (event) => {
+    if (typeof previousHandler === 'function') {
+      previousHandler.call(
+        speechSynthesis,
+        event,
+      )
+    }
+
+    listener()
+  }
 
   return () => {
-    speechSynthesis.removeEventListener(
-      'voiceschanged',
-      listener,
+    speechSynthesis.onvoiceschanged =
+      previousHandler
+  }
+}
+
+function hasNameHint(
+  name: string,
+  hints: string[],
+): boolean {
+  const normalizedName =
+    name.toLocaleLowerCase()
+
+  return hints.some((hint) => {
+    const pattern = new RegExp(
+      '(^|[^a-z])' +
+        hint.replace(
+          /[.*+?^${}()|[\]\\]/g,
+          '\\$&',
+        ) +
+        '($|[^a-z])',
+      'i',
     )
-  }
+
+    return pattern.test(normalizedName)
+  })
 }
 
-export function getVoiceModeLabel(
-  mode: VoiceMode,
-): string {
-  const labels: Record<VoiceMode, string> = {
-    off: 'Off',
-    manual: 'Manual',
-    auto: 'Auto',
+export function detectVoiceGenderPreference(
+  voice: SpeechSynthesisVoice,
+): VoiceGenderPreference | null {
+  const female =
+    hasNameHint(
+      voice.name,
+      FEMALE_VOICE_NAME_HINTS,
+    )
+  const male =
+    hasNameHint(
+      voice.name,
+      MALE_VOICE_NAME_HINTS,
+    )
+
+  if (female === male) {
+    return null
   }
 
-  return labels[mode]
+  return female ? 'female' : 'male'
 }
 
-function chooseVoice(options: {
-  language: string
-  voiceUri: string
-}): SpeechSynthesisVoice | null {
-  const {
-    language,
-    voiceUri,
-  } = options
+function getPreferredVoice(
+  voices: SpeechSynthesisVoice[],
+): SpeechSynthesisVoice | null {
+  return (
+    voices.find((voice) => voice.default) ??
+    voices[0] ??
+    null
+  )
+}
 
+export function chooseNativeVoice(
+  voices: SpeechSynthesisVoice[],
+  settings: NativeVoiceSettings,
+): SpeechSynthesisVoice | null {
   const compatibleVoices =
-    getCompatibleNativeVoices(language)
+    getCompatibleNativeVoices(
+      settings.voiceLanguage,
+      voices,
+    )
 
   if (compatibleVoices.length === 0) {
     return null
   }
 
-  return (
+  const preferredVoices =
+    compatibleVoices.filter(
+      (voice) =>
+        detectVoiceGenderPreference(
+          voice,
+        ) ===
+        settings.voiceGenderPreference,
+    )
+
+  const savedVoice =
     compatibleVoices.find(
       (voice) =>
-        voice.voiceURI === voiceUri,
-    ) ??
-    compatibleVoices.find(
-      (voice) => voice.default,
-    ) ??
-    compatibleVoices[0]
+        voice.voiceURI === settings.voiceURI,
+    ) ?? null
+  const savedVoiceGender = savedVoice
+    ? detectVoiceGenderPreference(
+        savedVoice,
+      )
+    : null
+
+  if (
+    savedVoice &&
+    (savedVoiceGender ===
+      settings.voiceGenderPreference ||
+      (preferredVoices.length === 0 &&
+        savedVoiceGender !== null))
+  ) {
+    return savedVoice
+  }
+
+  const preferredVoice =
+    getPreferredVoice(preferredVoices)
+
+  if (preferredVoice) {
+    return preferredVoice
+  }
+
+  const otherProfileVoices =
+    compatibleVoices.filter((voice) => {
+      const detectedGender =
+        detectVoiceGenderPreference(voice)
+
+      return (
+        detectedGender !== null &&
+        detectedGender !==
+          settings.voiceGenderPreference
+      )
+    })
+
+  return getPreferredVoice(
+    otherProfileVoices,
   )
+}
+
+export function createVoiceSettingsForVoice(
+  settings: NativeVoiceSettings,
+  voice: SpeechSynthesisVoice | null,
+): NativeVoiceSettings {
+  return {
+    ...settings,
+    voiceURI: voice?.voiceURI ?? '',
+    voiceName: voice?.name ?? '',
+    voiceLang: voice?.lang ?? '',
+  }
+}
+
+export function getVoiceEnabledLabel(
+  voiceEnabled: boolean,
+): string {
+  return voiceEnabled ? 'On' : 'Off'
+}
+
+export function getVoiceGenderPreferenceLabel(
+  preference: VoiceGenderPreference,
+): string {
+  return preference === 'female'
+    ? 'Female'
+    : 'Male'
 }
 
 export function stopNativeVoice(): void {
@@ -284,7 +538,6 @@ export function stopNativeVoice(): void {
 
 type SpeakNativeVoiceOptions = {
   text: string
-  language: string
   settings: NativeVoiceSettings
   onStart?: () => void
   onEnd?: () => void
@@ -303,24 +556,20 @@ export function speakNativeVoice(
     return false
   }
 
+  const voice = chooseNativeVoice(
+    getNativeVoices(),
+    options.settings,
+  )
+
+  if (!voice) {
+    return false
+  }
+
   const utterance =
     new SpeechSynthesisUtterance(text)
 
-  utterance.lang = getSpeechLanguageTag(
-    options.language,
-  )
-  utterance.rate = normalizeVoiceRate(
-    options.settings.rate,
-  )
-
-  const voice = chooseVoice({
-    language: options.language,
-    voiceUri: options.settings.voiceUri,
-  })
-
-  if (voice) {
-    utterance.voice = voice
-  }
+  utterance.voice = voice
+  utterance.lang = voice.lang
 
   utterance.onstart = () => {
     options.onStart?.()
