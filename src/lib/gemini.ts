@@ -7,17 +7,17 @@ export const GEMINI_MODEL_OPTIONS = [
   {
     id: 'gemini-flash-lite-latest',
     label: 'Gemini Flash-Lite Latest',
-    note: 'Default and recommended',
+    note: 'Predefinito e consigliato',
   },
   {
     id: 'gemini-3.1-flash-lite',
     label: 'Gemini 3.1 Flash-Lite',
-    note: 'Current stable version',
+    note: 'Versione stabile corrente',
   },
   {
     id: 'gemini-2.5-flash-lite',
     label: 'Gemini 2.5 Flash-Lite',
-    note: 'Previous stable version',
+    note: 'Versione stabile precedente',
   },
 ] as const
 
@@ -66,11 +66,17 @@ export type GeminiHistoryMessage = {
   content: string
 }
 
+export type GeminiImageAttachment = {
+  mimeType: string
+  base64Data: string
+}
+
 type StreamGeminiReplyOptions = {
   apiKey: string
   model?: GeminiModelId
   history: GeminiHistoryMessage[]
   prompt: string
+  image?: GeminiImageAttachment | null
   systemInstruction: string
   onText: (completeText: string) => void
   onUsage?: (usage: GeminiTokenUsage) => void
@@ -404,10 +410,10 @@ export function getFriendlyGeminiErrorMessage(
     comparable.includes('rate limit')
   ) {
     return (
-      'The available quota for ' +
+      'La quota disponibile per ' +
       modelLabel +
-      ' is temporarily exhausted. ' +
-      'Select another model or try again after the quota resets.'
+      ' è temporaneamente esaurita. ' +
+      'Seleziona un altro modello oppure riprova dopo il ripristino della quota.'
     )
   }
 
@@ -420,7 +426,7 @@ export function getFriendlyGeminiErrorMessage(
   ) {
     return (
       modelLabel +
-      ' is not available for this API key or region. Select another model.'
+      ' non è disponibile per questa chiave API o regione. Seleziona un altro modello.'
     )
   }
 
@@ -433,9 +439,9 @@ export function getFriendlyGeminiErrorMessage(
     )
   ) {
     return (
-      'The Google key is not authorized to use ' +
+      'La chiave Google non è autorizzata a usare ' +
       modelLabel +
-      '. Check the key or select another model.'
+      '. Controlla la chiave o seleziona un altro modello.'
     )
   }
 
@@ -446,7 +452,7 @@ export function getFriendlyGeminiErrorMessage(
   ) {
     return (
       modelLabel +
-      ' is temporarily overloaded. Try again shortly or select another model.'
+      ' è temporaneamente sovraccarico. Riprova tra poco oppure seleziona un altro modello.'
     )
   }
 
@@ -455,14 +461,14 @@ export function getFriendlyGeminiErrorMessage(
     comparable.includes('network')
   ) {
     return (
-      'Gemini could not be reached. Check your connection and try again.'
+      'Impossibile raggiungere Gemini. Controlla la connessione e riprova.'
     )
   }
 
   return (
-    'Gemini did not complete the request with ' +
+    'Gemini non ha completato la richiesta con ' +
     modelLabel +
-    '. Try again or select another model.'
+    '. Riprova oppure seleziona un altro modello.'
   )
 }
 
@@ -491,7 +497,7 @@ export async function verifyGeminiApiKey(
 
     if (!responseText) {
       throw new Error(
-        'Gemini replied without returning text.',
+        'Gemini ha risposto senza restituire testo.',
       )
     }
   } catch (error: unknown) {
@@ -504,7 +510,7 @@ export async function verifyGeminiApiKey(
   }
 }
 
-function buildGeminiContents(
+function buildGeminiHistoryContents(
   messages: GeminiHistoryMessage[],
 ): Content[] {
   const normalized: Array<{
@@ -561,11 +567,67 @@ function buildGeminiContents(
   )
 }
 
+function buildGeminiContents(options: {
+  history: GeminiHistoryMessage[]
+  prompt: string
+  image?: GeminiImageAttachment | null
+}): Content[] {
+  const {
+    history,
+    prompt,
+    image,
+  } = options
+
+  const historyContents =
+    buildGeminiHistoryContents(history)
+
+  const finalParts = [
+    {
+      text: prompt,
+    },
+    ...(image
+      ? [
+          {
+            inlineData: {
+              mimeType: image.mimeType,
+              data: image.base64Data,
+            },
+          },
+        ]
+      : []),
+  ]
+
+  const lastContent =
+    historyContents.at(-1)
+
+  if (lastContent?.role === 'user') {
+    return [
+      ...historyContents.slice(0, -1),
+      {
+        role: 'user',
+        parts: [
+          ...(lastContent.parts ?? []),
+          ...finalParts,
+        ],
+      },
+    ] as Content[]
+  }
+
+  return [
+    ...historyContents,
+    {
+      role: 'user',
+      parts: finalParts,
+    },
+  ] as Content[]
+}
+
 export async function streamGeminiReply({
   apiKey,
   model = getStoredGeminiModel(),
   history,
   prompt,
+  image,
   systemInstruction,
   onText,
   onUsage,
@@ -575,13 +637,11 @@ export async function streamGeminiReply({
     apiKey,
   })
 
-  const contents = buildGeminiContents([
-    ...history,
-    {
-      role: 'user',
-      content: prompt,
-    },
-  ])
+  const contents = buildGeminiContents({
+    history,
+    prompt,
+    image,
+  })
 
   let completeText = ''
   let tokenUsage = {

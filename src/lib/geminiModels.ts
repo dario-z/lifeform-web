@@ -20,6 +20,7 @@ export {
 
 export type {
   GeminiHistoryMessage,
+  GeminiImageAttachment,
   GeminiTokenUsage,
   GeminiModelId,
 } from './gemini'

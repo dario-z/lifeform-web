@@ -7,6 +7,7 @@ import {
 } from 'react'
 import { GoogleGenAI } from '@google/genai'
 import type {
+  ChangeEvent,
   CSSProperties,
   FormEvent,
   KeyboardEvent,
@@ -14,6 +15,7 @@ import type {
 } from 'react'
 import { BeliefsPanel } from './BeliefsPanel'
 import { DreamsPanel } from './DreamsPanel'
+import { ImageAttachmentPreview } from './ImageAttachmentPreview'
 import { EmotionMonitor } from './EmotionMonitor'
 import { GoalsPanel } from './GoalsPanel'
 import { KeyMemoriesPanel } from './KeyMemoriesPanel'
@@ -75,6 +77,11 @@ import {
   type GeminiModelId,
   type GeminiTokenUsage,
 } from '../lib/geminiModels'
+import {
+  createPendingImageAttachment,
+  revokeImagePreview,
+  type PendingImageAttachment,
+} from '../lib/imageAttachment'
 import { EMOTION_LABELS } from '../lib/sprites'
 import { supabase } from '../lib/supabase'
 import type {
@@ -105,6 +112,7 @@ import {
   type KeyMemoryInput,
 } from '../types/keyMemory'
 import './GeminiModelSelect.css'
+import './ImageAttachmentPreview.css'
 import './MobileChatLayout.css'
 import './IvoryGlassTheme.css'
 
@@ -244,6 +252,65 @@ function getLocale(language: string): string {
   }
 
   return locales[language] ?? 'it-IT'
+}
+
+function getImageOnlyPrompt(
+  language: string,
+): string {
+  const prompts: Record<
+    string,
+    string
+  > = {
+    it: 'Osserva questa immagine con attenzione e dimmi cosa noti.',
+    en: 'Observe this image carefully and tell me what you notice.',
+    fr: 'Observe attentivement cette image et dis-moi ce que tu remarques.',
+    de: 'Betrachte dieses Bild aufmerksam und sage mir, was dir auffällt.',
+    es: 'Observa esta imagen con atención y dime qué notas.',
+  }
+
+  return (
+    prompts[language] ??
+    prompts.en
+  )
+}
+
+function buildStoredImageMessage(options: {
+  text: string
+  attachment: PendingImageAttachment
+}): string {
+  const {
+    text,
+    attachment,
+  } = options
+
+  const marker =
+    '[Image shared: ' +
+    attachment.name +
+    '. The image was available only for this reply and is not retained.]'
+
+  return text
+    ? text + '\n\n' + marker
+    : marker
+}
+
+function buildVisualAnalysisMessage(options: {
+text: string
+language: string
+}): string {
+const {
+text,
+language,
+} = options
+
+const baseText =
+text ||
+getImageOnlyPrompt(language)
+
+return [
+baseText,
+'',
+'[The user attached an image for one-time visual analysis. Do not create or update a Key Memory, Goal or Belief from visual content alone.]',
+].join('\n')
 }
 
 function normalizeStoredEmotion(
@@ -738,6 +805,19 @@ export function LifeformChat({
   ] = useState<string | null>(null)
 
   const [draft, setDraft] = useState('')
+
+  const [
+    pendingImageAttachment,
+    setPendingImageAttachment,
+  ] = useState<PendingImageAttachment | null>(
+    null,
+  )
+
+  const [
+    imageAttachmentError,
+    setImageAttachmentError,
+  ] = useState<string | null>(null)
+
   const [loadingMessages, setLoadingMessages] =
     useState(true)
   const [loadingOlder, setLoadingOlder] =
@@ -886,6 +966,9 @@ export function LifeformChat({
   const textareaRef =
     useRef<HTMLTextAreaElement | null>(null)
 
+  const imageInputRef =
+    useRef<HTMLInputElement | null>(null)
+
   const stickToBottomRef = useRef(true)
 
   const keyMemoriesRef =
@@ -969,6 +1052,14 @@ export function LifeformChat({
       String(mobileSpriteShare),
     )
   }, [mobileSpriteShare])
+
+  useEffect(() => {
+    return () => {
+      revokeImagePreview(
+        pendingImageAttachment,
+      )
+    }
+  }, [pendingImageAttachment])
 
   useEffect(() => {
     keyMemoriesRef.current =
@@ -3299,6 +3390,7 @@ export function LifeformChat({
         beliefsContext,
         dreamsContext,
         'Key Memories are durable facts and preferences. Use them as persistent context, but never invent additional memories.',
+        'A saved chat marker such as “[Image shared: …]” means an image was available only in that old exchange. You cannot still see it, so do not claim visual details from it unless it is attached again in the current message.',
         'Goals are user-confirmed durable directions, not a task list. Refer to them only when the current conversation is genuinely relevant.',
         'Beliefs are user-confirmed tentative perspectives. They are not objective truth and must never become assumptions about the user.',
         'Saved Dreams are symbolic fragments, not factual memories. If the user asks about Dreams, use the supplied Recent Dreams and do not invent unsaved Dreams.',
@@ -3421,8 +3513,13 @@ export function LifeformChat({
   ) => {
     const cleanMessage =
       rawMessage.trim()
+    const imageAttachment =
+      pendingImageAttachment
 
-    if (!cleanMessage || sending) {
+    if (
+      (!cleanMessage && !imageAttachment) ||
+      sending
+    ) {
       return
     }
 
@@ -3440,6 +3537,28 @@ export function LifeformChat({
       return
     }
 
+    const modelPrompt =
+      cleanMessage ||
+      getImageOnlyPrompt(
+        lifeform.language,
+      )
+
+    const storedUserMessage =
+      imageAttachment
+        ? buildStoredImageMessage({
+            text: cleanMessage,
+            attachment: imageAttachment,
+          })
+        : cleanMessage
+
+    const visualAnalysisMessage =
+      imageAttachment
+        ? buildVisualAnalysisMessage({
+            text: cleanMessage,
+            language: lifeform.language,
+          })
+        : cleanMessage
+
     const previousContext =
       messages
         .slice(-GEMINI_CONTEXT_SIZE)
@@ -3449,6 +3568,7 @@ export function LifeformChat({
         }))
 
     const explicitKeyMemoryRequest =
+      !imageAttachment &&
       isExplicitKeyMemoryRequest(
         cleanMessage,
       )
@@ -3480,8 +3600,20 @@ export function LifeformChat({
           user_id: lifeform.user_id,
           lifeform_id: lifeform.id,
           role: 'user',
-          content: cleanMessage,
-          metadata: {},
+          content: storedUserMessage,
+          metadata: imageAttachment
+            ? {
+                attachment: {
+                  kind: 'image',
+                  name: imageAttachment.name,
+                  mime_type:
+                    imageAttachment.mimeType,
+                  size:
+                    imageAttachment.size,
+                  retained: false,
+                },
+              }
+            : {},
         })
         .select()
         .single()
@@ -3504,13 +3636,26 @@ export function LifeformChat({
       )
 
       setDraft('')
+      setPendingImageAttachment(null)
+
+      if (imageInputRef.current) {
+        imageInputRef.current.value = ''
+      }
 
       const assistantResponse =
         await streamGeminiReplyWithModel({
           apiKey,
           model: selectedModel,
           history: previousContext,
-          prompt: cleanMessage,
+          prompt: modelPrompt,
+          image: imageAttachment
+            ? {
+                mimeType:
+                  imageAttachment.mimeType,
+                base64Data:
+                  imageAttachment.base64Data,
+              }
+            : null,
           systemInstruction:
             buildSystemInstruction(),
           onText: setStreamingText,
@@ -3587,7 +3732,7 @@ export function LifeformChat({
                 -EMOTION_CONTEXT_SIZE,
               ),
             userMessage:
-              cleanMessage,
+              visualAnalysisMessage,
             assistantResponse,
           })
 
@@ -3655,20 +3800,22 @@ export function LifeformChat({
         )
 
         try {
-          if (explicitKeyMemoryRequest) {
-            if (!requestedMemoryInput) {
-              throw new Error(
-                'Non sono riuscita a estrarre una Key Memory utile dal contesto recente.',
+          if (!imageAttachment) {
+            if (explicitKeyMemoryRequest) {
+              if (!requestedMemoryInput) {
+                throw new Error(
+                  'Non sono riuscita a estrarre una Key Memory utile dal contesto recente.',
+                )
+              }
+
+              await saveUserRequestedKeyMemory(
+                requestedMemoryInput,
+              )
+            } else {
+              await queueAutonomousMemoryProposal(
+                analysis.memoryCandidate,
               )
             }
-
-            await saveUserRequestedKeyMemory(
-              requestedMemoryInput,
-            )
-          } else {
-            await queueAutonomousMemoryProposal(
-              analysis.memoryCandidate,
-            )
           }
         } catch (memoryError: unknown) {
           console.warn(
@@ -3717,6 +3864,44 @@ export function LifeformChat({
       requestAnimationFrame(() => {
         textareaRef.current?.focus()
       })
+    }
+  }
+
+  const clearPendingImageAttachment = () => {
+    setPendingImageAttachment(null)
+    setImageAttachmentError(null)
+
+    if (imageInputRef.current) {
+      imageInputRef.current.value = ''
+    }
+  }
+
+  const handleImageSelection = async (
+    event: ChangeEvent<HTMLInputElement>,
+  ) => {
+    const file =
+      event.target.files?.[0]
+
+    if (!file) {
+      return
+    }
+
+    setImageAttachmentError(null)
+
+    try {
+      const attachment =
+        await createPendingImageAttachment(
+          file,
+        )
+
+      setPendingImageAttachment(
+        attachment,
+      )
+    } catch (attachmentError: unknown) {
+      setImageAttachmentError(
+        getErrorMessage(attachmentError),
+      )
+      event.target.value = ''
     }
   }
 
@@ -3882,6 +4067,7 @@ export function LifeformChat({
 
         setMessages([])
         setStreamingText('')
+        clearPendingImageAttachment()
         setHasOlderMessages(false)
         setSettledEmotion('neutral')
         setEmotionIntensity(0)
@@ -4680,6 +4866,43 @@ export function LifeformChat({
               className="chat-composer"
               onSubmit={handleSubmit}
             >
+              <input
+                ref={imageInputRef}
+                className="image-attachment-input"
+                type="file"
+                accept="image/jpeg,image/png,image/webp,image/gif"
+                onChange={(event) =>
+                  void handleImageSelection(
+                    event,
+                  )
+                }
+                disabled={
+                  sending ||
+                  loadingMessages
+                }
+              />
+
+              {pendingImageAttachment && (
+                <ImageAttachmentPreview
+                  attachment={
+                    pendingImageAttachment
+                  }
+                  disabled={sending}
+                  onRemove={
+                    clearPendingImageAttachment
+                  }
+                />
+              )}
+
+              {imageAttachmentError && (
+                <p
+                  className="feedback feedback-error image-attachment-error"
+                  aria-live="assertive"
+                >
+                  {imageAttachmentError}
+                </p>
+              )}
+
               <textarea
                 ref={textareaRef}
                 value={draft}
@@ -4708,10 +4931,28 @@ export function LifeformChat({
               />
 
               <div className="composer-footer">
-                <span>
-                  Enter to send ·
-                  Shift+Enter to
-                  new line
+                <span className="composer-footer-start">
+                  <button
+                    type="button"
+                    className="text-button image-attachment-button"
+                    onClick={() =>
+                      imageInputRef.current?.click()
+                    }
+                    disabled={
+                      sending ||
+                      loadingMessages
+                    }
+                    aria-label="Attach image"
+                    title="Attach image"
+                  >
+                    +
+                  </button>
+
+                  <span>
+                    Enter to send ·
+                    Shift+Enter to
+                    new line
+                  </span>
                 </span>
 
                 <button
@@ -4730,7 +4971,8 @@ export function LifeformChat({
                   disabled={
                     sending ||
                     loadingMessages ||
-                    !draft.trim()
+                    (!draft.trim() &&
+                      !pendingImageAttachment)
                   }
                 >
                   <span aria-hidden="true">
