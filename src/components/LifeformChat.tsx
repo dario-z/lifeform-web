@@ -4934,7 +4934,7 @@ export function LifeformChat({
                 <span className="composer-footer-start">
                   <button
                     type="button"
-                    className="text-button image-attachment-button"
+                    className="primary-button chat-send-button image-attachment-button"
                     onClick={() =>
                       imageInputRef.current?.click()
                     }

@@ -1,173 +1,143 @@
 .image-attachment-preview {
-  display: grid;
-  grid-template-columns: 66px minmax(0, 1fr) auto;
-  align-items: center;
-  gap: 12px;
-  margin: 0 0 10px;
-  padding: 10px;
-  color: #2d2b29;
-  background: rgba(255, 255, 255, 0.56);
-  border: 1px solid rgba(45, 43, 41, 0.13);
-  border-radius: 16px;
+display: grid;
+grid-template-columns: 66px minmax(0, 1fr) auto;
+align-items: center;
+gap: 12px;
+margin: 0 0 10px;
+padding: 10px;
+color: #2d2b29;
+background: rgba(255, 255, 255, 0.56);
+border: 1px solid rgba(45, 43, 41, 0.13);
+border-radius: 16px;
 }
 
 .image-attachment-preview img {
-  display: block;
-  width: 66px;
-  height: 66px;
-  object-fit: cover;
-  border-radius: 11px;
-  background: rgba(45, 43, 41, 0.08);
+display: block;
+width: 66px;
+height: 66px;
+object-fit: cover;
+border-radius: 11px;
+background: rgba(45, 43, 41, 0.08);
 }
 
 .image-attachment-copy {
-  display: grid;
-  min-width: 0;
-  gap: 3px;
+display: grid;
+min-width: 0;
+gap: 3px;
 }
 
 .image-attachment-copy strong,
 .image-attachment-copy span,
 .image-attachment-copy small {
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
+overflow: hidden;
+text-overflow: ellipsis;
+white-space: nowrap;
 }
 
 .image-attachment-copy strong {
-  font-size: 0.88rem;
+font-size: 0.88rem;
 }
 
 .image-attachment-copy span,
 .image-attachment-copy small {
-  color: rgba(45, 43, 41, 0.68);
-  font-size: 0.78rem;
+color: rgba(45, 43, 41, 0.68);
+font-size: 0.78rem;
 }
 
 .image-attachment-remove {
-  width: 30px;
-  height: 30px;
-  border: 0;
-  border-radius: 999px;
-  color: #2d2b29;
-  background: rgba(45, 43, 41, 0.08);
-  font-size: 1.3rem;
-  line-height: 1;
-  cursor: pointer;
+width: 30px;
+height: 30px;
+border: 0;
+border-radius: 999px;
+color: #2d2b29;
+background: rgba(45, 43, 41, 0.08);
+font-size: 1.3rem;
+line-height: 1;
+cursor: pointer;
 }
 
 .image-attachment-remove:hover:not(:disabled) {
-  background: rgba(45, 43, 41, 0.16);
+background: rgba(45, 43, 41, 0.16);
 }
 
 .image-attachment-remove:disabled {
-  cursor: not-allowed;
-  opacity: 0.55;
+cursor: not-allowed;
+opacity: 0.55;
 }
 
 .image-attachment-input {
-  display: none;
-}
-
-.image-attachment-button {
-  min-width: 34px;
-  padding: 0 7px;
-  font-size: 1.1rem;
-  line-height: 1;
-}
-
-.composer-footer-start {
-  display: inline-flex;
-  align-items: center;
-  gap: 8px;
+display: none;
 }
 
 .image-attachment-error {
-  margin: 0 0 8px;
+margin: 0 0 8px;
+}
+
+.composer-footer-start {
+display: inline-flex;
+align-items: center;
+gap: 8px;
 }
 
 @media (max-width: 700px) {
-  .image-attachment-preview {
-    grid-template-columns: 54px minmax(0, 1fr) auto;
-  }
-
-  .image-attachment-preview img {
-    width: 54px;
-    height: 54px;
-  }
-
-  .image-attachment-copy small {
-    white-space: normal;
-  }
+.image-attachment-preview {
+grid-template-columns: 54px minmax(0, 1fr) auto;
 }
 
-/* Sprint 08 — keep the image attachment button visible
-   inside the compact Ivory Glass composer. */
+.image-attachment-preview img {
+width: 54px;
+height: 54px;
+}
+
+.image-attachment-copy small {
+white-space: normal;
+}
+}
+
+/*
+The + button inherits the same visual styling as the send-arrow
+through these classes in LifeformChat.tsx:
+
+primary-button chat-send-button image-attachment-button
+*/
 
 body #root .chat-conversation .chat-composer {
-  position: relative !important;
-  padding-left: 48px !important;
+position: relative !important;
+padding-left: 48px !important;
 }
 
 body #root .chat-conversation .composer-footer {
-  position: static !important;
+position: static !important;
 }
 
-body #root .chat-conversation .composer-footer
-  > .composer-footer-start {
-  display: inline-flex !important;
-  position: absolute !important;
-  z-index: 2;
-  left: 8px !important;
-  bottom: 7px !important;
-  align-items: center !important;
+body #root .chat-conversation .composer-footer > .composer-footer-start {
+display: inline-flex !important;
+position: absolute !important;
+z-index: 2;
+left: 8px !important;
+bottom: 7px !important;
+align-items: center !important;
 }
 
-body #root .chat-conversation .composer-footer
-  > .composer-footer-start
-  > span {
-  display: none !important;
+body #root .chat-conversation .composer-footer > .composer-footer-start > span {
+display: none !important;
 }
 
-body #root .chat-conversation
-  .image-attachment-button {
-  display: inline-flex !important;
-  width: 32px !important;
-  min-width: 32px !important;
-  height: 32px !important;
-  padding: 0 !important;
-  align-items: center !important;
-  justify-content: center !important;
-  border: 1px solid rgba(45, 43, 41, 0.18) !important;
-  border-radius: 999px !important;
-  color: #2d2b29 !important;
-  background: rgba(255, 253, 250, 0.72) !important;
-  font-size: 1.25rem !important;
-  font-weight: 500 !important;
-  line-height: 1 !important;
-}
-
-body #root .chat-conversation
-  .image-attachment-button:hover:not(:disabled) {
-  background: rgba(255, 253, 250, 0.96) !important;
+body #root .chat-conversation .image-attachment-button {
+display: inline-flex !important;
+align-items: center !important;
+justify-content: center !important;
+padding: 0 !important;
+line-height: 1 !important;
 }
 
 @media (max-width: 700px) {
-  body #root .chat-conversation .chat-composer {
-    padding-left: 44px !important;
-  }
+body #root .chat-conversation .chat-composer {
+padding-left: 48px !important;
+}
 
-  body #root .chat-conversation .composer-footer
-    > .composer-footer-start {
-    left: 6px !important;
-    bottom: 5px !important;
-  }
-
-  body #root .chat-conversation
-    .image-attachment-button {
-    width: 29px !important;
-    min-width: 29px !important;
-    height: 29px !important;
-    font-size: 1.15rem !important;
-  }
+body #root .chat-conversation .composer-footer > .composer-footer-start {
+left: 8px !important;
+bottom: 7px !important;
+}
 }
