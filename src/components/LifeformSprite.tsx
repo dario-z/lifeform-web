@@ -76,35 +76,99 @@ function getSpriteUrl(
   )
 }
 
-function getLevel(
-  levels: EmotionLevelsLike | undefined,
-  key: string,
-): number {
-  const value = levels?.[key]
+const POSITIVE_OVERLAY_EMOTIONS = new Set([
+  'happy',
+  'amused',
+  'horny',
+])
 
-  if (typeof value !== 'number') {
-    return 0
+const CONCERNED_OVERLAY_EMOTIONS =
+  new Set([
+    'afraid',
+    'angry',
+    'concerned',
+    'irritated',
+    'reflective',
+    'sad',
+    'wary',
+  ])
+
+function getSortedEmotions(
+  levels: EmotionLevelsLike | undefined,
+): Array<{
+  emotion: string
+  score: number
+}> {
+  if (!levels) {
+    return []
   }
 
-  return Number.isFinite(value)
-    ? value
-    : 0
+  return Object.entries(levels)
+    .map(([emotion, score]) => ({
+      emotion,
+      score:
+        typeof score === 'number' &&
+        Number.isFinite(score)
+          ? score
+          : 0,
+    }))
+    .sort((left, right) => {
+      return right.score - left.score
+    })
+}
+
+function getSecondHighestEmotion(
+  levels: EmotionLevelsLike | undefined,
+): string | null {
+  const sorted = getSortedEmotions(levels)
+
+  if (sorted.length < 2) {
+    return null
+  }
+
+  return sorted[1]?.emotion ?? null
+}
+
+function getHighestSupportEmotion(
+  levels: EmotionLevelsLike | undefined,
+  excludedEmotion: string,
+): string | null {
+  const sorted = getSortedEmotions(levels)
+
+  const candidate = sorted.find(
+    ({ emotion }) =>
+      emotion !== excludedEmotion &&
+      emotion !== 'neutral' &&
+      emotion !== 'dormant',
+  )
+
+  return candidate?.emotion ?? null
 }
 
 function chooseEngagedFile(
   levels: EmotionLevelsLike | undefined,
 ): string {
-  const concerned =
-    getLevel(levels, 'concerned')
-  const happy = getLevel(levels, 'happy')
+  const secondEmotion =
+    getSecondHighestEmotion(levels)
+
+  if (!secondEmotion) {
+    return 'engaged_neutral.png'
+  }
 
   if (
-    concerned > 70 ||
-    happy > 70
+    POSITIVE_OVERLAY_EMOTIONS.has(
+      secondEmotion,
+    )
   ) {
-    return happy >= concerned
-      ? 'engaged_happy.png'
-      : 'engaged_concerned.png'
+    return 'engaged_happy.png'
+  }
+
+  if (
+    CONCERNED_OVERLAY_EMOTIONS.has(
+      secondEmotion,
+    )
+  ) {
+    return 'engaged_concerned.png'
   }
 
   return 'engaged_neutral.png'
@@ -113,16 +177,30 @@ function chooseEngagedFile(
 function chooseThinkingFile(
   levels: EmotionLevelsLike | undefined,
 ): string {
-  const angry = getLevel(levels, 'angry')
-  const happy = getLevel(levels, 'happy')
+  const strongestSupportEmotion =
+    getHighestSupportEmotion(
+      levels,
+      'thinking',
+    )
+
+  if (!strongestSupportEmotion) {
+    return 'thinking.neutral.png'
+  }
 
   if (
-    angry > 70 ||
-    happy > 70
+    POSITIVE_OVERLAY_EMOTIONS.has(
+      strongestSupportEmotion,
+    )
   ) {
-    return happy >= angry
-      ? 'thinking.happy.png'
-      : 'thinking.angry.png'
+    return 'thinking.happy.png'
+  }
+
+  if (
+    CONCERNED_OVERLAY_EMOTIONS.has(
+      strongestSupportEmotion,
+    )
+  ) {
+    return 'thinking.angry.png'
   }
 
   return 'thinking.neutral.png'
