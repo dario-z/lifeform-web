@@ -1,150 +1,65 @@
-DIGITAL LIFEFORM — SPRINT 06
-CONFIRMED MEMORY / GOAL / BELIEF PROPOSALS
+DIGITAL LIFEFORM — SPRINT 07
+SEPARATE GOALS + BELIEFS
 
-PURPOSE
--------
-This sprint stops the Lifeform from autonomously writing important memories.
-Instead, it can create one conservative proposal at a time, and the user decides.
+Sprint 06 introduced a proposal card. This sprint gives accepted Goals and Beliefs
+their own tables and panels instead of mixing them into Key Memories.
 
-A proposal can be displayed as:
-- Possible memory
-- Possible goal
-- Possible belief
-
-There is no separate Goals database yet: accepted Goals and Beliefs are stored as
-confirmed Key Memories using their existing categories:
-- long_term_goal
-- lifeform_belief
-
-This keeps the system small, safe and compatible with the current app.
-
-BEHAVIOUR
+STRUCTURE
 ---------
-1. Autonomous proposals are deliberately rare:
-   - one pending proposal maximum;
-   - importance must be at least 70;
-   - generic summaries, filler words, casual phrases, temporary moods and one-off details
-     are rejected before a card is created;
-   - exact dismissed content is not proposed again automatically.
+Key Memories
+- durable facts, preferences, people, places, projects and events;
+- maximum 10 total;
+- no status or progress.
 
-2. The card appears above the chat composer:
-   “I think this could matter.”
-   [Keep it] [Dismiss]
+Goals
+- durable directions, not a to-do list;
+- Active / Paused / Completed / Archived;
+- maximum 3 Active.
 
-3. Keep it:
-   - stores the item as a Key Memory with source = manual;
-   - user-confirmed memories are never changed automatically later;
-   - updates a very similar existing Key Memory instead of duplicating it.
-
-4. Dismiss:
-   - removes the pending card;
-   - does not create a Key Memory;
-   - prevents the exact same proposed text from being shown again automatically.
-
-5. Explicit commands still work directly:
-   If the user explicitly says “remember this”, “save this memory”, “ricorda che…”,
-   the existing manual Key Memory flow remains immediate. The user has already made
-   the decision in that case.
-
-6. Clear chat:
-   - dismisses any pending proposal tied to the old conversation;
-   - preserves already accepted Key Memories, exactly as before.
-
-IMPORTANT LIMIT
----------------
-The existing Key Memories limit of 10 remains active.
-If all 10 slots are occupied and the proposed item does not update a similar memory,
-the app will show an error and will not silently delete another confirmed memory.
+Beliefs
+- tentative perspectives belonging to the Lifeform;
+- Active / Archived;
+- maximum 10 Active.
 
 INSTALLATION
 ------------
-0. Create a safety commit first:
+1. Create a safety commit:
 
    cd /d C:\Projects\lifeform-web
    git add .
-   git commit -m "Stable base before confirmed proposals"
+   git commit -m "Stable base before goals and beliefs"
    git push
 
-1. Extract this ZIP into:
+2. Extract this ZIP into:
 
    C:\Projects\lifeform-web
 
-2. In Supabase Dashboard -> SQL Editor, run:
+3. In Supabase Dashboard -> SQL Editor run:
 
-   supabase\lifeform_proposals_migration.sql
+   supabase\lifeform_goals_beliefs_migration.sql
 
-3. Then build and run:
+4. Build and run:
 
    cd /d C:\Projects\lifeform-web
    npm run build
    npm run dev
 
-FILES ADDED
------------
-- src/types/lifeformProposal.ts
-- src/components/LifeformProposalCard.tsx
-- src/components/LifeformProposalCard.css
-- supabase/lifeform_proposals_migration.sql
+MIGRATION
+---------
+Any legacy Key Memory with category:
+- long_term_goal
+- lifeform_belief
 
-FILES UPDATED
--------------
-- src/lib/emotions.ts
-- src/components/LifeformChat.tsx
+is copied into the new table and then removed from Key Memories. This is deliberate:
+after the migration each item has one canonical home and Goals/Beliefs no longer
+consume space in the 10 Key Memories limit.
 
-TESTING
--------
-A. Build
-   npm run build
-
-B. Visual test without waiting for Gemini to decide naturally:
-   In Supabase SQL Editor, insert a test proposal. Replace YOUR_LIFEFORM_ID.
-
-   insert into public.lifeform_proposals (
-     user_id,
-     lifeform_id,
-     kind,
-     status,
-     action,
-     target_memory_id,
-     category,
-     content,
-     importance,
-     reason
-   )
-   select
-     user_id,
-     id,
-     'goal',
-     'pending',
-     'create',
-     null,
-     'long_term_goal',
-     'Improve the Dream system so its central images feel meaningful.',
-     82,
-     'This is a durable direction that can guide future conversations.'
-   from public.lifeforms
-   where id = 'YOUR_LIFEFORM_ID';
-
-   Reload the app. The card should appear above the composer as “Possible goal”.
-
-C. Acceptance test
-   - Click Keep it.
-   - Open Key Memories.
-   - Confirm the item is present.
-   - Confirm it is now a manual / user-confirmed memory.
-
-D. Dismissal test
-   - Repeat the SQL test with a different content string.
-   - Click Dismiss.
-   - Confirm the card disappears and no Key Memory is created.
-
-NATURAL TEST
-------------
-The normal model is intentionally conservative. Use a genuinely durable statement,
-not a casual chat line. For example:
-
-“I am building Digital Lifeform as a long-term project, and I want it to preserve
-only memories that I explicitly confirm.”
-
-The Lifeform may propose it after the reply. It should not propose random repeated
-words or trivial wording.
+TEST
+----
+- Open hamburger menu: Goals and Beliefs should appear.
+- Confirm a Possible goal: it must enter Goals, not Key Memories.
+- Confirm a Possible belief: it must enter Beliefs, not Key Memories.
+- Goals can be paused, completed, archived and reactivated.
+- Beliefs can be archived and reactivated.
+- The active limits are 3 Goals and 10 Beliefs.
+- If npm run build reports any TypeScript error, stop and paste the full error.

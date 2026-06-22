@@ -12,8 +12,10 @@ import type {
   KeyboardEvent,
   PointerEvent as ReactPointerEvent,
 } from 'react'
+import { BeliefsPanel } from './BeliefsPanel'
 import { DreamsPanel } from './DreamsPanel'
 import { EmotionMonitor } from './EmotionMonitor'
+import { GoalsPanel } from './GoalsPanel'
 import { KeyMemoriesPanel } from './KeyMemoriesPanel'
 import { LifeformProposalCard } from './LifeformProposalCard'
 import { LifeformSprite } from './LifeformSprite'
@@ -47,6 +49,16 @@ import {
   normalizeKeyMemoryInput,
 } from '../lib/keyMemories'
 import {
+  MAX_ACTIVE_BELIEFS,
+  MAX_ACTIVE_GOALS,
+  buildBeliefsContext,
+  buildGoalsContext,
+  findSimilarIdentityItem,
+  normalizeIdentityContent,
+  sortBeliefs,
+  sortGoals,
+} from '../lib/lifeformIdentity'
+import {
   EMPTY_GEMINI_TOKEN_USAGE,
   GEMINI_MODEL_OPTIONS,
   addGeminiTokenUsage,
@@ -73,10 +85,15 @@ import type {
 } from '../types/lifeform'
 import type { ChatMessage } from '../types/message'
 import type { Dream } from '../types/dream'
+import type {
+  LifeformBelief,
+  LifeformBeliefStatus,
+  LifeformGoal,
+  LifeformGoalStatus,
+} from '../types/lifeformIdentity'
 import {
   getProposalKind,
   isProposalWorthyCandidate,
-  proposalToKeyMemoryInput,
 } from '../types/lifeformProposal'
 import type {
   LifeformProposal,
@@ -646,11 +663,35 @@ export function LifeformChat({
   const [keyMemories, setKeyMemories] =
     useState<KeyMemory[]>([])
 
+  const [goals, setGoals] =
+    useState<LifeformGoal[]>([])
+
+  const [beliefs, setBeliefs] =
+    useState<LifeformBelief[]>([])
+
   const [dreams, setDreams] =
     useState<Dream[]>([])
 
   const [loadingKeyMemories, setLoadingKeyMemories] =
     useState(true)
+
+  const [loadingGoals, setLoadingGoals] =
+    useState(true)
+
+  const [loadingBeliefs, setLoadingBeliefs] =
+    useState(true)
+
+  const [savingGoalId, setSavingGoalId] =
+    useState<string | null>(null)
+
+  const [savingBeliefId, setSavingBeliefId] =
+    useState<string | null>(null)
+
+  const [goalsError, setGoalsError] =
+    useState<string | null>(null)
+
+  const [beliefsError, setBeliefsError] =
+    useState<string | null>(null)
 
   const [loadingDreams, setLoadingDreams] =
     useState(true)
@@ -797,6 +838,12 @@ export function LifeformChat({
   const [keyMemoryPanelOpen, setKeyMemoryPanelOpen] =
     useState(false)
 
+  const [goalsPanelOpen, setGoalsPanelOpen] =
+    useState(false)
+
+  const [beliefsPanelOpen, setBeliefsPanelOpen] =
+    useState(false)
+
   const [dreamsPanelOpen, setDreamsPanelOpen] =
     useState(false)
 
@@ -843,6 +890,12 @@ export function LifeformChat({
 
   const keyMemoriesRef =
     useRef<KeyMemory[]>([])
+
+  const goalsRef =
+    useRef<LifeformGoal[]>([])
+
+  const beliefsRef =
+    useRef<LifeformBelief[]>([])
 
   const pendingProposalRef =
     useRef<LifeformProposal | null>(
@@ -1300,6 +1353,90 @@ export function LifeformChat({
     [lifeform.id],
   )
 
+  const commitGoals = (
+    nextGoals: LifeformGoal[],
+  ) => {
+    const sorted = sortGoals(nextGoals)
+    goalsRef.current = sorted
+    setGoals(sorted)
+  }
+
+  const commitBeliefs = (
+    nextBeliefs: LifeformBelief[],
+  ) => {
+    const sorted = sortBeliefs(nextBeliefs)
+    beliefsRef.current = sorted
+    setBeliefs(sorted)
+  }
+
+  const loadGoals = useCallback(
+    async () => {
+      setLoadingGoals(true)
+      setGoalsError(null)
+
+      try {
+        const { data, error } = await supabase
+          .from('lifeform_goals')
+          .select(
+            'id,user_id,lifeform_id,content,importance,status,source,created_at,updated_at,completed_at',
+          )
+          .eq('lifeform_id', lifeform.id)
+          .order('updated_at', {
+            ascending: false,
+          })
+
+        if (error) {
+          throw error
+        }
+
+        commitGoals(
+          (data ?? []) as LifeformGoal[],
+        )
+      } catch (loadError: unknown) {
+        setGoalsError(
+          getErrorMessage(loadError),
+        )
+      } finally {
+        setLoadingGoals(false)
+      }
+    },
+    [lifeform.id],
+  )
+
+  const loadBeliefs = useCallback(
+    async () => {
+      setLoadingBeliefs(true)
+      setBeliefsError(null)
+
+      try {
+        const { data, error } = await supabase
+          .from('lifeform_beliefs')
+          .select(
+            'id,user_id,lifeform_id,content,importance,status,source,created_at,updated_at',
+          )
+          .eq('lifeform_id', lifeform.id)
+          .order('updated_at', {
+            ascending: false,
+          })
+
+        if (error) {
+          throw error
+        }
+
+        commitBeliefs(
+          (data ?? []) as LifeformBelief[],
+        )
+      } catch (loadError: unknown) {
+        setBeliefsError(
+          getErrorMessage(loadError),
+        )
+      } finally {
+        setLoadingBeliefs(false)
+      }
+    },
+    [lifeform.id],
+  )
+
   const loadPendingProposal = useCallback(
     async () => {
       setLoadingProposal(true)
@@ -1633,12 +1770,16 @@ export function LifeformChat({
     void loadInitialMessages()
     void loadEmotionState()
     void loadKeyMemories()
+    void loadGoals()
+    void loadBeliefs()
     void loadPendingProposal()
     void loadDreams()
   }, [
     loadInitialMessages,
     loadEmotionState,
     loadKeyMemories,
+    loadGoals,
+    loadBeliefs,
     loadPendingProposal,
     loadDreams,
   ])
@@ -2115,16 +2256,227 @@ export function LifeformChat({
       )
     }
 
+  const persistGoal = async (
+    content: string,
+    importance: number,
+    source: LifeformGoal['source'],
+  ) => {
+    const normalizedContent =
+      normalizeIdentityContent(content)
+
+    if (!normalizedContent) {
+      throw new Error(
+        'The proposed goal is empty.',
+      )
+    }
+
+    const currentGoals = goalsRef.current
+    const similar = findSimilarIdentityItem(
+      currentGoals,
+      normalizedContent,
+    )
+
+    if (similar) {
+      const { data, error } = await supabase
+        .from('lifeform_goals')
+        .update({
+          content: normalizedContent,
+          importance: Math.max(
+            similar.importance,
+            importance,
+          ),
+          source,
+          updated_at:
+            new Date().toISOString(),
+        })
+        .eq('id', similar.id)
+        .eq('lifeform_id', lifeform.id)
+        .select()
+        .single()
+
+      if (error) {
+        throw error
+      }
+
+      if (!data) {
+        throw new Error(
+          'The confirmed goal was not returned after the update.',
+        )
+      }
+
+      commitGoals([
+        ...currentGoals.filter(
+          (goal) => goal.id !== similar.id,
+        ),
+        data as LifeformGoal,
+      ])
+      return
+    }
+
+    if (
+      currentGoals.filter(
+        (goal) => goal.status === 'active',
+      ).length >= MAX_ACTIVE_GOALS
+    ) {
+      throw new Error(
+        'The active Goals limit is reached. Pause, complete or archive one before accepting another goal.',
+      )
+    }
+
+    const { data, error } = await supabase
+      .from('lifeform_goals')
+      .insert({
+        user_id: lifeform.user_id,
+        lifeform_id: lifeform.id,
+        content: normalizedContent,
+        importance,
+        status: 'active',
+        source,
+      })
+      .select()
+      .single()
+
+    if (error) {
+      throw error
+    }
+
+    if (!data) {
+      throw new Error(
+        'The confirmed goal was not returned after saving.',
+      )
+    }
+
+    commitGoals([
+      ...currentGoals,
+      data as LifeformGoal,
+    ])
+  }
+
+  const persistBelief = async (
+    content: string,
+    importance: number,
+    source: LifeformBelief['source'],
+  ) => {
+    const normalizedContent =
+      normalizeIdentityContent(content)
+
+    if (!normalizedContent) {
+      throw new Error(
+        'The proposed belief is empty.',
+      )
+    }
+
+    const currentBeliefs = beliefsRef.current
+    const similar = findSimilarIdentityItem(
+      currentBeliefs,
+      normalizedContent,
+    )
+
+    if (similar) {
+      const { data, error } = await supabase
+        .from('lifeform_beliefs')
+        .update({
+          content: normalizedContent,
+          importance: Math.max(
+            similar.importance,
+            importance,
+          ),
+          source,
+          updated_at:
+            new Date().toISOString(),
+        })
+        .eq('id', similar.id)
+        .eq('lifeform_id', lifeform.id)
+        .select()
+        .single()
+
+      if (error) {
+        throw error
+      }
+
+      if (!data) {
+        throw new Error(
+          'The confirmed belief was not returned after the update.',
+        )
+      }
+
+      commitBeliefs([
+        ...currentBeliefs.filter(
+          (belief) => belief.id !== similar.id,
+        ),
+        data as LifeformBelief,
+      ])
+      return
+    }
+
+    if (
+      currentBeliefs.filter(
+        (belief) =>
+          belief.status === 'active',
+      ).length >= MAX_ACTIVE_BELIEFS
+    ) {
+      throw new Error(
+        'The active Beliefs limit is reached. Archive one before accepting another belief.',
+      )
+    }
+
+    const { data, error } = await supabase
+      .from('lifeform_beliefs')
+      .insert({
+        user_id: lifeform.user_id,
+        lifeform_id: lifeform.id,
+        content: normalizedContent,
+        importance,
+        status: 'active',
+        source,
+      })
+      .select()
+      .single()
+
+    if (error) {
+      throw error
+    }
+
+    if (!data) {
+      throw new Error(
+        'The confirmed belief was not returned after saving.',
+      )
+    }
+
+    commitBeliefs([
+      ...currentBeliefs,
+      data as LifeformBelief,
+    ])
+  }
+
   const persistConfirmedProposal =
     async (
       proposal: LifeformProposal,
     ) => {
-      const normalized =
-        normalizeKeyMemoryInput(
-          proposalToKeyMemoryInput(
-            proposal,
-          ),
+      if (proposal.kind === 'goal') {
+        await persistGoal(
+          proposal.content,
+          proposal.importance,
+          'proposal',
         )
+        return
+      }
+
+      if (proposal.kind === 'belief') {
+        await persistBelief(
+          proposal.content,
+          proposal.importance,
+          'proposal',
+        )
+        return
+      }
+
+      const normalized =
+        normalizeKeyMemoryInput({
+          category: proposal.category,
+          content: proposal.content,
+          importance: proposal.importance,
+        })
 
       if (!normalized.content) {
         throw new Error(
@@ -2332,6 +2684,30 @@ export function LifeformChat({
         )
       }
 
+      if (
+        normalized.category ===
+        'long_term_goal'
+      ) {
+        await persistGoal(
+          normalized.content,
+          normalized.importance,
+          'manual',
+        )
+        return
+      }
+
+      if (
+        normalized.category ===
+        'lifeform_belief'
+      ) {
+        await persistBelief(
+          normalized.content,
+          normalized.importance,
+          'manual',
+        )
+        return
+      }
+
       setSavingKeyMemory(true)
       setKeyMemoryError(null)
 
@@ -2495,6 +2871,134 @@ export function LifeformChat({
         setSavingKeyMemory(false)
       }
     }
+
+  const handleGoalStatusChange = async (
+    goal: LifeformGoal,
+    status: LifeformGoalStatus,
+  ) => {
+    if (savingGoalId) {
+      return
+    }
+
+    if (
+      status === 'active' &&
+      goal.status !== 'active' &&
+      goalsRef.current.filter(
+        (item) => item.status === 'active',
+      ).length >= MAX_ACTIVE_GOALS
+    ) {
+      setGoalsError(
+        'The active Goals limit is reached. Pause, complete or archive another goal first.',
+      )
+      return
+    }
+
+    setSavingGoalId(goal.id)
+    setGoalsError(null)
+
+    try {
+      const now = new Date().toISOString()
+      const { data, error } = await supabase
+        .from('lifeform_goals')
+        .update({
+          status,
+          updated_at: now,
+          completed_at:
+            status === 'completed'
+              ? now
+              : null,
+        })
+        .eq('id', goal.id)
+        .eq('lifeform_id', lifeform.id)
+        .select()
+        .single()
+
+      if (error) {
+        throw error
+      }
+
+      if (!data) {
+        throw new Error(
+          'The updated goal was not returned.',
+        )
+      }
+
+      commitGoals([
+        ...goalsRef.current.filter(
+          (item) => item.id !== goal.id,
+        ),
+        data as LifeformGoal,
+      ])
+    } catch (statusError: unknown) {
+      setGoalsError(
+        getErrorMessage(statusError),
+      )
+    } finally {
+      setSavingGoalId(null)
+    }
+  }
+
+  const handleBeliefStatusChange = async (
+    belief: LifeformBelief,
+    status: LifeformBeliefStatus,
+  ) => {
+    if (savingBeliefId) {
+      return
+    }
+
+    if (
+      status === 'active' &&
+      belief.status !== 'active' &&
+      beliefsRef.current.filter(
+        (item) => item.status === 'active',
+      ).length >= MAX_ACTIVE_BELIEFS
+    ) {
+      setBeliefsError(
+        'The active Beliefs limit is reached. Archive another belief first.',
+      )
+      return
+    }
+
+    setSavingBeliefId(belief.id)
+    setBeliefsError(null)
+
+    try {
+      const { data, error } = await supabase
+        .from('lifeform_beliefs')
+        .update({
+          status,
+          updated_at:
+            new Date().toISOString(),
+        })
+        .eq('id', belief.id)
+        .eq('lifeform_id', lifeform.id)
+        .select()
+        .single()
+
+      if (error) {
+        throw error
+      }
+
+      if (!data) {
+        throw new Error(
+          'The updated belief was not returned.',
+        )
+      }
+
+      commitBeliefs([
+        ...beliefsRef.current.filter(
+          (item) => item.id !== belief.id,
+        ),
+        data as LifeformBelief,
+      ])
+    } catch (statusError: unknown) {
+      setBeliefsError(
+        getErrorMessage(statusError),
+      )
+    } finally {
+      setSavingBeliefId(null)
+    }
+  }
 
   const clearImmediateReaction =
     () => {
@@ -2766,6 +3270,16 @@ export function LifeformChat({
           dreamsRef.current,
         )
 
+      const goalsContext =
+        buildGoalsContext(
+          goalsRef.current,
+        )
+
+      const beliefsContext =
+        buildBeliefsContext(
+          beliefsRef.current,
+        )
+
       return [
         'Your name is ' +
           lifeform.name +
@@ -2781,8 +3295,12 @@ export function LifeformChat({
         'You may sound natural, warm and recognizable, but do not turn every answer into an introspective monologue.',
         emotionalResponseContext,
         keyMemoryContext,
+        goalsContext,
+        beliefsContext,
         dreamsContext,
-        'The supplied Key Memories are the only long-term memories currently available. Use them as persistent context, but never invent additional memories.',
+        'Key Memories are durable facts and preferences. Use them as persistent context, but never invent additional memories.',
+        'Goals are user-confirmed durable directions, not a task list. Refer to them only when the current conversation is genuinely relevant.',
+        'Beliefs are user-confirmed tentative perspectives. They are not objective truth and must never become assumptions about the user.',
         'Saved Dreams are symbolic fragments, not factual memories. If the user asks about Dreams, use the supplied Recent Dreams and do not invent unsaved Dreams.',
         'When interpreting Dreams, avoid making every interpretation tragic, grandiose or melodramatic. Some interpretations can be calm, playful, funny, mundane, absurd or unresolved.',
         'If the user explicitly asks you to create, save, register or update a Key Memory, acknowledge that the application will save it after your reply. Do not falsely claim that it has already been saved before storage has completed.',
@@ -3756,6 +4274,43 @@ export function LifeformChat({
               className="text-button"
               onClick={() => {
                 setMobileMenuOpen(false)
+                setGoalsPanelOpen(true)
+              }}
+              aria-expanded={goalsPanelOpen}
+            >
+              Goals
+              {' '}
+              {goals.filter(
+                (goal) => goal.status === 'active',
+              ).length}
+              {'/'}
+              {MAX_ACTIVE_GOALS}
+            </button>
+
+            <button
+              type="button"
+              className="text-button"
+              onClick={() => {
+                setMobileMenuOpen(false)
+                setBeliefsPanelOpen(true)
+              }}
+              aria-expanded={beliefsPanelOpen}
+            >
+              Beliefs
+              {' '}
+              {beliefs.filter(
+                (belief) =>
+                  belief.status === 'active',
+              ).length}
+              {'/'}
+              {MAX_ACTIVE_BELIEFS}
+            </button>
+
+            <button
+              type="button"
+              className="text-button"
+              onClick={() => {
+                setMobileMenuOpen(false)
                 setDreamsPanelOpen(true)
               }}
               aria-expanded={
@@ -4224,6 +4779,34 @@ export function LifeformChat({
           }
           onDelete={
             handleDeleteKeyMemory
+          }
+        />
+
+        <GoalsPanel
+          open={goalsPanelOpen}
+          goals={goals}
+          loading={loadingGoals}
+          savingGoalId={savingGoalId}
+          error={goalsError}
+          onClose={() =>
+            setGoalsPanelOpen(false)
+          }
+          onStatusChange={
+            handleGoalStatusChange
+          }
+        />
+
+        <BeliefsPanel
+          open={beliefsPanelOpen}
+          beliefs={beliefs}
+          loading={loadingBeliefs}
+          savingBeliefId={savingBeliefId}
+          error={beliefsError}
+          onClose={() =>
+            setBeliefsPanelOpen(false)
+          }
+          onStatusChange={
+            handleBeliefStatusChange
           }
         />
 
