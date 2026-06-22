@@ -1,0 +1,87 @@
+.voice-settings-panel {
+  color: #2d2b29;
+}
+
+.voice-settings-intro {
+  margin: 0 0 18px;
+  color: rgba(45, 43, 41, 0.76);
+  line-height: 1.5;
+}
+
+.voice-settings-field {
+  display: grid;
+  gap: 8px;
+  margin: 0 0 18px;
+}
+
+.voice-settings-field > span {
+  color: rgba(45, 43, 41, 0.78);
+  font-size: 0.8rem;
+  font-weight: 700;
+  letter-spacing: 0.03em;
+  text-transform: uppercase;
+}
+
+.voice-settings-field select,
+.voice-settings-field input[type='range'] {
+  width: 100%;
+}
+
+.voice-settings-field select {
+  min-height: 40px;
+  padding: 8px 10px;
+  color: #2d2b29;
+  background: rgba(255, 253, 250, 0.76);
+  border: 1px solid rgba(45, 43, 41, 0.16);
+  border-radius: 11px;
+}
+
+.voice-settings-field small,
+.voice-settings-note {
+  color: rgba(45, 43, 41, 0.61);
+  font-size: 0.8rem;
+  line-height: 1.45;
+}
+
+.voice-settings-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  align-items: center;
+}
+
+.voice-settings-note {
+  margin: 18px 0 0;
+}
+
+.voice-message-actions {
+  display: flex;
+  justify-content: flex-end;
+  margin-top: 8px;
+}
+
+.voice-message-button {
+  display: inline-flex;
+  width: 30px;
+  min-width: 30px;
+  height: 30px;
+  padding: 0;
+  align-items: center;
+  justify-content: center;
+  border: 1px solid rgba(45, 43, 41, 0.14);
+  border-radius: 999px;
+  color: #2d2b29;
+  background: rgba(255, 253, 250, 0.62);
+  font-size: 0.86rem;
+  line-height: 1;
+}
+
+.voice-message-button:hover:not(:disabled),
+.voice-message-button.voice-message-button-speaking {
+  background: rgba(45, 43, 41, 0.11);
+}
+
+.voice-message-button:disabled {
+  cursor: not-allowed;
+  opacity: 0.46;
+}

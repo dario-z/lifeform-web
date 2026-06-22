@@ -16,6 +16,7 @@ import type {
 import { BeliefsPanel } from './BeliefsPanel'
 import { DreamsPanel } from './DreamsPanel'
 import { DocumentAttachmentPreview } from './DocumentAttachmentPreview'
+import { VoiceSettingsPanel } from './VoiceSettingsPanel'
 import { ThreadProposalCard } from './ThreadProposalCard'
 import { ThreadsPanel } from './ThreadsPanel'
 import { ImageAttachmentPreview } from './ImageAttachmentPreview'
@@ -89,6 +90,18 @@ import {
   type GeminiTokenUsage,
 } from '../lib/geminiModels'
 import {
+  getCompatibleNativeVoices,
+  getVoiceModeLabel,
+  isNativeVoiceSupported,
+  loadNativeVoiceSettings,
+  normalizeNativeVoiceSettings,
+  saveNativeVoiceSettings,
+  speakNativeVoice,
+  stopNativeVoice,
+  subscribeToNativeVoiceChanges,
+  type NativeVoiceSettings,
+} from '../lib/nativeVoice'
+import {
   createPendingChatAttachment,
   isPendingDocumentAttachment,
   isPendingImageAttachment,
@@ -131,6 +144,7 @@ import {
   type KeyMemoryInput,
 } from '../types/keyMemory'
 import './DocumentAttachmentPreview.css'
+import './VoiceSettingsPanel.css'
 import './GeminiModelSelect.css'
 import './ImageAttachmentPreview.css'
 import './MobileChatLayout.css'
@@ -1463,6 +1477,31 @@ export function LifeformChat({
   const [dreamsPanelOpen, setDreamsPanelOpen] =
     useState(false)
 
+  const [voicePanelOpen, setVoicePanelOpen] =
+    useState(false)
+
+  const [voiceSettings, setVoiceSettings] =
+    useState<NativeVoiceSettings>(() =>
+      loadNativeVoiceSettings(
+        lifeform.id,
+      ),
+    )
+
+  const [voiceSupported, setVoiceSupported] =
+    useState(() => isNativeVoiceSupported())
+
+  const [availableVoices, setAvailableVoices] =
+    useState<SpeechSynthesisVoice[]>(() =>
+      getCompatibleNativeVoices(
+        lifeform.language,
+      ),
+    )
+
+  const [
+    speakingMessageId,
+    setSpeakingMessageId,
+  ] = useState<string | null>(null)
+
   const [
     mobileMenuOpen,
     setMobileMenuOpen,
@@ -1596,6 +1635,32 @@ export function LifeformChat({
       String(mobileSpriteShare),
     )
   }, [mobileSpriteShare])
+
+  useEffect(() => {
+    const refreshVoices = () => {
+      setVoiceSupported(
+        isNativeVoiceSupported(),
+      )
+
+      setAvailableVoices(
+        getCompatibleNativeVoices(
+          lifeform.language,
+        ),
+      )
+    }
+
+    refreshVoices()
+
+    return subscribeToNativeVoiceChanges(
+      refreshVoices,
+    )
+  }, [lifeform.language])
+
+  useEffect(() => {
+    return () => {
+      stopNativeVoice()
+    }
+  }, [])
 
   useEffect(() => {
     return () => {
@@ -4620,6 +4685,83 @@ export function LifeformChat({
       }
     }
 
+  const stopVoicePlayback = () => {
+    stopNativeVoice()
+    setSpeakingMessageId(null)
+  }
+
+  const updateVoiceSettings = (
+    nextSettings: NativeVoiceSettings,
+  ) => {
+    const normalized =
+      normalizeNativeVoiceSettings(
+        nextSettings,
+      )
+
+    setVoiceSettings(normalized)
+    saveNativeVoiceSettings(
+      lifeform.id,
+      normalized,
+    )
+
+    if (normalized.mode === 'off') {
+      stopVoicePlayback()
+    }
+  }
+
+  const speakAssistantMessage = (
+    messageId: string,
+    text: string,
+  ) => {
+    if (
+      !voiceSupported ||
+      voiceSettings.mode === 'off'
+    ) {
+      return
+    }
+
+    const started = speakNativeVoice({
+      text,
+      language: lifeform.language,
+      settings: voiceSettings,
+      onStart: () => {
+        setSpeakingMessageId(messageId)
+      },
+      onEnd: () => {
+        setSpeakingMessageId(
+          (currentMessageId) =>
+            currentMessageId === messageId
+              ? null
+              : currentMessageId,
+        )
+      },
+      onError: (voiceError) => {
+        setSpeakingMessageId(
+          (currentMessageId) =>
+            currentMessageId === messageId
+              ? null
+              : currentMessageId,
+        )
+        setError(voiceError)
+      },
+    })
+
+    if (!started) {
+      setError(
+        'Voice playback is not available in this browser.',
+      )
+    }
+  }
+
+  const handleTestVoice = () => {
+    speakAssistantMessage(
+      'voice-preview',
+      'This is a voice preview for ' +
+        lifeform.name +
+        '.',
+    )
+  }
+
   const sendMessage = async (
     rawMessage: string,
   ) => {
@@ -4700,6 +4842,7 @@ export function LifeformChat({
       ...EMPTY_GEMINI_TOKEN_USAGE,
     }
 
+    stopVoicePlayback()
     clearImmediateReaction()
     setSending(true)
     setError(null)
@@ -4822,6 +4965,19 @@ export function LifeformChat({
           insertedAssistantMessage as ChatMessage,
         ],
       )
+
+      if (voiceSettings.mode === 'auto') {
+        const voiceMessageId =
+          (insertedAssistantMessage as ChatMessage)
+            .id
+
+        window.setTimeout(() => {
+          speakAssistantMessage(
+            voiceMessageId,
+            assistantResponse,
+          )
+        }, 0)
+      }
 
       setStreamingText('')
       setAnalyzingEmotion(true)
@@ -5196,6 +5352,7 @@ export function LifeformChat({
         return
       }
 
+      stopVoicePlayback()
       setClearingChat(true)
       setError(null)
 
@@ -5649,6 +5806,22 @@ export function LifeformChat({
               className="text-button"
               onClick={() => {
                 setMobileMenuOpen(false)
+                setVoicePanelOpen(true)
+              }}
+              aria-expanded={voicePanelOpen}
+            >
+              Voice
+              {' · '}
+              {getVoiceModeLabel(
+                voiceSettings.mode,
+              )}
+            </button>
+
+            <button
+              type="button"
+              className="text-button"
+              onClick={() => {
+                setMobileMenuOpen(false)
                 setEmotionPanelOpen(true)
               }}
               aria-expanded={
@@ -6036,6 +6209,57 @@ export function LifeformChat({
                       <p>
                         {message.content}
                       </p>
+
+                      {message.role ===
+                        'assistant' && (
+                        <div className="voice-message-actions">
+                          <button
+                            type="button"
+                            className={
+                              speakingMessageId ===
+                              message.id
+                                ? 'text-button voice-message-button voice-message-button-speaking'
+                                : 'text-button voice-message-button'
+                            }
+                            onClick={() => {
+                              if (
+                                speakingMessageId ===
+                                message.id
+                              ) {
+                                stopVoicePlayback()
+                                return
+                              }
+
+                              speakAssistantMessage(
+                                message.id,
+                                message.content,
+                              )
+                            }}
+                            disabled={
+                              !voiceSupported ||
+                              voiceSettings.mode ===
+                                'off'
+                            }
+                            aria-label={
+                              speakingMessageId ===
+                              message.id
+                                ? 'Stop reading'
+                                : 'Read reply aloud'
+                            }
+                            title={
+                              speakingMessageId ===
+                              message.id
+                                ? 'Stop reading'
+                                : 'Read reply aloud'
+                            }
+                          >
+                            {speakingMessageId ===
+                            message.id
+                              ? '■'
+                              : '🔊'}
+                          </button>
+                        </div>
+                      )}
                     </article>
                   ),
                 )
@@ -6259,6 +6483,25 @@ export function LifeformChat({
             </form>
           </section>
         </div>
+
+        <VoiceSettingsPanel
+          open={voicePanelOpen}
+          supported={voiceSupported}
+          settings={voiceSettings}
+          voices={availableVoices}
+          language={lifeform.language}
+          speaking={
+            speakingMessageId !== null
+          }
+          onClose={() =>
+            setVoicePanelOpen(false)
+          }
+          onSettingsChange={
+            updateVoiceSettings
+          }
+          onTest={handleTestVoice}
+          onStop={stopVoicePlayback}
+        />
 
         <DreamsPanel
           open={dreamsPanelOpen}
