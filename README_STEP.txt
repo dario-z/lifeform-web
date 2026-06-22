@@ -1,85 +1,66 @@
-DIGITAL LIFEFORM — SPRINT 04
-OFFLINE EMOTIONAL DRIFT + LONELINESS
+DIGITAL LIFEFORM — SPRINT 05
+DREAM QUALITY: LOCALIZED CENTRAL ANCHORS
 
-What this sprint adds
---------------------
-1. Offline emotional decay:
-   - Normal emotional levels halve every 24 hours.
-   - Humor halves every 8 hours.
-   - Levels below 2 become 0 naturally through rounding.
-   - The browser applies the elapsed-time calculation when the app opens,
-     becomes visible again, and every 30 minutes while it remains open.
+This sprint upgrades Dream generation only. It does not add database columns or change the Dreams UI.
 
-2. Automatic Loneliness:
-   - Internal key: lonely
-   - UI label: Loneliness
-   - Starts only after 24 hours without opening the app.
-   - Target:
-       36h away -> about 15
-       48h away -> about 30
-       72h away -> about 60
-       max -> 75
-   - It does NOT guilt, accuse, pressure or manipulate the user.
-   - After one completed conversation exchange, Loneliness is reduced to 45%
-     of its current value.
-   - Uses sad_2.png with sad_1.png as fallback. No new sprite required.
+WHAT CHANGES
+------------
+1. Shorter Dreams
+   - Old target: 55–170 words
+   - New hard limit: 35–70 words
+   - The app validates the word count. If Gemini misses the target, it retries once.
 
-3. Dreams:
-   - Adds 100 Lonely random anchors.
-   - This sprint does not yet rewrite Dream length/anchor language/anchor-centrality.
-     Those belong to the next separate Dream-quality sprint.
+2. Localized anchors
+   - Anchor libraries can stay internally in English.
+   - The saved Dream anchor and the Dream itself must be written in the Lifeform language.
+   - Italian Lifeforms will save an Italian anchor; French Lifeforms a French anchor; etc.
+   - For non-English Lifeforms, the raw English source anchor is rejected.
+
+3. Anchor is now the centre of the Dream
+   - The localized anchor must be in the first sentence.
+   - It must return in the final sentence.
+   - It must occur exactly twice.
+   - It must cause or transform at least two events.
+   - It cannot be mere scenery.
+
+4. Automatic retry
+   - If Gemini gives a Dream that is too long/short, keeps the English anchor,
+     or fails the first/final-sentence anchor structure, the app asks once more
+     for a compliant replacement.
+   - If it still fails, Dream generation fails silently as before and retries
+     the next time the app is opened. Chat is never blocked.
 
 INSTALLATION
 ------------
-0. Backup first:
-
-   cd /d C:\Projects\lifeform-web
-   git add .
-   git commit -m "Stable base before offline emotional drift"
-   git push
-
 1. Extract this ZIP in:
    C:\Projects\lifeform-web
 
-2. Apply the Supabase migration manually:
-   Supabase Dashboard -> SQL Editor
-   Open and run:
-   supabase\lifeform_offline_drift_loneliness_migration.sql
+2. It replaces only:
+   src\lib\dreams.ts
 
-3. Patch the project-specific types/labels:
-   cd /d C:\Projects\lifeform-web
-   node scripts\apply-loneliness-type-label-patch.mjs
+3. No Supabase migration is needed.
 
 4. Build:
+   cd /d C:\Projects\lifeform-web
    npm run build
    npm run dev
 
-TEST PLAN
----------
-A. Fast visual test
-- Open Emotions.
-- Verify Loneliness is visible.
-- Verify it says:
-  Automatic: begins after 24 hours away and eases after conversation.
+TESTING WITHOUT WAITING UNTIL TOMORROW
+--------------------------------------
+To force a new Dream for testing, remove today's Dream row in Supabase:
 
-B. Test the 24-hour formula without waiting
-- In Supabase Table Editor, open lifeforms.
-- For your Lifeform, temporarily set:
-  emotion_decay_at = now() - interval '12 hours'
-  last_connection_at = now() - interval '48 hours'
-- Reload the app.
-- Existing emotion scores should noticeably decline.
-- Loneliness should rise to about 30.
-- Send one completed message/reply exchange.
-- Loneliness should drop to about 13–14.
+  delete from public.dreams
+  where lifeform_id = 'YOUR_LIFEFORM_ID'
+    and dream_date = current_date;
 
-C. Sprite
-- If Loneliness is the strongest active state, the sprite should use sad_2.png
-  (or sad_1.png if sad_2.png is unavailable).
+Then reload the app. Wait for Dreaming… to finish.
 
-IMPORTANT
----------
-- Do not run the migration twice in different variants. The provided SQL is idempotent.
-- No Dream generation behaviour is changed except the availability of lonely anchors.
-- If npm run build reports a missing lonely property in another Record<EmotionalState, ...>,
-  paste the exact error before editing further.
+Expected for an Italian Lifeform:
+- 35–70 words.
+- random anchor shown in Dreams is Italian, not English.
+- Same anchor appears in the first and final sentence.
+- The anchor visibly drives the whole Dream.
+
+Important:
+Existing saved Dreams are not modified. They naturally disappear once newer
+Dreams replace them in the three-Dream retention window.
