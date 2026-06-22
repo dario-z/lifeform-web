@@ -114,6 +114,9 @@ import {
   type PendingChatAttachment,
 } from '../lib/imageAttachment'
 import { EMOTION_LABELS } from '../lib/sprites'
+import {
+  getEmotionChipStyle,
+} from '../lib/emotionTheme'
 import { supabase } from '../lib/supabase'
 import type {
   EmotionalSensitivities,
@@ -6060,16 +6063,22 @@ export function LifeformChat({
         >
           <aside className="chat-avatar-panel">
             <LifeformSprite
-              emotion={
-                displayedEmotion
-              }
-              lifeformName={
-                lifeform.name
-              }
-              emotionLevels={
-                emotionLevels
-              }
-            />
+  emotion={
+    displayedEmotion
+  }
+  lifeformName={
+    lifeform.name
+  }
+  emotionLevels={
+    emotionLevels
+  }
+  topEmotions={
+    topEmotionReadouts
+  }
+  dreamEmotion={
+    dreams[0]?.dominant_emotion ?? null
+  }
+/>
 
             <p
               className="chat-emotion chat-emotion-stack"
@@ -6079,11 +6088,19 @@ export function LifeformChat({
               }
             >
               {topEmotionReadouts.map(
-                (readout) => (
-                  <span
-                    key={readout.emotion}
-                    className="chat-emotion-chip"
-                  >
+  (readout, index) => (
+    <span
+      key={readout.emotion}
+      className={
+        index === 0
+          ? 'chat-emotion-chip chat-emotion-chip-primary'
+          : 'chat-emotion-chip'
+      }
+      style={getEmotionChipStyle(
+        readout.emotion,
+        index,
+      )}
+    >
                     <span>
                       {getEmotionUiLabel(
                         readout.emotion,

@@ -6,6 +6,10 @@ import {
   useState,
 } from 'react'
 import { EMOTION_LABELS } from '../lib/sprites'
+import {
+  buildMoodscapeStyle,
+  type MoodscapeEmotion,
+} from '../lib/emotionTheme'
 import type { EmotionalState } from '../types/lifeform'
 import './LifeformSprite.css'
 
@@ -17,6 +21,8 @@ type LifeformSpriteProps = {
   emotion: EmotionalState
   lifeformName: string
   emotionLevels?: EmotionLevelsLike
+  topEmotions?: MoodscapeEmotion[]
+  dreamEmotion?: EmotionalState | null
 }
 
 const SPRITE_CYCLE_INTERVAL_MS = 3000
@@ -297,6 +303,8 @@ export function LifeformSprite({
   emotion,
   lifeformName,
   emotionLevels,
+  topEmotions = [],
+  dreamEmotion = null,
 }: LifeformSpriteProps) {
   const spriteFiles = useMemo(
     () =>
@@ -323,6 +331,15 @@ export function LifeformSprite({
   const initialUrl =
     spriteUrls[0] ??
     getSpriteUrl('neutral.png')
+
+const moodscapeStyle = useMemo(
+    () =>
+      buildMoodscapeStyle({
+        topEmotions,
+        dreamEmotion,
+      }),
+    [dreamEmotion, topEmotions],
+  )
 
   const [visibleUrl, setVisibleUrl] =
     useState(initialUrl)
@@ -497,8 +514,9 @@ export function LifeformSprite({
 
   return (
     <div
-      className={classNames}
-      role={
+  className={classNames}
+  style={moodscapeStyle}
+  role={
         hasMultipleVariants
           ? 'button'
           : undefined

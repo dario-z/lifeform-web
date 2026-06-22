@@ -3688,3 +3688,67 @@ body #root .gemini-setup-card input:-webkit-autofill:focus {
     background-color 9999s ease-out 0s !important;
 }
 
+/* ============================================================
+   MOODSCAPE V1 — LIGHT EMOTION PALETTE
+   ============================================================ */
+
+body #root .chat-avatar {
+  isolation: isolate !important;
+}
+
+body #root .chat-avatar::before {
+  display: block !important;
+}
+
+body #root .chat-avatar::after {
+  display: block !important;
+}
+
+body #root .chat-emotion-chip {
+  color:
+    var(
+      --emotion-chip-accent,
+      var(--ivory-ink)
+    ) !important;
+  background:
+    var(
+      --emotion-chip-tint,
+      rgba(255, 253, 250, 0.82)
+    ) !important;
+  border:
+    1px solid
+    var(
+      --emotion-chip-border,
+      rgba(117, 96, 77, 0.16)
+    ) !important;
+  border-left-width: 3px !important;
+  border-left-color:
+    var(
+      --emotion-chip-accent,
+      var(--ivory-graphite)
+    ) !important;
+  box-shadow:
+    0 7px 18px
+      var(
+        --emotion-chip-shadow,
+        rgba(117, 96, 77, 0.08)
+      ) !important;
+}
+
+body #root .chat-emotion-chip > strong {
+  color:
+    var(
+      --emotion-chip-accent,
+      var(--ivory-graphite)
+    ) !important;
+}
+
+body #root .chat-emotion-chip-primary {
+  font-weight: 800 !important;
+  box-shadow:
+    0 8px 20px
+      var(
+        --emotion-chip-shadow,
+        rgba(117, 96, 77, 0.12)
+      ) !important;
+}
