@@ -16,7 +16,8 @@ export const EMOTION_SPRITE_FILES: Record<
   engaged: 'engaged.png',
   happy: 'happy.png',
   horny: 'horny.png',
-  irritated: 'irritated.png',
+  
+  lonely: 'Loneliness',irritated: 'irritated.png',
   neutral: 'neutral.png',
   reflective: 'reflective.png',
   sad: 'sad.png',
@@ -45,6 +46,7 @@ export const EMOTION_LABELS: Record<
   thinking: 'Thinking',
   tired: 'Tired',
   wary: 'Wary',
+  lonely: 'Loneliness',
 }
 
 export function getEmotionSpriteUrl(

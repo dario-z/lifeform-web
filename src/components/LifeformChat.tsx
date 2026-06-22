@@ -18,8 +18,11 @@ import { KeyMemoriesPanel } from './KeyMemoriesPanel'
 import { LifeformSprite } from './LifeformSprite'
 import {
   analyzeEmotionalState,
+  applyConversationLonelinessRecovery,
   applyDailyTokenTiredness,
+  applyOfflineEmotionDrift,
   buildEmotionalResponseContext,
+  getElapsedHoursSince,
   createDefaultEmotionLevels,
   normalizeEmotionLevels,
   selectEmotionFromLevels,
@@ -155,6 +158,9 @@ type EmotionStateRow = {
   daily_token_limit: number
   daily_tokens_used: number
   token_usage_date: string
+  emotion_decay_at: string | null
+  last_connection_at: string | null
+  last_seen_at: string | null
 }
 
 function clampMobileSpriteShare(
@@ -200,7 +206,7 @@ function getErrorMessage(error: unknown): string {
     return error.message
   }
 
-  return 'Si è verificato un errore imprevisto.'
+  return 'An unexpected error occurred.'
 }
 
 function getLocale(language: string): string {
@@ -719,6 +725,11 @@ export function LifeformChat({
     )
 
   const [
+    loadingEmotionState,
+    setLoadingEmotionState,
+  ] = useState(true)
+
+  const [
     emotionalSensitivities,
     setEmotionalSensitivities,
   ] = useState<EmotionalSensitivities>(
@@ -975,118 +986,149 @@ export function LifeformChat({
 
   const loadEmotionState = useCallback(
     async () => {
-      const { data, error: queryError } =
-        await supabase
-          .from('lifeforms')
-          .select(
-            'current_emotion,emotion_intensity,emotion_levels,emotional_sensitivities,daily_token_limit,daily_tokens_used,token_usage_date',
-          )
-          .eq('id', lifeform.id)
-          .single()
+      setLoadingEmotionState(true)
 
-      if (queryError) {
-        console.warn(
-          'Impossibile caricare i livelli emotivi:',
-          queryError,
-        )
-        return
-      }
-
-      const row = data as EmotionStateRow
-      const today = getLocalTokenUsageDate()
-      const configuredLimit =
-        loadStoredDailyTokenLimit()
-      const usedToday =
-        row.token_usage_date === today
-          ? Math.max(
-              0,
-              Math.round(
-                row.daily_tokens_used ?? 0,
-              ),
+      try {
+        const { data, error: queryError } =
+          await supabase
+            .from('lifeforms')
+            .select(
+              'current_emotion,emotion_intensity,emotion_levels,emotional_sensitivities,daily_token_limit,daily_tokens_used,token_usage_date,emotion_decay_at,last_connection_at,last_seen_at',
             )
-          : 0
+            .eq('id', lifeform.id)
+            .single()
 
-      const baseLevels =
-        normalizeEmotionLevels(
-          row.emotion_levels,
+        if (queryError) {
+          console.warn(
+            'Could not load emotional state:',
+            queryError,
+          )
+          return
+        }
+
+        const row = data as EmotionStateRow
+        const now = new Date()
+        const nowIso = now.toISOString()
+        const today = getLocalTokenUsageDate()
+        const configuredLimit =
+          loadStoredDailyTokenLimit()
+        const usedToday =
+          row.token_usage_date === today
+            ? Math.max(
+                0,
+                Math.round(
+                  row.daily_tokens_used ?? 0,
+                ),
+              )
+            : 0
+
+        const baseLevels =
+          normalizeEmotionLevels(
+            row.emotion_levels,
+          )
+
+        const hoursSinceDecay =
+          getElapsedHoursSince(
+            row.emotion_decay_at ??
+              row.last_seen_at,
+            now,
+          )
+
+        const hoursSinceConnection =
+          getElapsedHoursSince(
+            row.last_connection_at ??
+              row.last_seen_at,
+            now,
+          )
+
+        const driftedLevels =
+          applyOfflineEmotionDrift({
+            levels: baseLevels,
+            hoursSinceDecay,
+            hoursSinceConnection,
+          })
+
+        const nextLevels =
+          applyDailyTokenTiredness(
+            driftedLevels,
+            usedToday,
+            configuredLimit,
+          )
+
+        const selected =
+          selectEmotionFromLevels(
+            nextLevels,
+            normalizeStoredEmotion(
+              row.current_emotion,
+            ),
+          )
+
+        setSettledEmotion(
+          selected.emotion,
+        )
+        settledEmotionRef.current =
+          selected.emotion
+
+        setEmotionIntensity(
+          selected.intensity,
         )
 
-      const nextLevels =
-        applyDailyTokenTiredness(
-          baseLevels,
-          usedToday,
+        setEmotionLevels(nextLevels)
+        emotionLevelsRef.current =
+          nextLevels
+
+        setDailyTokenLimit(
           configuredLimit,
         )
+        dailyTokenLimitRef.current =
+          configuredLimit
 
-      const selected =
-        selectEmotionFromLevels(
-          nextLevels,
-          normalizeStoredEmotion(
-            row.current_emotion,
-          ),
+        setDailyTokensUsed(usedToday)
+        dailyTokensUsedRef.current =
+          usedToday
+
+        setTokenUsageDate(today)
+        tokenUsageDateRef.current = today
+
+        const nextSensitivities = {
+          ...row.emotional_sensitivities,
+        }
+
+        emotionalSensitivitiesRef.current =
+          nextSensitivities
+
+        setEmotionalSensitivities(
+          nextSensitivities,
         )
 
-      setSettledEmotion(
-        selected.emotion,
-      )
-      settledEmotionRef.current =
-        selected.emotion
+        const { error: syncError } =
+          await supabase
+            .from('lifeforms')
+            .update({
+              current_emotion:
+                selected.emotion,
+              emotion_intensity:
+                selected.intensity,
+              emotion_levels: nextLevels,
+              daily_token_limit:
+                configuredLimit,
+              daily_tokens_used:
+                usedToday,
+              token_usage_date: today,
+              emotion_decay_at: nowIso,
+              last_connection_at: nowIso,
+              last_seen_at: nowIso,
+            })
+            .eq('id', lifeform.id)
 
-      setEmotionIntensity(
-        selected.intensity,
-      )
-
-      setEmotionLevels(nextLevels)
-      emotionLevelsRef.current =
-        nextLevels
-
-      setDailyTokenLimit(
-        configuredLimit,
-      )
-      dailyTokenLimitRef.current =
-        configuredLimit
-
-      setDailyTokensUsed(usedToday)
-      dailyTokensUsedRef.current =
-        usedToday
-
-      setTokenUsageDate(today)
-      tokenUsageDateRef.current = today
-
-      const nextSensitivities = {
-        ...row.emotional_sensitivities,
-      }
-
-      emotionalSensitivitiesRef.current =
-        nextSensitivities
-
-      setEmotionalSensitivities(
-        nextSensitivities,
-      )
-
-      const { error: syncError } =
-        await supabase
-          .from('lifeforms')
-          .update({
-            current_emotion:
-              selected.emotion,
-            emotion_intensity:
-              selected.intensity,
-            emotion_levels:
-              nextLevels,
-            daily_token_limit:
-              configuredLimit,
-            daily_tokens_used:
-              usedToday,
-            token_usage_date: today,
-          })
-          .eq('id', lifeform.id)
-
-      if (syncError) {
-        console.warn(
-          'Impossibile sincronizzare il consumo token:',
-          syncError,
-        )
+        if (syncError) {
+          console.warn(
+            'Could not synchronize offline emotional drift:',
+            syncError,
+          )
+        }
+      } finally {
+        setLoadingEmotionState(false)
       }
     },
     [lifeform.id],
@@ -1521,11 +1563,46 @@ export function LifeformChat({
   ])
 
   useEffect(() => {
+    const refreshWhenVisible = () => {
+      if (
+        document.visibilityState ===
+        'visible'
+      ) {
+        void loadEmotionState()
+      }
+    }
+
+    const intervalId =
+      window.setInterval(() => {
+        if (
+          document.visibilityState ===
+          'visible'
+        ) {
+          void loadEmotionState()
+        }
+      }, 30 * 60 * 1000)
+
+    document.addEventListener(
+      'visibilitychange',
+      refreshWhenVisible,
+    )
+
+    return () => {
+      window.clearInterval(intervalId)
+      document.removeEventListener(
+        'visibilitychange',
+        refreshWhenVisible,
+      )
+    }
+  }, [loadEmotionState])
+
+  useEffect(() => {
     if (
       dreamCheckStartedRef.current ||
       loadingMessages ||
       loadingKeyMemories ||
-      loadingDreams
+      loadingDreams ||
+      loadingEmotionState
     ) {
       return
     }
@@ -1536,6 +1613,7 @@ export function LifeformChat({
     loadingMessages,
     loadingKeyMemories,
     loadingDreams,
+    loadingEmotionState,
     ensureDailyDream,
   ])
 
@@ -2500,11 +2578,16 @@ export function LifeformChat({
           tokenUsage.totalTokens,
         )
 
-      const nextLevels =
+      const tokenAdjustedLevels =
         applyDailyTokenTiredness(
           analysis.levels,
           nextDailyTokens,
           dailyTokenLimitRef.current,
+        )
+
+      const nextLevels =
+        applyConversationLonelinessRecovery(
+          tokenAdjustedLevels,
         )
 
       const selected =
@@ -2562,6 +2645,10 @@ export function LifeformChat({
               nextDailyTokens,
             token_usage_date: today,
             last_seen_at:
+              new Date().toISOString(),
+            emotion_decay_at:
+              new Date().toISOString(),
+            last_connection_at:
               new Date().toISOString(),
           })
           .eq('id', lifeform.id)
@@ -3003,6 +3090,10 @@ export function LifeformChat({
             token_usage_date:
               getLocalTokenUsageDate(),
             last_seen_at:
+              new Date().toISOString(),
+            emotion_decay_at:
+              new Date().toISOString(),
+            last_connection_at:
               new Date().toISOString(),
           })
           .eq('id', lifeform.id)

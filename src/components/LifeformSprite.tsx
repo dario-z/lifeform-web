@@ -49,6 +49,7 @@ const STATIC_SPRITE_FILES: Partial<
     'horny_4.png',
   ],
   irritated: ['irritated.png'],
+  lonely: ['sad_2.png', 'sad_1.png'],
   neutral: ['neutral.png'],
   reflective: ['reflective.png'],
   sad: ['sad_1.png', 'sad_2.png'],

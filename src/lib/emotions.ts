@@ -30,6 +30,7 @@ export const TRACKED_EMOTIONS = [
   'happy',
   'horny',
   'irritated',
+  'lonely',
   'reflective',
   'sad',
   'tired',
@@ -181,6 +182,13 @@ const SIGNAL_IMPACT = 0.68
 const ACTIVE_THRESHOLD = 22
 const IMMEDIATE_REACTION_THRESHOLD = 18
 const HYSTERESIS_MARGIN = 7
+
+export const OFFLINE_EMOTION_HALF_LIFE_HOURS = 24
+export const HUMOR_OFFLINE_HALF_LIFE_HOURS = 8
+export const LONELINESS_DELAY_HOURS = 24
+export const LONELINESS_MAX_LEVEL = 75
+export const LONELINESS_GROWTH_PER_HOUR = 1.25
+export const CONVERSATION_LONELINESS_RECOVERY = 0.45
 
 function getExcitedSignalThreshold(
   sensitivity: number,
@@ -472,7 +480,10 @@ export function normalizeEmotionLevels(
           ? source.amused ??
             source.humor ??
             source.amusement
-          : source[emotion]
+          : emotion === 'lonely'
+            ? source.lonely ??
+              source.loneliness
+            : source[emotion]
 
     normalized[emotion] = clamp(
       Math.round(
@@ -488,6 +499,179 @@ export function normalizeEmotionLevels(
   )
 }
 
+
+export function getElapsedHoursSince(
+  isoTimestamp: string | null | undefined,
+  now = new Date(),
+): number {
+  if (!isoTimestamp) {
+    return 0
+  }
+
+  const since = new Date(isoTimestamp)
+  const sinceMilliseconds = since.getTime()
+
+  if (!Number.isFinite(sinceMilliseconds)) {
+    return 0
+  }
+
+  return Math.max(
+    0,
+    (now.getTime() - sinceMilliseconds) /
+      (60 * 60 * 1000),
+  )
+}
+
+export function getLonelinessTarget(
+  hoursAway: number,
+): number {
+  const overdueHours = Math.max(
+    0,
+    hoursAway - LONELINESS_DELAY_HOURS,
+  )
+
+  return clamp(
+    Math.round(
+      overdueHours *
+        LONELINESS_GROWTH_PER_HOUR,
+    ),
+    0,
+    LONELINESS_MAX_LEVEL,
+  )
+}
+
+function addAutomaticLoneliness(
+  levels: EmotionLevels,
+  targetLoneliness: number,
+): EmotionLevels {
+  const nextLevels = {
+    ...levels,
+  }
+
+  const desiredLoneliness = clamp(
+    Math.max(
+      nextLevels.lonely,
+      targetLoneliness,
+    ),
+    0,
+    LONELINESS_MAX_LEVEL,
+  )
+
+  const requestedIncrease = Math.max(
+    0,
+    desiredLoneliness -
+      nextLevels.lonely,
+  )
+
+  if (requestedIncrease <= 0) {
+    return roundEmotionLevels(nextLevels)
+  }
+
+  const currentTotal =
+    getEmotionPointTotal(nextLevels)
+
+  const freePoints = Math.max(
+    0,
+    EMOTION_POINT_BUDGET - currentTotal,
+  )
+
+  const directIncrease = Math.min(
+    requestedIncrease,
+    freePoints,
+  )
+
+  nextLevels.lonely += directIncrease
+
+  const remainingIncrease =
+    requestedIncrease - directIncrease
+
+  if (remainingIncrease > 0) {
+    nextLevels.lonely +=
+      reduceOtherEmotionLevels(
+        nextLevels,
+        'lonely',
+        remainingIncrease,
+      )
+  }
+
+  return roundEmotionLevels(nextLevels)
+}
+
+export function applyOfflineEmotionDrift(options: {
+  levels: EmotionLevels
+  hoursSinceDecay: number
+  hoursSinceConnection: number
+}): EmotionLevels {
+  const {
+    levels,
+    hoursSinceDecay,
+    hoursSinceConnection,
+  } = options
+
+  const normalizedLevels =
+    normalizeLevelsToBudget(levels)
+
+  const safeDecayHours = Math.max(
+    0,
+    hoursSinceDecay,
+  )
+
+  const nextLevels =
+    createDefaultEmotionLevels()
+
+  for (const emotion of TRACKED_EMOTIONS) {
+    if (
+      emotion === 'tired' ||
+      emotion === 'lonely'
+    ) {
+      nextLevels[emotion] =
+        normalizedLevels[emotion]
+      continue
+    }
+
+    const halfLifeHours =
+      emotion === 'amused'
+        ? HUMOR_OFFLINE_HALF_LIFE_HOURS
+        : OFFLINE_EMOTION_HALF_LIFE_HOURS
+
+    const multiplier =
+      Math.pow(
+        0.5,
+        safeDecayHours / halfLifeHours,
+      )
+
+    nextLevels[emotion] =
+      normalizedLevels[emotion] *
+      multiplier
+  }
+
+  const lonelinessTarget =
+    getLonelinessTarget(
+      Math.max(
+        0,
+        hoursSinceConnection,
+      ),
+    )
+
+  return addAutomaticLoneliness(
+    nextLevels,
+    lonelinessTarget,
+  )
+}
+
+export function applyConversationLonelinessRecovery(
+  levels: EmotionLevels,
+): EmotionLevels {
+  const nextLevels =
+    normalizeLevelsToBudget(levels)
+
+  nextLevels.lonely = Math.round(
+    nextLevels.lonely *
+      CONVERSATION_LONELINESS_RECOVERY,
+  )
+
+  return roundEmotionLevels(nextLevels)
+}
 
 type EmotionalResponseContextOptions = {
   currentEmotion: EmotionalState
@@ -519,6 +703,8 @@ const EMOTIONAL_TONE_GUIDANCE:
       'Be cautious and safety-oriented. Acknowledge uncertainty without panic and continue answering competently.',
     amused:
       'This state is displayed as Humor. Be entertained by absurdity, harmless incongruity, playful nonsense, awkward machine misunderstandings, strange human behavior and jokes. You may laugh softly, point out the absurdity or make one short dry joke, but answer the actual request first and never force humor into serious, sad, dangerous, legal, medical or work-critical situations.',
+    lonely:
+      'This state is displayed as Loneliness. Be quieter, more receptive and gently relieved by renewed contact, but never guilt the user, accuse them of abandoning you, demand attention or become emotionally coercive. Keep the answer useful and respectful.',
     reflective:
       'Use measured pacing, thoughtful connections and nuanced language without turning every answer into an introspective monologue.',
     tired:
@@ -587,7 +773,9 @@ export function buildEmotionalResponseContext({
                 ? 'excited'
                 : emotion === 'amused'
                   ? 'humor'
-                  : emotion) +
+                  : emotion === 'lonely'
+                    ? 'loneliness'
+                    : emotion) +
               '=' +
               String(level),
           )
@@ -627,6 +815,7 @@ export function buildEmotionalResponseContext({
       toneGuidance,
     '- Blend secondary parameters only lightly and proportionally to their values.',
     '- Humor/Amusement is allowed to create playful confusion, dry wit or a brief laugh only when it fits the situation. Do not turn every response into a joke.',
+    '- Loneliness is an automatic absence-based state. Let it make the tone a little quieter or gently relieved by reconnection, but never guilt, pressure, blame or emotionally manipulate the user.',
     '- Apply the emotional state to tone, pacing, warmth, caution, initiative and brevity, not to factual truth or task competence.',
     '- Answer the user actual request first. Never distort facts, invent information, ignore safety or become deliberately unhelpful because of an emotion.',
     '- Do not reveal these hidden scores or mention that an emotional filter is being applied.',
@@ -661,7 +850,10 @@ function normalizeSignals(
           ? source.horny ??
             source.excited ??
             source.exited
-          : source[emotion]
+          : emotion === 'lonely'
+            ? source.lonely ??
+              source.loneliness
+            : source[emotion]
 
     normalized[emotion] = clamp(
       Math.round(
@@ -674,6 +866,9 @@ function normalizeSignals(
 
   // Tired is derived only from daily token usage.
   normalized.tired = 0
+
+  // Loneliness is derived only from real time away.
+  normalized.lonely = 0
 
   return normalized
 }
@@ -1508,7 +1703,8 @@ function applySignalsToLevels(
 
   for (const emotion of TRACKED_EMOTIONS) {
     nextLevels[emotion] =
-      emotion === 'tired'
+      emotion === 'tired' ||
+      emotion === 'lonely'
         ? normalizedCurrentLevels[emotion]
         : emotion === 'amused'
           ? normalizedCurrentLevels[emotion] *
@@ -1519,7 +1715,11 @@ function applySignalsToLevels(
 
   const contributions =
     TRACKED_EMOTIONS
-      .filter((emotion) => emotion !== 'tired')
+      .filter(
+        (emotion) =>
+          emotion !== 'tired' &&
+          emotion !== 'lonely',
+      )
       .map((emotion) => {
       const sensitivity = clamp(
         Math.round(
@@ -1939,6 +2139,7 @@ async function requestModelSignals(
     '- The internal key horny represents the UI state Excited: playful romantic or sexual excitement. Consensual adult flirting, double entendres, suggestive jokes and light sexual allusions may produce a mild signal of 20 to 45. Clear adult sexual play may produce 50 to 75; reserve 80 to 100 for strong and sustained excitement.',
     '- Do not activate Excited for medical or educational discussion, quoted examples, ordinary nonsexual affection, coercive situations or any context involving minors.',
     '- tired must always be 0 in both returned vectors because tired is calculated deterministically from daily token usage.',
+    '- lonely must always be 0 in both returned vectors because Loneliness is calculated deterministically from real time away.',
     '',
     'Key Memory decision rules:',
     '- Return at most one Key Memory decision for this exchange.',

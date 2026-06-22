@@ -46,6 +46,10 @@ function getEmotionUiLabel(
     return 'Excited'
   }
 
+  if (emotion === 'lonely') {
+    return 'Loneliness'
+  }
+
   return EMOTION_LABELS[emotion]
 }
 
@@ -272,7 +276,8 @@ export function EmotionMonitor({
               <section
                 key={emotion}
                 className={
-                  emotion === 'tired'
+                  emotion === 'tired' ||
+                  emotion === 'lonely'
                     ? 'emotion-parameter emotion-parameter-derived'
                     : 'emotion-parameter'
                 }
@@ -306,6 +311,10 @@ export function EmotionMonitor({
                 {emotion === 'tired' ? (
                   <p className="emotion-derived-note">
                     Automatic: follows daily token usage.
+                  </p>
+                ) : emotion === 'lonely' ? (
+                  <p className="emotion-derived-note">
+                    Automatic: begins after 24 hours away and eases after conversation.
                   </p>
                 ) : (
                   <label
@@ -351,7 +360,7 @@ export function EmotionMonitor({
           <span>Level = dynamic state</span>
           <span>Sensitivity = reactivity 0–100</span>
           <span>
-            Tired = daily token usage
+            Tired + Loneliness = automatic
           </span>
           <span>
             Maximum pool: {EMOTION_POINT_BUDGET}
