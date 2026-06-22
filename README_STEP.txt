@@ -1,104 +1,90 @@
-DIGITAL LIFEFORM — SPRINT 09
-DOCUMENT ATTACHMENTS + ONE-TIME FILE READING
+DIGITAL LIFEFORM — SPRINT 10.1
+PROPOSAL ARBITRATION: THREADS BEFORE AUTONOMOUS MEMORIES
 
-WHAT THIS ADDS
---------------
-The existing + button can now attach one file per message:
+WHY THIS PATCH EXISTS
+---------------------
+Sprint 10 showed that automatic Key Memory proposals were too eager. They could
+occupy the single pending-proposal slot with an ordinary project mention or
+personal detail before an Active Thread had a chance to be proposed.
 
-- Images: PNG, JPG/JPEG, WEBP, GIF
-- PDF
-- Text documents: TXT, MD, CSV, JSON, XML, YAML, TOML, LOG
-- Common source/config files: PY, JS, TS, TSX, JSX, CSS, HTML, SQL,
-  SH, PS1, BAT, CMD, JAVA, C/C++, C#, GO, RS, PHP, RB, SWIFT, KT,
-  VUE and SVELTE
+This patch makes the decision conservative and gives Threads the right priority.
 
-The user can send:
-- text only;
-- one file only;
-- text + one file.
+BEHAVIOUR AFTER THIS PATCH
+--------------------------
+1. Explicit “remember/save this” requests keep the current direct save flow.
 
-HOW EACH FILE IS HANDLED
-------------------------
-- Images continue to work exactly as in Sprint 08.
-- PDFs are passed to Gemini as temporary inline PDF data so it can read
-  text, layout and pages in the current reply.
-- Text/code/CSV files are read locally by the browser. Their readable text is
-  passed only in the current Gemini request.
-- No file bytes or text contents are written to Supabase.
-- The chat history saves only a compact marker with name/type/size metadata.
-- The Lifeform is instructed not to claim it can still inspect a past file.
-- Attachments never create Key Memories, Goals or Beliefs automatically.
+2. Clear ongoing work — project, sprint, continuation, resuming, next step,
+   development, migration, prototype, release, or an existing Thread title —
+   is evaluated as a Thread first.
 
-LIMITS
-------
-- Images and PDFs: 10 MB maximum.
-- Text/code documents: 2 MB maximum.
-- Text/code content longer than 120,000 characters is intentionally truncated
-  before the model request. The document preview says so.
+3. A Thread candidate is queued before autonomous Key Memory proposals. One
+   exchange can no longer create both kinds of proposal.
 
-NOT INCLUDED
-------------
-- DOCX, XLSX, PPTX, ODT or other Office files.
-- Permanent file storage.
-- Multiple attachments in one message.
-- PDF/text-driven automatic memory creation.
+4. A work-context exchange suppresses autonomous memory even when no Thread is
+   proposed yet. Generic project names, work notes and personal-project chatter
+   therefore do not fill Key Memories.
+
+5. Autonomous Key Memories now require:
+   - importance of at least 85; and
+   - an explicit durable collaboration preference or standing constraint cue.
+
+   This keeps automatic Memory proposals for things such as language, format,
+   tone, style and recurring workflow preferences. Personal anecdotes, job
+   details, hobbies, temporary plans, ordinary projects, current issues and
+   one-off events will not become automatic memories.
 
 INSTALLATION
 ------------
-0. Commit the working Sprint 08 version first:
+0. Commit the tested Sprint 10 version first:
 
    cd /d C:\Projects\lifeform-web
    git add .
-   git commit -m "Stable base before document attachments"
+   git commit -m "Stable base before proposal arbitration"
    git push
 
-1. Extract this ZIP directly into:
+1. Extract this ZIP into:
 
    C:\Projects\lifeform-web
 
-2. No Supabase migration and no npm package installation are required.
+2. No Supabase SQL migration is required.
 
-3. Build and run:
+3. Build:
 
    cd /d C:\Projects\lifeform-web
    npm run build
    npm run dev
 
+TESTS
+-----
+A. Thread priority:
+   Send:
+   “We are continuing the Digital Lifeform web app. Sprint 10 Threads is
+   installed, and now we need to refine how proposal arbitration works.”
+
+   Expected: a Possible Active Thread / Possible Thread update can appear.
+   Expected: no Key Memory proposal from the same exchange.
+
+B. No project-memory noise:
+   Send:
+   “I have an idea for a personal project.”
+
+   Expected: usually no proposal. It is not automatically a Key Memory.
+
+C. Stable collaboration preference:
+   Send:
+   “Going forward, I prefer concise technical answers with a complete file when
+   we are editing code.”
+
+   Expected: a Key Memory proposal may appear.
+
+D. Explicit memory:
+   Send:
+   “Remember that I prefer concise technical answers.”
+
+   Expected: the existing explicit memory save flow still works.
+
 IMPORTANT
 ---------
-This package intentionally does NOT contain ImageAttachmentPreview.css.
-Keep your current file exactly as it is: it includes your already-tested visual
-positioning and styling for the + button.
-
-WHAT TO TEST
-------------
-1. Image regression test:
-   - attach a PNG/JPG;
-   - verify the existing image preview still appears;
-   - ask a question about it and send.
-
-2. PDF:
-   - attach a small PDF;
-   - verify the preview says “PDF attached”;
-   - ask “Summarize the important points.”;
-   - send.
-   - Reload after the response: the PDF itself must not reappear in chat.
-
-3. Text/code:
-   - attach a .ts, .py, .txt, .md, .csv or .json file;
-   - verify the preview displays the file extension;
-   - ask what the file does or what should be fixed;
-   - send.
-
-4. Image/PDF/text-only:
-   - leave the textarea empty;
-   - attach a supported file;
-   - Send must be enabled.
-
-5. Invalid file:
-   - select a DOCX or random binary file;
-   - the app should show a clear format error without sending.
-
-6. Large file:
-   - select a PDF/image over 10 MB or text file over 2 MB;
-   - it should show a clear size error without sending.
+Do not run SQL. This patch only replaces:
+- src/components/LifeformChat.tsx
+- src/lib/emotions.ts

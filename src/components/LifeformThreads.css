@@ -1,0 +1,62 @@
+.lifeform-thread-item h3,
+.lifeform-thread-proposal-card h3,
+.lifeform-thread-proposal-card h4 {
+  margin: 0;
+  color: #2d2b29;
+}
+
+.lifeform-thread-item h3 {
+  font-size: 1rem;
+}
+
+.lifeform-thread-details {
+  display: grid;
+  gap: 10px;
+  margin: 0;
+}
+
+.lifeform-thread-details div {
+  display: grid;
+  gap: 3px;
+}
+
+.lifeform-thread-details dt {
+  color: rgba(45, 43, 41, 0.58);
+  font-size: 0.74rem;
+  font-weight: 650;
+  letter-spacing: 0.03em;
+  text-transform: uppercase;
+}
+
+.lifeform-thread-details dd {
+  margin: 0;
+  color: rgba(45, 43, 41, 0.84);
+  line-height: 1.45;
+}
+
+.lifeform-thread-delete {
+  color: #8a3730;
+}
+
+.lifeform-thread-proposal-card {
+  display: grid;
+  gap: 14px;
+  margin: 0 16px 12px;
+  padding: 15px;
+  color: #2d2b29;
+  background: rgba(255, 253, 250, 0.84);
+  border: 1px solid rgba(45, 43, 41, 0.16);
+  border-radius: 17px;
+  box-shadow: 0 10px 26px rgba(45, 43, 41, 0.08);
+}
+
+.lifeform-thread-proposal-card h4 {
+  margin-top: 8px;
+  font-size: 1rem;
+}
+
+@media (max-width: 700px) {
+  .lifeform-thread-proposal-card {
+    margin: 0 10px 10px;
+  }
+}
