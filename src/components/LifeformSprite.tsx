@@ -544,15 +544,17 @@ const moodscapeStyle = useMemo(
           : undefined
       }
     >
-      <img
-        src={visibleUrl}
-        alt={
-          lifeformName +
-          ', stato ' +
-          emotionLabel
-        }
-        draggable={false}
-      />
+     <div className="chat-avatar-sprite-motion">
+  <img
+    src={visibleUrl}
+    alt={
+      lifeformName +
+      ', stato ' +
+      emotionLabel
+    }
+    draggable={false}
+  />
+</div>
 
       {!hasVisibleSprite && (
         <div

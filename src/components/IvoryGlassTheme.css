@@ -3694,6 +3694,8 @@ body #root .gemini-setup-card input:-webkit-autofill:focus {
 
 body #root .chat-avatar {
   isolation: isolate !important;
+  animation: none !important;
+  transform: none !important;
 }
 
 body #root .chat-avatar::before {
@@ -3701,7 +3703,7 @@ body #root .chat-avatar::before {
 }
 
 body #root .chat-avatar::after {
-  display: block !important;
+  display: none !important;
 }
 
 body #root .chat-emotion-chip {
@@ -3715,6 +3717,8 @@ body #root .chat-emotion-chip {
       --emotion-chip-tint,
       rgba(255, 253, 250, 0.82)
     ) !important;
+
+  /* small dark-gray outline for readability */
   border:
     1px solid
     var(
@@ -3727,7 +3731,9 @@ body #root .chat-emotion-chip {
       --emotion-chip-accent,
       var(--ivory-graphite)
     ) !important;
+
   box-shadow:
+    0 0 0 1px rgba(77, 68, 60, 0.28),
     0 7px 18px
       var(
         --emotion-chip-shadow,
@@ -3746,9 +3752,16 @@ body #root .chat-emotion-chip > strong {
 body #root .chat-emotion-chip-primary {
   font-weight: 800 !important;
   box-shadow:
+    0 0 0 1px rgba(77, 68, 60, 0.34),
     0 8px 20px
       var(
         --emotion-chip-shadow,
         rgba(117, 96, 77, 0.12)
       ) !important;
+}
+
+body #root .chat-emotion-note {
+  box-shadow:
+    0 0 0 1px rgba(77, 68, 60, 0.22),
+    var(--ivory-shadow-soft) !important;
 }
