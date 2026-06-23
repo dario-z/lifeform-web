@@ -1575,7 +1575,7 @@ textarea:disabled {
   z-index: 1;
   inset: 0;
   background-image:
-    url("/lifeform-web/sprites/emotions/neutral.png");
+  url("/lifeform-web/sprites/emotions/Female/neutral.png");
   background-repeat: no-repeat;
   background-position: center bottom;
   background-size: contain;
@@ -1660,3 +1660,143 @@ textarea:disabled {
   }
 }
 
+/* ============================================================
+   IVORY AUTH / ONBOARDING — LEGIBLE FIELD TEXT
+   ============================================================ */
+
+body #root .auth-form input,
+body #root .onboarding-step input,
+body #root .onboarding-step select,
+body #root .api-key-input-row input {
+  color: #3f3934 !important;
+  -webkit-text-fill-color: #3f3934 !important;
+  background: #fffdfa !important;
+  border-color: rgba(101, 89, 78, 0.28) !important;
+  opacity: 1 !important;
+}
+
+body #root .auth-form input::placeholder,
+body #root .onboarding-step input::placeholder,
+body #root .api-key-input-row input::placeholder {
+  color: #9b9289 !important;
+  -webkit-text-fill-color: #9b9289 !important;
+  opacity: 1 !important;
+}
+
+body #root .auth-form input:focus,
+body #root .onboarding-step input:focus,
+body #root .onboarding-step select:focus,
+body #root .api-key-input-row input:focus {
+  color: #302b27 !important;
+  -webkit-text-fill-color: #302b27 !important;
+  border-color: rgba(105, 91, 76, 0.6) !important;
+  box-shadow:
+    0 0 0 3px
+    rgba(130, 111, 92, 0.14) !important;
+}
+
+/*
+ * I valori nel riepilogo finale del wizard non devono apparire
+ * sbiaditi come se fossero disabilitati.
+ */
+body #root .onboarding-summary dd,
+body #root .lifeform-details dd,
+body #root .gemini-details dd,
+body #root .account-details dd {
+  color: #403a35 !important;
+  opacity: 1 !important;
+}
+
+body #root .onboarding-summary dt,
+body #root .lifeform-details dt,
+body #root .gemini-details dt,
+body #root .account-details dt {
+  color: #665e56 !important;
+  opacity: 1 !important;
+}
+
+/* ============================================================
+   LOGIN / REGISTER — REAL NEUTRAL SPRITE
+   ============================================================ */
+
+.intro-panel .avatar-placeholder::before {
+  display: none !important;
+}
+
+.intro-panel .avatar-placeholder .auth-lifeform-sprite {
+  position: relative;
+  z-index: 2;
+  width: 100%;
+  height: 100%;
+  display: block;
+  object-fit: contain;
+  object-position: center bottom;
+  pointer-events: none;
+  user-select: none;
+  filter:
+    drop-shadow(
+      16px 12px 0
+      rgba(0, 0, 0, 0.18)
+    )
+    drop-shadow(
+      -8px 4px 18px
+      rgba(255, 39, 64, 0.16)
+    );
+  transform-origin: center bottom;
+  animation:
+    auth-neutral-img-idle
+    5.2s
+    ease-in-out
+    infinite;
+}
+
+@keyframes auth-neutral-img-idle {
+  0%,
+  100% {
+    transform:
+      translateY(0)
+      rotate(-0.15deg)
+      scale(1);
+    filter:
+      brightness(1)
+      drop-shadow(
+        16px 12px 0
+        rgba(0, 0, 0, 0.18)
+      )
+      drop-shadow(
+        -8px 4px 18px
+        rgba(255, 39, 64, 0.16)
+      );
+  }
+
+  25% {
+    transform:
+      translateY(-3px)
+      rotate(0.12deg)
+      scale(1.003);
+  }
+
+  50% {
+    transform:
+      translateY(1px)
+      rotate(0.18deg)
+      scale(0.999);
+    filter:
+      brightness(0.99)
+      drop-shadow(
+        16px 12px 0
+        rgba(0, 0, 0, 0.18)
+      )
+      drop-shadow(
+        -8px 4px 16px
+        rgba(255, 39, 64, 0.13)
+      );
+  }
+
+  75% {
+    transform:
+      translateY(-2px)
+      rotate(-0.08deg)
+      scale(1.002);
+  }
+}

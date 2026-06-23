@@ -6208,7 +6208,6 @@ export function LifeformChat({
   emotion={
     displayedEmotion
   }
-  avatarGender={lifeform.avatar_gender}
   lifeformName={
     lifeform.name
   }

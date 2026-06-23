@@ -10,10 +10,7 @@ import {
   buildMoodscapeStyle,
   type MoodscapeEmotion,
 } from '../lib/emotionTheme'
-import type {
-  AvatarGender,
-  EmotionalState,
-} from '../types/lifeform'
+import type { EmotionalState } from '../types/lifeform'
 import './LifeformSprite.css'
 
 type EmotionLevelsLike = Partial<
@@ -23,7 +20,6 @@ type EmotionLevelsLike = Partial<
 type LifeformSpriteProps = {
   emotion: EmotionalState
   lifeformName: string
-  avatarGender?: AvatarGender
   emotionLevels?: EmotionLevelsLike
   topEmotions?: MoodscapeEmotion[]
   dreamEmotion?: EmotionalState | null
@@ -80,13 +76,10 @@ function getBaseUrl(): string {
 
 function getSpriteUrl(
   fileName: string,
-  avatarGender: AvatarGender,
 ): string {
   return (
     getBaseUrl() +
     'sprites/emotions/' +
-    (avatarGender === 'male' ? 'Male' : 'Female') +
-    '/' +
     fileName
   )
 }
@@ -382,7 +375,6 @@ async function loadFirstAvailable(
 export function LifeformSprite({
   emotion,
   lifeformName,
-  avatarGender = 'female',
   emotionLevels,
   topEmotions = [],
   dreamEmotion = null,
@@ -413,11 +405,8 @@ export function LifeformSprite({
   )
 
   const spriteUrls = useMemo(
-    () =>
-      spriteFiles.map((fileName) =>
-        getSpriteUrl(fileName, avatarGender),
-      ),
-    [avatarGender, spriteFiles],
+    () => spriteFiles.map(getSpriteUrl),
+    [spriteFiles],
   )
 
   const spriteUrlsKey =
@@ -425,7 +414,7 @@ export function LifeformSprite({
 
   const initialUrl =
     spriteUrls[0] ??
-    getSpriteUrl('neutral.png', avatarGender)
+    getSpriteUrl('neutral.png')
 
 const moodscapeStyle = useMemo(
     () =>
@@ -542,10 +531,7 @@ const moodscapeStyle = useMemo(
       }
 
       const neutralUrl =
-        getSpriteUrl(
-  'neutral.png',
-  avatarGender,
-)
+        getSpriteUrl('neutral.png')
 
       try {
         await loadImage(neutralUrl)

@@ -82,7 +82,6 @@ function App() {
                   user_id,
                   name,
                   language,
-                  avatar_gender,
                   current_emotion,
                   previous_emotion,
                   emotion_intensity,
@@ -293,7 +292,6 @@ function App() {
             user_id: session.user.id,
             name: data.lifeformName,
             language: data.language,
-            avatar_gender: data.avatarGender,
           })
           .select()
           .single()
@@ -363,19 +361,11 @@ function App() {
         <section className="auth-layout">
           <div className="intro-panel">
             <div
-  className="avatar-placeholder"
-  aria-hidden="true"
->
-  <img
-    className="auth-lifeform-sprite"
-    src={
-      import.meta.env.BASE_URL +
-      'sprites/emotions/Female/neutral.png'
-    }
-    alt=""
-    draggable={false}
-  />
-</div>
+              className="avatar-placeholder"
+              aria-hidden="true"
+            >
+              <span />
+            </div>
 
             <p className="eyebrow"></p>
 

@@ -1,7 +1,6 @@
 import { useState } from 'react'
 import type { FormEvent } from 'react'
 import type {
-  AvatarGender,
   OnboardingData,
   SupportedLanguage,
 } from '../types/lifeform'
@@ -25,23 +24,6 @@ const LANGUAGE_OPTIONS: Array<{
   { value: 'es', label: 'Español' },
 ]
 
-const AVATAR_GENDER_OPTIONS: Array<{
-  value: AvatarGender
-  label: string
-  description: string
-}> = [
-  {
-    value: 'female',
-    label: 'Female',
-    description: 'Female avatar and sprite set.',
-  },
-  {
-    value: 'male',
-    label: 'Male',
-    description: 'Male avatar and sprite set.',
-  },
-]
-
 export function LifeformOnboarding({
   userEmail,
   submitting,
@@ -49,13 +31,11 @@ export function LifeformOnboarding({
   onCreate,
   onSignOut,
 }: LifeformOnboardingProps) {
-  const [step, setStep] = useState<1 | 2 | 3 | 4>(1)
+  const [step, setStep] = useState<1 | 2 | 3>(1)
   const [displayName, setDisplayName] = useState('')
   const [lifeformName, setLifeformName] = useState('')
   const [language, setLanguage] =
     useState<SupportedLanguage>('it')
-  const [avatarGender, setAvatarGender] =
-    useState<AvatarGender>('female')
   const [validationError, setValidationError] =
     useState<string | null>(null)
 
@@ -99,17 +79,13 @@ export function LifeformOnboarding({
       setStep(2)
     } else if (step === 2) {
       setStep(3)
-    } else if (step === 3) {
-      setStep(4)
     }
   }
 
   const goBack = () => {
     setValidationError(null)
 
-    if (step === 4) {
-      setStep(3)
-    } else if (step === 3) {
+    if (step === 3) {
       setStep(2)
     } else if (step === 2) {
       setStep(1)
@@ -121,7 +97,7 @@ export function LifeformOnboarding({
   ) => {
     event.preventDefault()
 
-    if (step < 4) {
+    if (step < 3) {
       goForward()
       return
     }
@@ -130,15 +106,10 @@ export function LifeformOnboarding({
       displayName: displayName.trim(),
       lifeformName: lifeformName.trim(),
       language,
-      avatarGender,
     })
   }
 
   const visibleError = serverError ?? validationError
-  const selectedAvatarGender =
-    AVATAR_GENDER_OPTIONS.find(
-      (option) => option.value === avatarGender,
-    )
 
   return (
     <main className="app-shell">
@@ -161,9 +132,9 @@ export function LifeformOnboarding({
 
         <div
           className="onboarding-progress"
-          aria-label={`Passaggio ${step} di 4`}
+          aria-label={`Passaggio ${step} di 3`}
         >
-          {[1, 2, 3, 4].map((progressStep) => (
+          {[1, 2, 3].map((progressStep) => (
             <span
               key={progressStep}
               className={
@@ -179,7 +150,7 @@ export function LifeformOnboarding({
         >
           {step === 1 && (
             <section className="onboarding-step">
-              <p className="step-number">01 / 04</p>
+              <p className="step-number">01 / 03</p>
 
               <h1>How should you be called?</h1>
 
@@ -210,7 +181,7 @@ export function LifeformOnboarding({
 
           {step === 2 && (
             <section className="onboarding-step">
-              <p className="step-number">02 / 04</p>
+              <p className="step-number">02 / 03</p>
 
               <h1>Dalle un nome.</h1>
 
@@ -265,50 +236,7 @@ export function LifeformOnboarding({
 
           {step === 3 && (
             <section className="onboarding-step">
-              <p className="step-number">03 / 04</p>
-
-              <h1>Scegli la sua presenza.</h1>
-
-              <p className="step-description">
-                Questa scelta determina il set di sprite usato dalla
-                Lifeform. Potrà essere ampliata in futuro con altri
-                avatar, ma il profilo creato ora usa una sola variante.
-              </p>
-
-              <label htmlFor="lifeform-avatar-gender">
-                Avatar
-              </label>
-
-              <select
-                id="lifeform-avatar-gender"
-                value={avatarGender}
-                onChange={(event) =>
-                  setAvatarGender(
-                    event.target.value as AvatarGender,
-                  )
-                }
-                disabled={submitting}
-                autoFocus
-              >
-                {AVATAR_GENDER_OPTIONS.map((option) => (
-                  <option
-                    key={option.value}
-                    value={option.value}
-                  >
-                    {option.label}
-                  </option>
-                ))}
-              </select>
-
-              <p className="step-description">
-                {selectedAvatarGender?.description}
-              </p>
-            </section>
-          )}
-
-          {step === 4 && (
-            <section className="onboarding-step">
-              <p className="step-number">04 / 04</p>
+              <p className="step-number">03 / 03</p>
 
               <h1>Pronta per emergere.</h1>
 
@@ -337,11 +265,6 @@ export function LifeformOnboarding({
                       )?.label
                     }
                   </dd>
-                </div>
-
-                <div>
-                  <dt>Avatar</dt>
-                  <dd>{selectedAvatarGender?.label}</dd>
                 </div>
 
                 <div>
@@ -382,7 +305,7 @@ export function LifeformOnboarding({
             >
               {submitting
                 ? 'Creazione…'
-                : step === 4
+                : step === 3
                   ? 'Crea la Lifeform'
                   : 'Continua'}
             </button>

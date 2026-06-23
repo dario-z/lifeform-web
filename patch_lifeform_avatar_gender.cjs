@@ -1,4 +1,126 @@
-import { useState } from 'react'
+const fs = require('fs')
+const path = require('path')
+
+const root = process.cwd()
+
+function read(relativePath) {
+  return fs.readFileSync(path.join(root, relativePath), 'utf8')
+}
+
+function write(relativePath, content) {
+  const fullPath = path.join(root, relativePath)
+  const backupPath = fullPath + '.before-avatar-gender.bak'
+
+  if (!fs.existsSync(backupPath)) {
+    fs.copyFileSync(fullPath, backupPath)
+  }
+
+  fs.writeFileSync(fullPath, content, 'utf8')
+  console.log('Updated:', relativePath)
+}
+
+function replaceOnce(content, search, replacement, label) {
+  if (!content.includes(search)) {
+    throw new Error('Could not find expected block: ' + label)
+  }
+
+  return content.replace(search, replacement)
+}
+
+function assertNoDuplicate(content, pattern, label) {
+  const matches = content.match(pattern) || []
+  if (matches.length > 1) {
+    throw new Error('Duplicate ' + label + ' detected. Restore the backup before retrying.')
+  }
+}
+
+const lifeformTypes = `export const SUPPORTED_LANGUAGES = [
+  'it',
+  'en',
+  'fr',
+  'de',
+  'es',
+] as const
+
+export type SupportedLanguage =
+  (typeof SUPPORTED_LANGUAGES)[number]
+
+export const AVATAR_GENDERS = [
+  'female',
+  'male',
+] as const
+
+export type AvatarGender =
+  (typeof AVATAR_GENDERS)[number]
+
+export const EMOTIONAL_STATES = [
+  'afraid',
+  'amused',
+  'angry',
+  'concerned',
+  'curious',
+  'dormant',
+  'engaged',
+  'happy',
+  'horny',
+  'irritated',
+  'lonely',
+  'neutral',
+  'reflective',
+  'sad',
+  'thinking',
+  'tired',
+  'wary',
+] as const
+
+export type EmotionalState =
+  (typeof EMOTIONAL_STATES)[number]
+
+export type SensitivityKey = Exclude<
+  EmotionalState,
+  'neutral' | 'thinking' | 'dormant'
+>
+
+export type EmotionalSensitivities = Record<
+  SensitivityKey,
+  number
+>
+
+export interface Profile {
+  user_id: string
+  display_name: string | null
+  interface_language: SupportedLanguage
+  onboarding_completed: boolean
+  created_at: string
+  updated_at: string
+}
+
+export interface Lifeform {
+  id: string
+  user_id: string
+  name: string
+  language: SupportedLanguage
+  avatar_gender: AvatarGender
+  current_emotion: EmotionalState
+  previous_emotion: EmotionalState
+  emotion_intensity: number
+  emotional_sensitivities: EmotionalSensitivities
+  last_seen_at: string
+  emotion_decay_at: string | null
+  last_connection_at: string | null
+  created_at: string
+  updated_at: string
+}
+
+export interface OnboardingData {
+  displayName: string
+  lifeformName: string
+  language: SupportedLanguage
+  avatarGender: AvatarGender
+}
+`
+
+const onboarding = `import { useState } from 'react'
 import type { FormEvent } from 'react'
 import type {
   AvatarGender,
@@ -161,7 +283,7 @@ export function LifeformOnboarding({
 
         <div
           className="onboarding-progress"
-          aria-label={`Passaggio ${step} di 4`}
+          aria-label={\`Passaggio \${step} di 4\`}
         >
           {[1, 2, 3, 4].map((progressStep) => (
             <span
@@ -391,4 +513,252 @@ export function LifeformOnboarding({
       </section>
     </main>
   )
+}
+`
+
+const sprites = `import type {
+  AvatarGender,
+  EmotionalState,
+} from '../types/lifeform'
+
+const SPRITE_BASE_PATH =
+  \`\${import.meta.env.BASE_URL}sprites/emotions\`
+
+export const EMOTION_SPRITE_FILES: Record<
+  EmotionalState,
+  string
+> = {
+  afraid: 'afraid.png',
+  amused: 'amused_1.png',
+  angry: 'angry.png',
+  concerned: 'concerned.png',
+  curious: 'curious_1.png',
+  dormant: 'dormant.png',
+  engaged: 'engaged_neutral.png',
+  happy: 'happy_1.png',
+  horny: 'horny_1.png',
+  irritated: 'irritated.png',
+  lonely: 'sad_2.png',
+  neutral: 'neutral.png',
+  reflective: 'reflective_neutral.png',
+  sad: 'sad_1.png',
+  thinking: 'thinking.neutral.png',
+  tired: 'tired.png',
+  wary: 'wary.png',
+}
+
+export const EMOTION_LABELS: Record<
+  EmotionalState,
+  string
+> = {
+  afraid: 'Afraid',
+  amused: 'Humor',
+  angry: 'Angry',
+  concerned: 'Concerned',
+  curious: 'Curious',
+  dormant: 'Dormant',
+  engaged: 'Engaged',
+  happy: 'Happy',
+  horny: 'Horny',
+  irritated: 'Irritated',
+  lonely: 'Loneliness',
+  neutral: 'Neutral',
+  reflective: 'Reflective',
+  sad: 'Sad',
+  thinking: 'Thinking',
+  tired: 'Tired',
+  wary: 'Wary',
+}
+
+function getSpriteFolder(
+  avatarGender: AvatarGender,
+): 'Female' | 'Male' {
+  return avatarGender === 'male'
+    ? 'Male'
+    : 'Female'
+}
+
+export function getEmotionSpriteUrl(
+  emotion: EmotionalState,
+  avatarGender: AvatarGender = 'female',
+): string {
+  return (
+    SPRITE_BASE_PATH +
+    '/' +
+    getSpriteFolder(avatarGender) +
+    '/' +
+    EMOTION_SPRITE_FILES[emotion]
+  )
+}
+
+export function preloadCriticalSprites(
+  avatarGender: AvatarGender = 'female',
+): void {
+  const criticalEmotions: EmotionalState[] = [
+    'neutral',
+    'thinking',
+  ]
+
+  for (const emotion of criticalEmotions) {
+    const image = new Image()
+    image.src = getEmotionSpriteUrl(
+      emotion,
+      avatarGender,
+    )
+  }
+}
+`
+
+try {
+  // 1. Types and onboarding are replaced as whole files to avoid half-edited wizard logic.
+  write('src/types/lifeform.ts', lifeformTypes)
+  write('src/components/LifeformOnboarding.tsx', onboarding)
+  write('src/lib/sprites.ts', sprites)
+
+  // 2. App database read/write.
+  let app = read('src/App.tsx')
+
+  if (!app.includes('avatar_gender')) {
+    app = replaceOnce(
+      app,
+      `                  name,
+                  language,
+                  current_emotion,`,
+      `                  name,
+                  language,
+                  avatar_gender,
+                  current_emotion,`,
+      'App lifeform select fields',
+    )
+
+    app = replaceOnce(
+      app,
+      `            name: data.lifeformName,
+            language: data.language,`,
+      `            name: data.lifeformName,
+            language: data.language,
+            avatar_gender: data.avatarGender,`,
+      'App lifeform insert fields',
+    )
+  }
+
+  write('src/App.tsx', app)
+
+  // 3. Sprite component gets the selected avatar folder.
+  let sprite = read('src/components/LifeformSprite.tsx')
+
+  if (!sprite.includes('AvatarGender')) {
+    sprite = sprite.replace(
+      `import type { EmotionalState } from '../types/lifeform'`,
+      `import type {
+  AvatarGender,
+  EmotionalState,
+} from '../types/lifeform'`,
+    )
+  }
+
+  if (!sprite.includes('avatarGender?: AvatarGender')) {
+    sprite = replaceOnce(
+      sprite,
+      `  lifeformName: string
+  emotionLevels?: EmotionLevelsLike`,
+      `  lifeformName: string
+  avatarGender?: AvatarGender
+  emotionLevels?: EmotionLevelsLike`,
+      'LifeformSprite props',
+    )
+  }
+
+  if (!sprite.includes(`'sprites/emotions/' +
+    (avatarGender === 'male' ? 'Male' : 'Female') +`)) {
+    sprite = replaceOnce(
+      sprite,
+      `function getSpriteUrl(
+  fileName: string,
+): string {
+  return (
+    getBaseUrl() +
+    'sprites/emotions/' +
+    fileName
+  )
+}`,
+      `function getSpriteUrl(
+  fileName: string,
+  avatarGender: AvatarGender,
+): string {
+  return (
+    getBaseUrl() +
+    'sprites/emotions/' +
+    (avatarGender === 'male' ? 'Male' : 'Female') +
+    '/' +
+    fileName
+  )
+}`,
+      'LifeformSprite URL builder',
+    )
+  }
+
+  if (!sprite.includes(`  avatarGender = 'female',`)) {
+    sprite = replaceOnce(
+      sprite,
+      `  lifeformName,
+  emotionLevels,`,
+      `  lifeformName,
+  avatarGender = 'female',
+  emotionLevels,`,
+      'LifeformSprite function props',
+    )
+  }
+
+  sprite = sprite.replace(
+    `() => spriteFiles.map(getSpriteUrl),
+    [spriteFiles],`,
+    `() =>
+      spriteFiles.map((fileName) =>
+        getSpriteUrl(fileName, avatarGender),
+      ),
+    [avatarGender, spriteFiles],`,
+  )
+
+  sprite = sprite.replace(
+    `getSpriteUrl('neutral.png')`,
+    `getSpriteUrl('neutral.png', avatarGender)`,
+  )
+
+  write('src/components/LifeformSprite.tsx', sprite)
+
+  // 4. Pass the stored value to the chat sprite.
+  let chat = read('src/components/LifeformChat.tsx')
+
+  if (!chat.includes('avatarGender={lifeform.avatar_gender}')) {
+    const original = `<LifeformSprite
+  emotion={
+    displayedEmotion
+  }`
+    const replacement = `<LifeformSprite
+  emotion={
+    displayedEmotion
+  }
+  avatarGender={lifeform.avatar_gender}`
+
+    if (!chat.includes(original)) {
+      throw new Error(
+        'Could not find the LifeformSprite JSX block in LifeformChat.tsx. ' +
+        'No file was changed after this point.'
+      )
+    }
+
+    chat = chat.replace(original, replacement)
+  }
+
+  write('src/components/LifeformChat.tsx', chat)
+
+  console.log('')
+  console.log('Avatar gender patch completed successfully.')
+  console.log('Backups were created next to each edited file with:')
+  console.log('.before-avatar-gender.bak')
+} catch (error) {
+  console.error('')
+  console.error('Patch failed:', error.message)
+  process.exit(1)
 }
