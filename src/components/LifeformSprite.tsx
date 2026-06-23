@@ -57,7 +57,9 @@ const STATIC_SPRITE_FILES: Partial<
   irritated: ['irritated.png'],
   lonely: ['sad_2.png', 'sad_1.png'],
   neutral: ['neutral.png'],
-  reflective: ['reflective.png'],
+  reflective: [
+  'reflective_neutral.png',
+],
   sad: ['sad_1.png', 'sad_2.png'],
   tired: ['tired.png'],
   wary: ['wary.png'],
@@ -212,6 +214,73 @@ function chooseThinkingFile(
   return 'thinking.neutral.png'
 }
 
+const POSITIVE_REFLECTIVE_EMOTIONS = new Set([
+  'happy',
+  'amused',
+  'engaged',
+  'curious',
+  'horny',
+])
+
+const NEGATIVE_REFLECTIVE_EMOTIONS = new Set([
+  'sad',
+  'lonely',
+  'afraid',
+  'wary',
+  'concerned',
+  'angry',
+  'irritated',
+  'tired',
+])
+
+const REFLECTIVE_VARIANT_THRESHOLD = 60
+
+function chooseReflectiveFile(
+  levels: EmotionLevelsLike | undefined,
+): string {
+  if (!levels) {
+    return 'reflective_neutral.png'
+  }
+
+  const strongestEmotion =
+    getSortedEmotions(levels)[0]
+
+  if (!strongestEmotion) {
+    return 'reflective_neutral.png'
+  }
+
+  /*
+   * Se Reflective è l'emozione principale,
+   * la versione riflessiva resta neutra.
+   */
+  if (
+    strongestEmotion.emotion === 'reflective' ||
+    strongestEmotion.emotion === 'neutral' ||
+    strongestEmotion.score <=
+      REFLECTIVE_VARIANT_THRESHOLD
+  ) {
+    return 'reflective_neutral.png'
+  }
+
+  if (
+    POSITIVE_REFLECTIVE_EMOTIONS.has(
+      strongestEmotion.emotion,
+    )
+  ) {
+    return 'reflective_happy.png'
+  }
+
+  if (
+    NEGATIVE_REFLECTIVE_EMOTIONS.has(
+      strongestEmotion.emotion,
+    )
+  ) {
+    return 'reflective_sad.png'
+  }
+
+  return 'reflective_neutral.png'
+}
+
 function getEmotionSpriteFiles(
   emotion: EmotionalState,
   levels: EmotionLevelsLike | undefined,
@@ -223,6 +292,10 @@ function getEmotionSpriteFiles(
   if (emotion === 'thinking') {
     return [chooseThinkingFile(levels)]
   }
+
+if (emotion === 'reflective') {
+  return [chooseReflectiveFile(levels)]
+}
 
   return (
     STATIC_SPRITE_FILES[emotion] ??
@@ -312,12 +385,23 @@ export function LifeformSprite({
         emotion,
         emotionLevels,
       ),
-    [
-      emotion,
-      emotionLevels?.angry,
-      emotionLevels?.concerned,
-      emotionLevels?.happy,
-    ],
+   [
+  emotion,
+  emotionLevels?.afraid,
+  emotionLevels?.amused,
+  emotionLevels?.angry,
+  emotionLevels?.concerned,
+  emotionLevels?.curious,
+  emotionLevels?.engaged,
+  emotionLevels?.happy,
+  emotionLevels?.horny,
+  emotionLevels?.irritated,
+  emotionLevels?.lonely,
+  emotionLevels?.reflective,
+  emotionLevels?.sad,
+  emotionLevels?.tired,
+  emotionLevels?.wary,
+],
   )
 
   const spriteUrls = useMemo(
