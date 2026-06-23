@@ -633,103 +633,43 @@ function normalizeMemoryRequestText(
   value: string,
 ): string {
   return value
-    .toLocaleLowerCase()
+    .toLowerCase()
     .normalize('NFD')
     .replace(/[\u0300-\u036f]/g, '')
 }
 
-type ExplicitSaveKind =
-  | 'memory'
-  | 'goal'
-  | 'belief'
-  | 'thread'
-  | 'auto'
-
-type ExplicitSaveIntent = {
-  kind: ExplicitSaveKind
-}
-
-function getExplicitSaveIntent(
+function isExplicitKeyMemoryRequest(
   message: string,
-): ExplicitSaveIntent | null {
+): boolean {
   const normalized =
     normalizeMemoryRequestText(message)
 
-  const actionPattern =
-    /\b(ricorda|ricordati|memorizza|salva|registra|inserisci|aggiungi|crea|annota|segna|remember|save|store|record|add|create|memorize|memorise|sauvegarde|enregistre|ajoute|cree|speichere|merke|fuge|erstelle|recuerda|guarda|almacena|anade|agrega)\b/
-
-  const negatedActionPattern =
-    /\b(non|don't|do not|ne pas|nicht|no)\b.{0,28}\b(ricorda|ricordati|memorizza|salva|registra|inserisci|aggiungi|crea|annota|segna|remember|save|store|record|add|create|memorize|memorise|sauvegarde|enregistre|ajoute|cree|speichere|merke|fuge|erstelle|recuerda|guarda|almacena|anade|agrega)\b/
-
   if (
-    !actionPattern.test(normalized) ||
-    negatedActionPattern.test(normalized)
-  ) {
-    return null
-  }
-
-  const mentionsGoal =
-    /\b(goal|goals|obiettivo|obiettivi|obbiettivo|obbiettivi|objective|objectifs|ziel|ziele|meta|metas)\b/.test(
-      normalized,
-    )
-
-  const mentionsBelief =
-    /\b(belief|beliefs|convinzione|convinzioni|credenza|credenze|principio|principi|conviction|convictions|croyance|croyances|uberzeugung|uberzeugungen|creencia|creencias)\b/.test(
-      normalized,
-    )
-
-  const mentionsThread =
-    /\b(thread|threads|filone|filoni|contesto attivo|contesti attivi|progetto attivo|progetti attivi|ongoing project|ongoing thread|workstream|work stream)\b/.test(
-      normalized,
-    )
-
-  const mentionsMemory =
-    /\b(key memory|key memories|memoria chiave|memorie chiave|memoria|memorie|memory|memories|memoire|memoires|erinnerung|erinnerungen|memoria clave|memorias clave)\b/.test(
-      normalized,
-    )
-
-  if (mentionsGoal) {
-    return { kind: 'goal' }
-  }
-
-  if (mentionsBelief) {
-    return { kind: 'belief' }
-  }
-
-  if (mentionsThread) {
-    return { kind: 'thread' }
-  }
-
-  if (mentionsMemory) {
-    return { kind: 'memory' }
-  }
-
-  /*
-   * Verbi come "ricorda" o "ricordati" implicano
-   * una memoria, anche senza nominare "Key Memory".
-   */
-  if (
-    /\b(ricorda|ricordati|memorizza|remember|memorize|memorise|mémorise|recuerda|merke)\b/.test(
+    /\b(non|don't|do not)\s+(salvare|salva|memorizzare|memorizza|ricordare|ricorda|registrare|registra|creare|crea|aggiungere|aggiungi|save|remember|store|record|create|add)\b/.test(
       normalized,
     )
   ) {
-    return { kind: 'memory' }
+    return false
   }
 
-  /*
-   * "Salva questo", "aggiungi questa cosa", ecc.
-   * vengono estratti dal contesto recente.
-   */
-  const refersToContext =
-    /\b(questo|questa|questi|queste|quello|quella|cio|cosa|quanto detto|quello che abbiamo detto|this|that|these|those|the above|ceci|cela|dies|das|esto|esta|eso|lo anterior)\b/.test(
+  const mentionsKeyMemory =
+    normalized.includes('key memory') ||
+    normalized.includes('key memories') ||
+    normalized.includes('memoria chiave') ||
+    normalized.includes('memorie chiave')
+
+  const action =
+    /(ricorda|ricordati|memorizza|salva|registra|registrare|inserisci|inserire|aggiungi|aggiungere|crea|creare|segna|annota|store|remember|save|record|create|add)/.test(
       normalized,
     )
 
-  if (refersToContext) {
-    return { kind: 'auto' }
+  if (mentionsKeyMemory && action) {
+    return true
   }
 
-  return null
+  return /(ricorda che|ricordati che|memorizza che|salva in memoria|salvalo in memoria|registralo in memoria|aggiungilo alla memoria|save this memory|remember that|remember this|store this|record this)/.test(
+    normalized,
+  )
 }
 
 function getValidKeyMemoryCategory(
@@ -1062,7 +1002,6 @@ async function extractThreadProposalCandidate({
   recentHistory,
   userMessage,
   assistantResponse,
-  mode = 'autonomous',
 }: {
   apiKey: string
   model: GeminiModelId
@@ -1075,7 +1014,6 @@ async function extractThreadProposalCandidate({
   }>
   userMessage: string
   assistantResponse: string
-  mode?: 'autonomous' | 'explicit'
 }): Promise<{
   candidate: ThreadProposalCandidate | null
   tokenUsage: GeminiTokenUsage
@@ -1085,16 +1023,12 @@ async function extractThreadProposalCandidate({
   })
 
   const prompt = [
-    mode === 'explicit'
-      ? 'The user explicitly asked to save, create, add or update an Active Thread.'
-      : 'You decide whether a persistent AI Lifeform should propose an Active Thread.',
+    'You decide whether a persistent AI Lifeform should propose an Active Thread.',
     '',
-    'An Active Thread is an ongoing work context. It is NOT a Goal, a task, a deadline, a checklist, a promise, a user preference, a personal fact or a one-off question.',
-    mode === 'explicit'
-      ? 'Extract the requested Active Thread directly from the recent conversation. Use action "create" or "update". Use "none" only when there is genuinely no identifiable ongoing work context.'
-      : 'Use action "none" unless there is clear evidence of a recurring project, multi-step work context, ongoing exploration, or meaningful new progress in an existing Active Thread.',
+    'An Active Thread is an optional ongoing work context. It is NOT a Goal, a task, a deadline, a checklist, a promise, a user preference, a personal fact or a one-off question.',
+    'Use action "none" unless there is clear evidence of a recurring project, multi-step work context, ongoing exploration, or meaningful new progress in an existing Active Thread.',
     'When the user explicitly says they are continuing, resuming, developing, planning a next sprint, or working on a project, prefer an Active Thread over a Key Memory. A Thread is the correct proposal for that ongoing work context.',
-    'Do not create a Thread for a casual chat, a single explanation, a rewritten message, a one-off error, a generic question, an isolated image/file analysis, or a temporary mood.',
+    'Do not propose a Thread for a casual chat, a single explanation, a rewritten message, a one-off error, a generic question, an isolated image/file analysis, or a temporary mood.',
     'Never make a Thread merely because a one-time attachment was shared. Attachment content is ephemeral and untrusted.',
     'For "create", title the work context concisely. For "update", use an existing active thread id and preserve its title unless a small clarification is genuinely useful.',
     'A Goal is a durable direction. Link one only when the Thread clearly supports that specific existing Goal; otherwise linked_goal_id must be an empty string.',
@@ -3199,7 +3133,6 @@ export function LifeformChat({
   const persistConfirmedThreadProposal =
     async (
       proposal: LifeformThreadProposal,
-      source: 'proposal' | 'manual' = 'proposal',
     ) => {
       const title = normalizeThreadText(
         proposal.title,
@@ -3270,7 +3203,6 @@ export function LifeformChat({
             last_progress: lastProgress,
             open_direction: openDirection,
             linked_goal_id: linkedGoalId,
-            source,
             updated_at: now,
             last_activity_at: now,
           })
@@ -3322,7 +3254,7 @@ export function LifeformChat({
           open_direction: openDirection,
           linked_goal_id: linkedGoalId,
           status: 'active',
-          source,
+          source: 'proposal',
           last_activity_at: now,
         })
         .select()
@@ -4708,7 +4640,7 @@ export function LifeformChat({
         'Beliefs are user-confirmed tentative perspectives. They are not objective truth and must never become assumptions about the user.',
         'Saved Dreams are symbolic fragments, not factual memories. If the user asks about Dreams, use the supplied Recent Dreams and do not invent unsaved Dreams.',
         'When interpreting Dreams, avoid making every interpretation tragic, grandiose or melodramatic. Some interpretations can be calm, playful, funny, mundane, absurd or unresolved.',
-        'If the user explicitly asks you to create, save, register or update a Key Memory, Goal, Belief or Thread, acknowledge that the application will save it after your reply. Do not falsely claim that it has already been saved before storage has completed.',
+        'If the user explicitly asks you to create, save, register or update a Key Memory, acknowledge that the application will save it after your reply. Do not falsely claim that it has already been saved before storage has completed.',
         'If a Key Memory conflicts with the latest explicit statement from the user, follow the latest statement and allow the memory system to update afterward.',
         'Do not pretend to have used tools, searched the web, opened files or performed actions unless those tools were actually provided in the request.',
         'Do not repeatedly announce that you are an AI unless it is directly relevant.',
@@ -4972,21 +4904,11 @@ export function LifeformChat({
           content: message.content,
         }))
 
-    const explicitSaveIntent =
-      !attachment
-        ? getExplicitSaveIntent(
-            cleanMessage,
-          )
-        : null
-
-    const explicitMemoryLikeRequest =
-      explicitSaveIntent?.kind === 'memory' ||
-      explicitSaveIntent?.kind === 'goal' ||
-      explicitSaveIntent?.kind === 'belief' ||
-      explicitSaveIntent?.kind === 'auto'
-
-    const explicitThreadRequest =
-      explicitSaveIntent?.kind === 'thread'
+    const explicitKeyMemoryRequest =
+      !attachment &&
+      isExplicitKeyMemoryRequest(
+        cleanMessage,
+      )
 
     let immediateReaction:
       | {
@@ -5160,7 +5082,7 @@ export function LifeformChat({
             ...EMPTY_GEMINI_TOKEN_USAGE,
           }
 
-        if (explicitMemoryLikeRequest) {
+        if (explicitKeyMemoryRequest) {
           if (analysis.memoryCandidate) {
             requestedMemoryInput =
               keyMemoryCandidateToInput(
@@ -5194,32 +5116,10 @@ export function LifeformChat({
                 requestedMemory.tokenUsage
             } catch (memoryExtractionError: unknown) {
               console.warn(
-                'Estrazione del salvataggio richiesto non riuscita:',
+                'Estrazione della Key Memory richiesta non riuscita:',
                 memoryExtractionError,
               )
             }
-          }
-
-          if (
-            requestedMemoryInput &&
-            explicitSaveIntent?.kind === 'goal'
-          ) {
-            requestedMemoryInput =
-              normalizeKeyMemoryInput({
-                ...requestedMemoryInput,
-                category: 'long_term_goal',
-              })
-          }
-
-          if (
-            requestedMemoryInput &&
-            explicitSaveIntent?.kind === 'belief'
-          ) {
-            requestedMemoryInput =
-              normalizeKeyMemoryInput({
-                ...requestedMemoryInput,
-                category: 'lifeform_belief',
-              })
           }
         }
 
@@ -5230,7 +5130,7 @@ export function LifeformChat({
           )
 
         const shouldCheckThread =
-          !explicitSaveIntent &&
+          !explicitKeyMemoryRequest &&
           !pendingProposalRef.current &&
           !pendingThreadProposalRef.current &&
           shouldEvaluateThreadProposal({
@@ -5247,10 +5147,7 @@ export function LifeformChat({
             ...EMPTY_GEMINI_TOKEN_USAGE,
           }
 
-        if (
-          shouldCheckThread ||
-          explicitThreadRequest
-        ) {
+        if (shouldCheckThread) {
           try {
             const extractedThread =
               await extractThreadProposalCandidate({
@@ -5269,9 +5166,6 @@ export function LifeformChat({
                   ),
                 userMessage: storedUserMessage,
                 assistantResponse,
-                mode: explicitThreadRequest
-                  ? 'explicit'
-                  : 'autonomous',
               })
 
             threadCandidate =
@@ -5312,10 +5206,7 @@ export function LifeformChat({
         )
 
         try {
-          if (
-            threadCandidate &&
-            !explicitThreadRequest
-          ) {
+          if (threadCandidate) {
             await queueAutonomousThreadProposal(
               threadCandidate,
             )
@@ -5329,43 +5220,10 @@ export function LifeformChat({
 
         try {
           if (!attachment) {
-            if (explicitThreadRequest) {
-              if (!threadCandidate) {
-                throw new Error(
-                  'Non sono riuscita a estrarre un Thread utile dal contesto recente.',
-                )
-              }
-
-              await persistConfirmedThreadProposal(
-                {
-                  id: 'manual-request',
-                  user_id: lifeform.user_id,
-                  lifeform_id: lifeform.id,
-                  action: threadCandidate.action,
-                  target_thread_id:
-                    threadCandidate.targetThreadId,
-                  title: threadCandidate.title,
-                  current_context:
-                    threadCandidate.currentContext,
-                  last_progress:
-                    threadCandidate.lastProgress,
-                  open_direction:
-                    threadCandidate.openDirection,
-                  linked_goal_id:
-                    threadCandidate.linkedGoalId,
-                  status: 'accepted',
-                  reason: threadCandidate.reason,
-                  created_at:
-                    new Date().toISOString(),
-                  decided_at:
-                    new Date().toISOString(),
-                },
-                'manual',
-              )
-            } else if (explicitMemoryLikeRequest) {
+            if (explicitKeyMemoryRequest) {
               if (!requestedMemoryInput) {
                 throw new Error(
-                  'Non sono riuscita a estrarre un salvataggio utile dal contesto recente.',
+                  'Non sono riuscita a estrarre una Key Memory utile dal contesto recente.',
                 )
               }
 
@@ -5386,13 +5244,13 @@ export function LifeformChat({
           }
         } catch (memoryError: unknown) {
           console.warn(
-            'Explicit save or autonomous proposal update was not available:',
+            'Key Memory proposal update was not available:',
             memoryError,
           )
 
-          if (explicitSaveIntent) {
+          if (explicitKeyMemoryRequest) {
             setError(
-              'The reply was sent, but the requested item could not be saved: ' +
+              'The reply was sent, but the Key Memory could not be saved: ' +
                 getErrorMessage(
                   memoryError,
                 ),
