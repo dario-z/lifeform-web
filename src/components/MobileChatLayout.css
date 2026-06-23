@@ -744,3 +744,29 @@
     inset: 0 !important;
   }
 }
+
+/* ============================================================
+   MOBILE STAGE UNDERLAY — MATCH THE SPRITE IVORY BACKGROUND
+   ============================================================ */
+
+@media (max-width: 820px) {
+  /*
+   * Colore visibile dietro agli angoli arrotondati della chat
+   * e dell'area sprite: identico al fondo ivory dello stage.
+   */
+  body,
+  body #root,
+  body #root .chat-page,
+  body #root .chat-shell,
+  body #root .chat-body {
+    background: #fff9f4 !important;
+  }
+
+  /*
+   * Mantiene il palco sprite sullo stesso identico tono,
+   * senza creare stacchi bianchi attorno ai bordi arrotondati.
+   */
+  body #root .chat-avatar-panel {
+    background: #fff9f4 !important;
+  }
+}
