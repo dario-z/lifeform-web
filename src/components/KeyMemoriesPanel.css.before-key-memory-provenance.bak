@@ -280,24 +280,3 @@
     grid-template-columns: 1fr 1fr;
   }
 }
-
-
-.key-memory-provenance {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 0.45rem 0.65rem;
-  margin-top: 0.8rem;
-  color: #a8abb5;
-  font-size: 0.65rem;
-  font-weight: 800;
-  letter-spacing: 0.035em;
-  line-height: 1.4;
-  text-transform: uppercase;
-}
-
-.key-memory-provenance span {
-  padding: 0.23rem 0.4rem;
-  background: rgba(255, 255, 255, 0.045);
-  border: 1px solid
-    rgba(255, 255, 255, 0.08);
-}

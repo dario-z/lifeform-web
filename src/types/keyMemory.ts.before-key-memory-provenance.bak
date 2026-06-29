@@ -28,15 +28,6 @@ export type KeyMemorySource =
   | 'auto'
   | 'manual'
 
-export const KEY_MEMORY_CONFIDENCE_LEVELS = [
-  'high',
-  'medium',
-  'tentative',
-] as const
-
-export type KeyMemoryConfidence =
-  (typeof KEY_MEMORY_CONFIDENCE_LEVELS)[number]
-
 export type KeyMemory = {
   id: string
   user_id: string
@@ -48,10 +39,8 @@ export type KeyMemory = {
   status_reason: string
   superseded_by_id: string | null
   source: KeyMemorySource
-  confidence: KeyMemoryConfidence
   created_at: string
   updated_at: string
-  last_confirmed_at: string | null
   archived_at: string | null
 }
 

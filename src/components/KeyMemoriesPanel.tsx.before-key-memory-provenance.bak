@@ -22,53 +22,6 @@ const EMPTY_FORM: KeyMemoryInput = {
   importance: 60,
 }
 
-function getMemoryOriginLabel(
-  source: KeyMemory['source'],
-): string {
-  return source === 'manual'
-    ? 'Origin: User confirmed'
-    : 'Origin: Lifeform inference'
-}
-
-function getMemoryConfidenceLabel(
-  confidence: KeyMemory['confidence'],
-): string {
-  if (confidence === 'high') {
-    return 'Confidence: High'
-  }
-
-  if (confidence === 'tentative') {
-    return 'Confidence: Tentative'
-  }
-
-  return 'Confidence: Medium'
-}
-
-function formatMemoryConfirmation(
-  value: string | null,
-): string {
-  if (!value) {
-    return 'Not confirmed'
-  }
-
-  const date = new Date(value)
-
-  if (Number.isNaN(date.getTime())) {
-    return 'Not confirmed'
-  }
-
-  return (
-    'Confirmed ' +
-    new Intl.DateTimeFormat(
-      'en-GB',
-      {
-        dateStyle: 'medium',
-        timeStyle: 'short',
-      },
-    ).format(date)
-  )
-}
-
 type KeyMemoriesPanelProps = {
   open: boolean
   memories: KeyMemory[]
@@ -82,9 +35,6 @@ type KeyMemoriesPanelProps = {
   onUpdate: (
     id: string,
     input: KeyMemoryInput,
-  ) => Promise<void>
-  onConfirm: (
-    id: string,
   ) => Promise<void>
   onDelete: (
     id: string,
@@ -100,7 +50,6 @@ export function KeyMemoriesPanel({
   onClose,
   onCreate,
   onUpdate,
-  onConfirm,
   onDelete,
 }: KeyMemoriesPanelProps) {
   const [editingId, setEditingId] =
@@ -394,39 +343,7 @@ export function KeyMemoriesPanel({
 
                 <p>{memory.content}</p>
 
-                <div className="key-memory-provenance">
-                  <span>
-                    {getMemoryOriginLabel(
-                      memory.source,
-                    )}
-                  </span>
-
-                  <span>
-                    {getMemoryConfidenceLabel(
-                      memory.confidence,
-                    )}
-                  </span>
-
-                  <span>
-                    {formatMemoryConfirmation(
-                      memory.last_confirmed_at,
-                    )}
-                  </span>
-                </div>
-
                 <div className="key-memory-card-actions">
-                  <button
-                    type="button"
-                    onClick={() =>
-                      void onConfirm(memory.id)
-                    }
-                    disabled={saving}
-                  >
-                    {memory.last_confirmed_at
-                      ? 'Reconfirm'
-                      : 'Confirm'}
-                  </button>
-
                   <button
                     type="button"
                     onClick={() =>

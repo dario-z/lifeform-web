@@ -2333,7 +2333,7 @@ export function LifeformChat({
         } = await supabase
           .from('key_memories')
           .select(
-            'id,user_id,lifeform_id,category,content,importance,status,status_reason,superseded_by_id,source,confidence,last_confirmed_at,created_at,updated_at,archived_at',
+            'id,user_id,lifeform_id,category,content,importance,status,status_reason,superseded_by_id,source,created_at,updated_at,archived_at',
           )
           .eq('lifeform_id', lifeform.id)
           .order('importance', {
@@ -3082,55 +3082,6 @@ export function LifeformChat({
     )
   }
 
-  const handleConfirmKeyMemory = async (
-    id: string,
-  ) => {
-    const now = new Date().toISOString()
-
-    setSavingKeyMemory(true)
-    setKeyMemoryError(null)
-
-    try {
-      const {
-        data,
-        error: updateError,
-      } = await supabase
-        .from('key_memories')
-        .update({
-          confidence: 'high',
-          last_confirmed_at: now,
-        })
-        .eq('id', id)
-        .eq('lifeform_id', lifeform.id)
-        .select()
-        .single()
-
-      if (updateError) {
-        throw updateError
-      }
-
-      if (!data) {
-        throw new Error(
-          'The confirmed Key Memory was not returned.',
-        )
-      }
-
-      commitKeyMemories([
-        ...keyMemoriesRef.current.filter(
-          (memory) => memory.id !== id,
-        ),
-        data as KeyMemory,
-      ])
-    } catch (confirmError: unknown) {
-      setKeyMemoryError(
-        getErrorMessage(confirmError),
-      )
-      throw confirmError
-    } finally {
-      setSavingKeyMemory(false)
-    }
-  }
-
   const handleCreateKeyMemory = async (
     input: KeyMemoryInput,
   ) => {
@@ -3172,9 +3123,6 @@ export function LifeformChat({
           importance:
             normalized.importance,
           source: 'manual',
-          confidence: 'high',
-          last_confirmed_at:
-            new Date().toISOString(),
         })
         .select()
         .single()
@@ -3232,9 +3180,6 @@ export function LifeformChat({
           importance:
             normalized.importance,
           source: 'manual',
-          confidence: 'high',
-          last_confirmed_at:
-            new Date().toISOString(),
         })
         .eq('id', id)
         .eq('lifeform_id', lifeform.id)
@@ -8526,9 +8471,6 @@ const [
           }
           onUpdate={
             handleUpdateKeyMemory
-          }
-          onConfirm={
-            handleConfirmKeyMemory
           }
           onDelete={
             handleDeleteKeyMemory
