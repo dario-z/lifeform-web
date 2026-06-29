@@ -2395,7 +2395,7 @@ export function LifeformChat({
         const { data, error } = await supabase
           .from('lifeform_goals')
           .select(
-            'id,user_id,lifeform_id,content,importance,progress,next_step,blocked_reason,status,status_reason,source,confidence,last_confirmed_at,created_at,updated_at,completed_at,archived_at',
+            'id,user_id,lifeform_id,content,importance,progress,next_step,blocked_reason,status,status_reason,source,created_at,updated_at,completed_at,archived_at',
           )
           .eq('lifeform_id', lifeform.id)
           .order('updated_at', {
@@ -3962,20 +3962,6 @@ export function LifeformChat({
       )
     }
 
-    const now = new Date().toISOString()
-
-    const goalConfidence =
-      source === 'manual'
-        ? 'high'
-        : source === 'migrated'
-          ? 'tentative'
-          : 'medium'
-
-    const goalLastConfirmedAt =
-      source === 'manual'
-        ? now
-        : null
-
     const currentGoals = goalsRef.current
     const similar = findSimilarIdentityItem(
       currentGoals,
@@ -3992,15 +3978,8 @@ export function LifeformChat({
             importance,
           ),
           source,
-          confidence:
-            source === 'manual'
-              ? goalConfidence
-              : similar.confidence,
-          last_confirmed_at:
-            source === 'manual'
-              ? goalLastConfirmedAt
-              : similar.last_confirmed_at,
-          updated_at: now,
+          updated_at:
+            new Date().toISOString(),
         })
         .eq('id', similar.id)
         .eq('lifeform_id', lifeform.id)
@@ -4045,9 +4024,6 @@ export function LifeformChat({
         importance,
         status: 'active',
         source,
-        confidence: goalConfidence,
-        last_confirmed_at:
-          goalLastConfirmedAt,
       })
       .select()
       .single()
@@ -5034,55 +5010,6 @@ export function LifeformChat({
     }
   }
 
-
-  const handleConfirmGoal = async (
-    goal: LifeformGoal,
-  ) => {
-    const now = new Date().toISOString()
-
-    setSavingGoalId(goal.id)
-    setGoalsError(null)
-
-    try {
-      const {
-        data,
-        error: updateError,
-      } = await supabase
-        .from('lifeform_goals')
-        .update({
-          confidence: 'high',
-          last_confirmed_at: now,
-        })
-        .eq('id', goal.id)
-        .eq('lifeform_id', lifeform.id)
-        .select()
-        .single()
-
-      if (updateError) {
-        throw updateError
-      }
-
-      if (!data) {
-        throw new Error(
-          'The confirmed Goal was not returned.',
-        )
-      }
-
-      commitGoals([
-        ...goalsRef.current.filter(
-          (item) => item.id !== goal.id,
-        ),
-        data as LifeformGoal,
-      ])
-    } catch (confirmError: unknown) {
-      setGoalsError(
-        getErrorMessage(confirmError),
-      )
-      throw confirmError
-    } finally {
-      setSavingGoalId(null)
-    }
-  }
 
   const handleGoalStatusChange = async (
     goal: LifeformGoal,
@@ -8619,9 +8546,6 @@ const [
           }
           onStatusChange={
             handleGoalStatusChange
-          }
-          onConfirm={
-            handleConfirmGoal
           }
         />
 

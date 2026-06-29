@@ -8,59 +8,6 @@ import {
 } from '../lib/lifeformIdentity'
 import './LifeformIdentityPanels.css'
 
-
-function getGoalOriginLabel(
-  source: LifeformGoal['source'],
-): string {
-  if (source === 'manual') {
-    return 'Origin: User confirmed'
-  }
-
-  if (source === 'proposal') {
-    return 'Origin: Lifeform proposal'
-  }
-
-  return 'Origin: Migrated'
-}
-
-function getGoalConfidenceLabel(
-  confidence: LifeformGoal['confidence'],
-): string {
-  if (confidence === 'high') {
-    return 'Confidence: High'
-  }
-
-  if (confidence === 'tentative') {
-    return 'Confidence: Tentative'
-  }
-
-  return 'Confidence: Medium'
-}
-
-function formatGoalConfirmation(
-  value: string | null,
-): string {
-  if (!value) {
-    return 'Not confirmed'
-  }
-
-  const date = new Date(value)
-
-  if (Number.isNaN(date.getTime())) {
-    return 'Not confirmed'
-  }
-
-  return (
-    'Confirmed ' +
-    new Intl.DateTimeFormat(
-      'en-GB',
-      {
-        dateStyle: 'medium',
-        timeStyle: 'short',
-      },
-    ).format(date)
-  )
-}
 type Props = {
   open: boolean
   goals: LifeformGoal[]
@@ -72,9 +19,6 @@ type Props = {
     goal: LifeformGoal,
     status: LifeformGoalStatus,
   ) => void
-  onConfirm: (
-    goal: LifeformGoal,
-  ) => Promise<void>
 }
 
 export function GoalsPanel({
@@ -85,7 +29,6 @@ export function GoalsPanel({
   error,
   onClose,
   onStatusChange,
-  onConfirm,
 }: Props) {
   const active = goals.filter(
     (goal) => goal.status === 'active',
@@ -155,99 +98,9 @@ export function GoalsPanel({
                   <span>{goal.importance}%</span>
                 </div>
 
-                <div className="lifeform-goal-provenance">
-
-
-                  <span>
-
-
-                    {getGoalOriginLabel(
-
-
-                      goal.source,
-
-
-                    )}
-
-
-                  </span>
-
-
-
-                  <span>
-
-
-                    {getGoalConfidenceLabel(
-
-
-                      goal.confidence,
-
-
-                    )}
-
-
-                  </span>
-
-
-
-                  <span>
-
-
-                    {formatGoalConfirmation(
-
-
-                      goal.last_confirmed_at,
-
-
-                    )}
-
-
-                  </span>
-
-
-                </div>
-
-
-
                 <p>{goal.content}</p>
 
                 <div className="lifeform-identity-actions">
-
-
-                  <button
-
-
-                    type="button"
-
-
-                    className="text-button"
-
-
-                    disabled={saving}
-
-
-                    onClick={() =>
-
-
-                      void onConfirm(goal)
-
-
-                    }
-
-
-                  >
-
-
-                    {goal.last_confirmed_at
-
-
-                      ? 'Reconfirm'
-
-
-                      : 'Confirm'}
-
-
-                  </button>
                   {goal.status === 'active' && (
                     <>
                       <button

@@ -20,15 +20,6 @@ export const LIFEFORM_BELIEF_STATUSES = [
 export type LifeformBeliefStatus =
   (typeof LIFEFORM_BELIEF_STATUSES)[number]
 
-export const IDENTITY_CONFIDENCE_LEVELS = [
-  'high',
-  'medium',
-  'tentative',
-] as const
-
-export type IdentityConfidence =
-  (typeof IDENTITY_CONFIDENCE_LEVELS)[number]
-
 export type LifeformGoal = {
   id: string
   user_id: string
@@ -41,10 +32,8 @@ export type LifeformGoal = {
   status: LifeformGoalStatus
   status_reason: string
   source: 'proposal' | 'manual' | 'migrated'
-  confidence: IdentityConfidence
   created_at: string
   updated_at: string
-  last_confirmed_at: string | null
   completed_at: string | null
   archived_at: string | null
 }
