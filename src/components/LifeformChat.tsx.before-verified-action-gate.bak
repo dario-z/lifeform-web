@@ -129,10 +129,6 @@ import {
 } from '../lib/emotionTheme'
 import { supabase } from '../lib/supabase'
 import {
-  buildUnverifiedActionReply,
-  requiresVerifiedPersistentReply,
-} from '../lib/lifeformActionTruth'
-import {
   detectLifeformDirectCommand,
   getDirectiveEntityLabel,
 } from '../lib/lifeformDirectives'
@@ -6251,12 +6247,6 @@ export function LifeformChat({
     const explicitThreadRequest =
       requestedPersistentKind === 'thread'
 
-    const requiresVerifiedActionReply =
-      !attachment &&
-      requiresVerifiedPersistentReply(
-        cleanMessage,
-      )
-
     let immediateReaction:
       | {
           emotion: EmotionalState
@@ -6392,22 +6382,11 @@ export function LifeformChat({
               ? '\n\n' +
                 directiveInstruction
               : ''),
-          onText:
-            requiresVerifiedActionReply
-              ? () => undefined
-              : setStreamingText,
+          onText: setStreamingText,
           onUsage: (usage) => {
             replyTokenUsage = usage
           },
         })
-
-      const visibleAssistantResponse =
-        requiresVerifiedActionReply
-          ? buildUnverifiedActionReply(
-              lifeform.language,
-            )
-          : assistantResponse
-
 
       const {
         data: insertedAssistantMessage,
@@ -6418,7 +6397,7 @@ export function LifeformChat({
           user_id: lifeform.user_id,
           lifeform_id: lifeform.id,
           role: 'assistant',
-          content: visibleAssistantResponse,
+          content: assistantResponse,
           metadata: {
             provider: 'google',
             model:
