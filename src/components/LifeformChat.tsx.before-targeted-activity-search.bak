@@ -75,8 +75,7 @@ import {
   buildLifeformSelfModelContext,
 } from '../lib/lifeformCapabilities'
 import {
-  buildVerifiedActivitySearchContext,
-  isLikelyActivityLookup,
+  buildVerifiedActivityContext,
   loadLifeformActivity,
   tryRecordLifeformActivity,
 } from '../lib/lifeformActivity'
@@ -6402,31 +6401,24 @@ export function LifeformChat({
 
       let verifiedActivityContext = ''
 
-      if (
-        isLikelyActivityLookup(
-          cleanMessage,
-        )
-      ) {
-        try {
-          const recentVerifiedActivity =
-            await loadLifeformActivity(
-              lifeform.id,
-              100,
-            )
-
-          verifiedActivityContext =
-            buildVerifiedActivitySearchContext(
-              recentVerifiedActivity,
-              cleanMessage,
-            )
-        } catch (
-          activityContextError: unknown
-        ) {
-          console.warn(
-            'Verified activity search was not available:',
-            activityContextError,
+      try {
+        const recentVerifiedActivity =
+          await loadLifeformActivity(
+            lifeform.id,
+            8,
           )
-        }
+
+        verifiedActivityContext =
+          buildVerifiedActivityContext(
+            recentVerifiedActivity,
+          )
+      } catch (
+        activityContextError: unknown
+      ) {
+        console.warn(
+          'Verified activity context was not available:',
+          activityContextError,
+        )
       }
 
       const assistantResponse =

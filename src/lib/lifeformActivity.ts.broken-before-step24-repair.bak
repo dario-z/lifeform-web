@@ -593,7 +593,9 @@ export function findRelevantVerifiedActivity(
       }
 
       if (
-        normalizedQuery.includes('archiv') &&
+        normalizedQuery.includes(
+          'archiv',
+        ) &&
         normalizeActivitySearchText(
           event.action,
         ).includes('archiv')
@@ -602,7 +604,9 @@ export function findRelevantVerifiedActivity(
       }
 
       if (
-        normalizedQuery.includes('creat') &&
+        normalizedQuery.includes(
+          'creat',
+        ) &&
         normalizeActivitySearchText(
           event.action,
         ).includes('creat')
@@ -611,7 +615,9 @@ export function findRelevantVerifiedActivity(
       }
 
       if (
-        normalizedQuery.includes('complet') &&
+        normalizedQuery.includes(
+          'complet',
+        ) &&
         normalizeActivitySearchText(
           event.action,
         ).includes('complet')
@@ -706,7 +712,7 @@ export function buildVerifiedActivitySearchContext(
     'ACCOUNTABILITY RULES:',
     '- Use only a matching event above as evidence for a past internal action.',
     '- Do not claim a reason, result, time, status or action unless a matching event confirms it.',
-    '- When no matching event exists, clearly say that the requested action or reason cannot be verified from the Activity Log.',
+    '- When the search result has no matching event, clearly say that the requested action or reason cannot be verified from the Activity Log.',
     '- Do not use chat history, model text or assumptions as proof of completed internal actions.',
   ].join('\n')
 }

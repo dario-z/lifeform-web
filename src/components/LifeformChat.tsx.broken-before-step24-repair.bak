@@ -6397,10 +6397,7 @@ export function LifeformChat({
               'Route this request only to that exact persistent entity type.',
               'Do not substitute a Goal, Belief or Key Memory for a Thread request.',
               'Do not describe the item as already saved until the application confirms storage.',
-            ].join(' ')
-          : '')
-
-      let verifiedActivityContext = ''
+               let verifiedActivityContext = ''
 
       if (
         isLikelyActivityLookup(
@@ -6427,6 +6424,10 @@ export function LifeformChat({
             activityContextError,
           )
         }
+      }
+
+ontextError,
+        )
       }
 
       const assistantResponse =
