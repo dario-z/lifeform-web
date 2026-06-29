@@ -178,7 +178,6 @@ import './ImageAttachmentPreview.css'
 import './MobileChatLayout.css'
 import './IvoryGlassTheme.css'
 
-import { ActivityLogPanel } from './ActivityLogPanel'
 const MESSAGE_PAGE_SIZE = 50
 const GEMINI_CONTEXT_SIZE = 24
 const EMOTION_CONTEXT_SIZE = 8
@@ -7375,11 +7374,6 @@ export function LifeformChat({
       'dvh',
   } as CSSProperties
 
-const [
-    activityLogPanelOpen,
-    setActivityLogPanelOpen,
-  ] = useState(false)
-
   return (
     <main className="chat-page">
       <section className="chat-shell">
@@ -7628,16 +7622,6 @@ const [
               {'/'}
               {MAX_ACTIVE_THREADS}
             </button>
-
-<button
-  type="button"
-  className="text-button"
-  onClick={() =>
-    setActivityLogPanelOpen(true)
-  }
->
-  Activity
-</button>
 
             <button
               type="button"
@@ -8384,14 +8368,6 @@ const [
           }
         />
       </section>
-    
-<ActivityLogPanel
-          open={activityLogPanelOpen}
-          lifeformId={lifeform.id}
-          onClose={() =>
-            setActivityLogPanelOpen(false)
-          }
-        />
-</main>
+    </main>
   )
 }

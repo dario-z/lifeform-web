@@ -211,36 +211,3 @@ export async function tryRecordLifeformActivity(
     )
   }
 }
-
-
-export async function loadLifeformActivity(
-  lifeformId: string,
-  limit = 80,
-): Promise<LifeformActivityRecord[]> {
-  const safeLimit = Math.max(
-    1,
-    Math.min(
-      Math.floor(limit),
-      200,
-    ),
-  )
-
-  const { data, error } = await supabase
-    .from('lifeform_activity_log')
-    .select(
-      'id,user_id,lifeform_id,actor,entity_type,action,target_id,summary,reason,before_snapshot,after_snapshot,metadata,created_at',
-    )
-    .eq('lifeform_id', lifeformId)
-    .order('created_at', {
-      ascending: false,
-    })
-    .limit(safeLimit)
-
-  if (error) {
-    throw error
-  }
-
-  return (
-    (data ?? []) as LifeformActivityRecord[]
-  )
-}
