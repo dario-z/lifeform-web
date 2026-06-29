@@ -75,9 +75,7 @@ import {
   buildLifeformSelfModelContext,
 } from '../lib/lifeformCapabilities'
 import {
-  buildVerifiedActivityProvenanceLabel,
   buildVerifiedActivitySearchContext,
-  findRelevantVerifiedActivity,
   isLikelyActivityLookup,
   loadLifeformActivity,
   tryRecordLifeformActivity,
@@ -6404,9 +6402,6 @@ export function LifeformChat({
 
       let verifiedActivityContext = ''
 
-      let verifiedActivityProvenanceLabel =
-        ''
-
       if (
         isLikelyActivityLookup(
           cleanMessage,
@@ -6419,22 +6414,10 @@ export function LifeformChat({
               100,
             )
 
-          const matchingVerifiedActivity =
-            findRelevantVerifiedActivity(
-              recentVerifiedActivity,
-              cleanMessage,
-              6,
-            )
-
           verifiedActivityContext =
             buildVerifiedActivitySearchContext(
               recentVerifiedActivity,
               cleanMessage,
-            )
-
-          verifiedActivityProvenanceLabel =
-            buildVerifiedActivityProvenanceLabel(
-              matchingVerifiedActivity,
             )
         } catch (
           activityContextError: unknown
@@ -6477,14 +6460,6 @@ export function LifeformChat({
           'DIRECTIVE RESULT: SUCCESS.',
         )
 
-      const assistantResponseWithProvenance =
-        !requiresVerifiedActionReply &&
-        verifiedActivityProvenanceLabel
-          ? assistantResponse +
-            '\n\n' +
-            verifiedActivityProvenanceLabel
-          : assistantResponse
-
       const visibleAssistantResponse =
         requiresVerifiedActionReply
           ? buildPersistentActionReceipt({
@@ -6497,7 +6472,8 @@ export function LifeformChat({
                   : 'failed'
                 : 'pending',
             })
-          : assistantResponseWithProvenance
+          : assistantResponse
+
 
       const persistAssistantMessage =
         async (
