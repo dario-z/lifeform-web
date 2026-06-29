@@ -129,11 +129,9 @@ import {
 } from '../lib/emotionTheme'
 import { supabase } from '../lib/supabase'
 import {
+  buildUnverifiedActionReply,
   requiresVerifiedPersistentReply,
 } from '../lib/lifeformActionTruth'
-import {
-  buildPersistentActionReceipt,
-} from '../lib/lifeformActionReceipts'
 import {
   detectLifeformDirectCommand,
   getDirectiveEntityLabel,
@@ -6244,23 +6242,6 @@ export function LifeformChat({
           ? null
           : explicitSaveIntent?.kind ?? null
 
-    const verifiedActionEntity =
-      directCommand?.entity ??
-      (requestedPersistentKind === 'thread'
-        ? 'thread'
-        : requestedPersistentKind === 'goal'
-          ? 'goal'
-          : requestedPersistentKind === 'belief'
-            ? 'belief'
-            : 'memory')
-
-    const verifiedActionOperation =
-      directCommand?.operation === 'archive'
-        ? 'archived'
-        : requestedPersistentKind === 'thread'
-          ? 'created'
-          : 'saved'
-
     const explicitMemoryLikeRequest =
       requestedPersistentKind === 'memory' ||
       requestedPersistentKind === 'goal' ||
@@ -6420,24 +6401,11 @@ export function LifeformChat({
           },
         })
 
-      const directActionSucceeded =
-        directCommandHandled &&
-        directCommandResult.startsWith(
-          'DIRECTIVE RESULT: SUCCESS.',
-        )
-
       const visibleAssistantResponse =
         requiresVerifiedActionReply
-          ? buildPersistentActionReceipt({
-              language: lifeform.language,
-              entity: verifiedActionEntity,
-              operation: verifiedActionOperation,
-              status: directCommandHandled
-                ? directActionSucceeded
-                  ? 'succeeded'
-                  : 'failed'
-                : 'pending',
-            })
+          ? buildUnverifiedActionReply(
+              lifeform.language,
+            )
           : assistantResponse
 
 
@@ -6483,62 +6451,6 @@ export function LifeformChat({
           insertedAssistantMessage as ChatMessage,
         ],
       )
-
-      const tryFinalizeVerifiedActionReceipt =
-        async (
-          receipt: string,
-        ) => {
-          try {
-            const {
-              data,
-              error: updateError,
-            } = await supabase
-              .from('messages')
-              .update({
-                content: receipt,
-              })
-              .eq(
-                'id',
-                (
-                  insertedAssistantMessage as ChatMessage
-                ).id,
-              )
-              .eq(
-                'lifeform_id',
-                lifeform.id,
-              )
-              .select()
-              .single()
-
-            if (updateError || !data) {
-              console.warn(
-                'Verified action receipt could not be saved:',
-                updateError,
-              )
-              return
-            }
-
-            const updatedMessage =
-              data as ChatMessage
-
-            setMessages(
-              (currentMessages) =>
-                currentMessages.map(
-                  (message) =>
-                    message.id === updatedMessage.id
-                      ? updatedMessage
-                      : message,
-                ),
-            )
-          } catch (
-            receiptError: unknown
-          ) {
-            console.warn(
-              'Verified action receipt update failed:',
-              receiptError,
-            )
-          }
-        }
 
       setStreamingText('')
       setAnalyzingEmotion(true)
@@ -6874,58 +6786,7 @@ export function LifeformChat({
               )
             }
           }
-        
-
-          if (
-            requiresVerifiedActionReply &&
-            !directCommandHandled &&
-            (
-              explicitThreadRequest ||
-              explicitMemoryLikeRequest
-            )
-          ) {
-            const finalizedOperation =
-              explicitThreadRequest &&
-              threadCandidate?.action === 'update'
-                ? 'updated'
-                : explicitThreadRequest
-                  ? 'created'
-                  : 'saved'
-
-            await tryFinalizeVerifiedActionReceipt(
-              buildPersistentActionReceipt({
-                language: lifeform.language,
-                entity: verifiedActionEntity,
-                operation: finalizedOperation,
-                status: 'succeeded',
-              }),
-            )
-          }
-} catch (memoryError: unknown) {
-
-          if (
-            requiresVerifiedActionReply &&
-            !directCommandHandled &&
-            (
-              explicitThreadRequest ||
-              explicitMemoryLikeRequest
-            )
-          ) {
-            const failedOperation =
-              explicitThreadRequest
-                ? 'created'
-                : 'saved'
-
-            await tryFinalizeVerifiedActionReceipt(
-              buildPersistentActionReceipt({
-                language: lifeform.language,
-                entity: verifiedActionEntity,
-                operation: failedOperation,
-                status: 'failed',
-              }),
-            )
-          }
-
+        } catch (memoryError: unknown) {
           console.warn(
             'Explicit save or autonomous proposal update was not available:',
             memoryError,

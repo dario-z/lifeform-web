@@ -254,7 +254,7 @@ const UNVERIFIED_ACTION_REPLIES: Record<
   it: [
     'Stato azione: non verificato.',
     'Ho ricevuto una richiesta di modificare il mio contesto persistente, ma non posso confermare che sia stata eseguita finch\u00e9 il sistema non restituisce un esito verificato dal database.',
-    "Non considerare questa azione completata finch\u00e9 non esiste una conferma reale nel pannello corrispondente o nell'Activity Log.",
+    'Non considerare questa azione completata finch\u00e9 non esiste una conferma reale nel pannello corrispondente o nell'Activity Log.',
   ].join('\n\n'),
 
   en: [

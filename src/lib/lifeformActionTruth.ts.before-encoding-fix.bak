@@ -253,8 +253,8 @@ const UNVERIFIED_ACTION_REPLIES: Record<
 > = {
   it: [
     'Stato azione: non verificato.',
-    'Ho ricevuto una richiesta di modificare il mio contesto persistente, ma non posso confermare che sia stata eseguita finch\u00e9 il sistema non restituisce un esito verificato dal database.',
-    "Non considerare questa azione completata finch\u00e9 non esiste una conferma reale nel pannello corrispondente o nell'Activity Log.",
+    'Ho ricevuto una richiesta di modificare il mio contesto persistente, ma non posso confermare che sia stata eseguita finch? il sistema non restituisce un esito verificato dal database.',
+    'Non considerare questa azione completata finch? non esiste una conferma reale nel pannello corrispondente o nell?Activity Log.',
   ].join('\n\n'),
 
   en: [
@@ -264,8 +264,8 @@ const UNVERIFIED_ACTION_REPLIES: Record<
   ].join('\n\n'),
 
   fr: [
-    'Statut de l?action : non v\u00e9rifi\u00e9.',
-    'J?ai re\u00e7u une demande de modification du contexte persistant, mais je ne peux pas confirmer son ex\u00e9cution avant un r\u00e9sultat v\u00e9rifi\u00e9 par la base de donn\u00e9es.',
+    'Statut de l?action : non v?rifi?.',
+    'J?ai re?u une demande de modification du contexte persistant, mais je ne peux pas confirmer son ex?cution avant un r?sultat v?rifi? par la base de donn?es.',
     'Ne consid?re pas cette action comme termin?e avant une confirmation r?elle dans le panneau concern? ou dans l?Activity Log.',
   ].join('\n\n'),
 
