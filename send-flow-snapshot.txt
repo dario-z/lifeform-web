@@ -1,0 +1,602 @@
+LifeformChat send-flow snapshot
+Generated: 2026-06-29T11:02:16.523Z
+
+============================================================
+MARKER: const requiresVerifiedActionReply =
+============================================================
+ 6238 | 
+ 6239 |     const requestedPersistentKind =
+ 6240 |       directCommand?.operation === 'create'
+ 6241 |         ? directCommand.entity
+ 6242 |         : directCommand?.operation ===
+ 6243 |           'archive'
+ 6244 |           ? null
+ 6245 |           : explicitSaveIntent?.kind ?? null
+ 6246 | 
+ 6247 |     const verifiedActionEntity =
+ 6248 |       directCommand?.entity ??
+ 6249 |       (requestedPersistentKind === 'thread'
+ 6250 |         ? 'thread'
+ 6251 |         : requestedPersistentKind === 'goal'
+ 6252 |           ? 'goal'
+ 6253 |           : requestedPersistentKind === 'belief'
+ 6254 |             ? 'belief'
+ 6255 |             : 'memory')
+ 6256 | 
+ 6257 |     const verifiedActionOperation =
+ 6258 |       directCommand?.operation === 'archive'
+ 6259 |         ? 'archived'
+ 6260 |         : requestedPersistentKind === 'thread'
+ 6261 |           ? 'created'
+ 6262 |           : 'saved'
+ 6263 | 
+ 6264 |     const explicitMemoryLikeRequest =
+ 6265 |       requestedPersistentKind === 'memory' ||
+ 6266 |       requestedPersistentKind === 'goal' ||
+ 6267 |       requestedPersistentKind === 'belief' ||
+ 6268 |       requestedPersistentKind === 'auto'
+ 6269 | 
+ 6270 |     const explicitThreadRequest =
+ 6271 |       requestedPersistentKind === 'thread'
+ 6272 | 
+ 6273 |     const requiresVerifiedActionReply =
+ 6274 |       !attachment &&
+ 6275 |       requiresVerifiedPersistentReply(
+ 6276 |         cleanMessage,
+ 6277 |       )
+ 6278 | 
+ 6279 |     let immediateReaction:
+ 6280 |       | {
+ 6281 |           emotion: EmotionalState
+ 6282 |           intensity: number
+ 6283 |         }
+ 6284 |       | null = null
+ 6285 | 
+ 6286 |     let replyTokenUsage: GeminiTokenUsage = {
+ 6287 |       ...EMPTY_GEMINI_TOKEN_USAGE,
+ 6288 |     }
+ 6289 | 
+ 6290 |     let directCommandHandled = false
+ 6291 | 
+ 6292 |     let directCommandResult = ''
+ 6293 | 
+ 6294 |     stopVoicePlayback()
+ 6295 |     clearImmediateReaction()
+ 6296 |     setSending(true)
+ 6297 |     setError(null)
+ 6298 |     setStreamingText('')
+ 6299 |     stickToBottomRef.current = true
+ 6300 | 
+ 6301 |     try {
+ 6302 |       const {
+ 6303 |         data: insertedUserMessage,
+ 6304 |         error: userInsertError,
+ 6305 |       } = await supabase
+ 6306 |         .from('messages')
+ 6307 |         .insert({
+ 6308 |           user_id: lifeform.user_id,
+ 6309 |           lifeform_id: lifeform.id,
+ 6310 |           role: 'user',
+ 6311 |           content: storedUserMessage,
+ 6312 |           metadata: attachment
+ 6313 |             ? {
+ 6314 |                 attachment: {
+ 6315 |                   kind: attachment.kind,
+ 6316 |                   name: attachment.name,
+ 6317 |                   mime_type:
+ 6318 |                     attachment.mimeType,
+ 6319 |                   size: attachment.size,
+ 6320 |                   retained: false,
+ 6321 |                   ...(attachment.kind === 'text'
+ 6322 |                     ? {
+ 6323 |                         text_truncated:
+ 6324 |                           attachment.textTruncated,
+ 6325 |                       }
+ 6326 |                     : {}),
+ 6327 |                 },
+ 6328 |               }
+ 6329 |             : {},
+ 6330 |         })
+ 6331 |         .select()
+ 6332 |         .single()
+ 6333 | 
+ 6334 |       if (userInsertError) {
+ 6335 |         throw userInsertError
+ 6336 |       }
+ 6337 | 
+ 6338 |       if (!insertedUserMessage) {
+ 6339 |         throw new Error(
+ 6340 |           'Il messaggio non è stato restituito dal database.',
+ 6341 |         )
+ 6342 |       }
+ 6343 | 
+ 6344 |       setMessages(
+ 6345 |         (currentMessages) => [
+ 6346 |           ...currentMessages,
+ 6347 |           insertedUserMessage as ChatMessage,
+ 6348 |         ],
+ 6349 |       )
+ 6350 | 
+ 6351 |       setDraft('')
+ 6352 |       setPendingAttachment(null)
+ 6353 | 
+
+============================================================
+MARKER: const visibleAssistantResponse =
+============================================================
+ 6394 |               'Do not substitute a Goal, Belief or Key Memory for a Thread request.',
+ 6395 |               'Do not describe the item as already saved until the application confirms storage.',
+ 6396 |             ].join(' ')
+ 6397 |           : '')
+ 6398 | 
+ 6399 |       const assistantResponse =
+ 6400 |         await streamGeminiReplyWithModel({
+ 6401 |           apiKey,
+ 6402 |           model: selectedModel,
+ 6403 |           history: previousContext,
+ 6404 |           prompt: modelPrompt,
+ 6405 |           attachment: attachment
+ 6406 |             ? toGeminiAttachment(attachment)
+ 6407 |             : null,
+ 6408 |           systemInstruction:
+ 6409 |             buildSystemInstruction() +
+ 6410 |             (directiveInstruction
+ 6411 |               ? '\n\n' +
+ 6412 |                 directiveInstruction
+ 6413 |               : ''),
+ 6414 |           onText:
+ 6415 |             requiresVerifiedActionReply
+ 6416 |               ? () => undefined
+ 6417 |               : setStreamingText,
+ 6418 |           onUsage: (usage) => {
+ 6419 |             replyTokenUsage = usage
+ 6420 |           },
+ 6421 |         })
+ 6422 | 
+ 6423 |       const directActionSucceeded =
+ 6424 |         directCommandHandled &&
+ 6425 |         directCommandResult.startsWith(
+ 6426 |           'DIRECTIVE RESULT: SUCCESS.',
+ 6427 |         )
+ 6428 | 
+ 6429 |       const visibleAssistantResponse =
+ 6430 |         requiresVerifiedActionReply
+ 6431 |           ? buildPersistentActionReceipt({
+ 6432 |               language: lifeform.language,
+ 6433 |               entity: verifiedActionEntity,
+ 6434 |               operation: verifiedActionOperation,
+ 6435 |               status: directCommandHandled
+ 6436 |                 ? directActionSucceeded
+ 6437 |                   ? 'succeeded'
+ 6438 |                   : 'failed'
+ 6439 |                 : 'pending',
+ 6440 |             })
+ 6441 |           : assistantResponse
+ 6442 | 
+ 6443 | 
+ 6444 |       const {
+ 6445 |         data: insertedAssistantMessage,
+ 6446 |         error: assistantInsertError,
+ 6447 |       } = await supabase
+ 6448 |         .from('messages')
+ 6449 |         .insert({
+ 6450 |           user_id: lifeform.user_id,
+ 6451 |           lifeform_id: lifeform.id,
+ 6452 |           role: 'assistant',
+ 6453 |           content: visibleAssistantResponse,
+ 6454 |           metadata: {
+ 6455 |             provider: 'google',
+ 6456 |             model:
+ 6457 |               selectedModel,
+ 6458 |             token_usage:
+ 6459 |               replyTokenUsage,
+ 6460 |           },
+ 6461 |         })
+ 6462 |         .select()
+ 6463 |         .single()
+ 6464 | 
+ 6465 |       if (assistantInsertError) {
+ 6466 |         throw new Error(
+ 6467 |           'La risposta è stata generata ma non è stato possibile salvarla: ' +
+ 6468 |             assistantInsertError.message,
+ 6469 |         )
+ 6470 |       }
+ 6471 | 
+ 6472 |       if (
+ 6473 |         !insertedAssistantMessage
+ 6474 |       ) {
+ 6475 |         throw new Error(
+ 6476 |           'La risposta è stata generata ma non restituita dal database.',
+ 6477 |         )
+ 6478 |       }
+ 6479 | 
+ 6480 |       setMessages(
+ 6481 |         (currentMessages) => [
+ 6482 |           ...currentMessages,
+ 6483 |           insertedAssistantMessage as ChatMessage,
+ 6484 |         ],
+ 6485 |       )
+ 6486 | 
+ 6487 |       const tryFinalizeVerifiedActionReceipt =
+ 6488 |         async (
+ 6489 |           receipt: string,
+ 6490 |         ) => {
+ 6491 |           try {
+ 6492 |             const {
+ 6493 |               data,
+ 6494 |               error: updateError,
+ 6495 |             } = await supabase
+ 6496 |               .from('messages')
+ 6497 |               .update({
+ 6498 |                 content: receipt,
+ 6499 |               })
+ 6500 |               .eq(
+ 6501 |                 'id',
+ 6502 |                 (
+ 6503 |                   insertedAssistantMessage as ChatMessage
+ 6504 |                 ).id,
+ 6505 |               )
+ 6506 |               .eq(
+ 6507 |                 'lifeform_id',
+ 6508 |                 lifeform.id,
+ 6509 |               )
+
+============================================================
+MARKER: const tryFinalizeVerifiedActionReceipt =
+============================================================
+ 6452 |           role: 'assistant',
+ 6453 |           content: visibleAssistantResponse,
+ 6454 |           metadata: {
+ 6455 |             provider: 'google',
+ 6456 |             model:
+ 6457 |               selectedModel,
+ 6458 |             token_usage:
+ 6459 |               replyTokenUsage,
+ 6460 |           },
+ 6461 |         })
+ 6462 |         .select()
+ 6463 |         .single()
+ 6464 | 
+ 6465 |       if (assistantInsertError) {
+ 6466 |         throw new Error(
+ 6467 |           'La risposta è stata generata ma non è stato possibile salvarla: ' +
+ 6468 |             assistantInsertError.message,
+ 6469 |         )
+ 6470 |       }
+ 6471 | 
+ 6472 |       if (
+ 6473 |         !insertedAssistantMessage
+ 6474 |       ) {
+ 6475 |         throw new Error(
+ 6476 |           'La risposta è stata generata ma non restituita dal database.',
+ 6477 |         )
+ 6478 |       }
+ 6479 | 
+ 6480 |       setMessages(
+ 6481 |         (currentMessages) => [
+ 6482 |           ...currentMessages,
+ 6483 |           insertedAssistantMessage as ChatMessage,
+ 6484 |         ],
+ 6485 |       )
+ 6486 | 
+ 6487 |       const tryFinalizeVerifiedActionReceipt =
+ 6488 |         async (
+ 6489 |           receipt: string,
+ 6490 |         ) => {
+ 6491 |           try {
+ 6492 |             const {
+ 6493 |               data,
+ 6494 |               error: updateError,
+ 6495 |             } = await supabase
+ 6496 |               .from('messages')
+ 6497 |               .update({
+ 6498 |                 content: receipt,
+ 6499 |               })
+ 6500 |               .eq(
+ 6501 |                 'id',
+ 6502 |                 (
+ 6503 |                   insertedAssistantMessage as ChatMessage
+ 6504 |                 ).id,
+ 6505 |               )
+ 6506 |               .eq(
+ 6507 |                 'lifeform_id',
+ 6508 |                 lifeform.id,
+ 6509 |               )
+ 6510 |               .select()
+ 6511 |               .single()
+ 6512 | 
+ 6513 |             if (updateError || !data) {
+ 6514 |               console.warn(
+ 6515 |                 'Verified action receipt could not be saved:',
+ 6516 |                 updateError,
+ 6517 |               )
+ 6518 |               return
+ 6519 |             }
+ 6520 | 
+ 6521 |             const updatedMessage =
+ 6522 |               data as ChatMessage
+ 6523 | 
+ 6524 |             setMessages(
+ 6525 |               (currentMessages) =>
+ 6526 |                 currentMessages.map(
+ 6527 |                   (message) =>
+ 6528 |                     message.id === updatedMessage.id
+ 6529 |                       ? updatedMessage
+ 6530 |                       : message,
+ 6531 |                 ),
+ 6532 |             )
+ 6533 |           } catch (
+ 6534 |             receiptError: unknown
+ 6535 |           ) {
+ 6536 |             console.warn(
+ 6537 |               'Verified action receipt update failed:',
+ 6538 |               receiptError,
+ 6539 |             )
+ 6540 |           }
+ 6541 |         }
+ 6542 | 
+ 6543 |       setStreamingText('')
+ 6544 |       setAnalyzingEmotion(true)
+ 6545 | 
+ 6546 |       try {
+ 6547 |         const analysis =
+ 6548 |           await analyzeEmotionalState({
+ 6549 |             apiKey,
+ 6550 |             model: selectedModel,
+ 6551 |             lifeformName:
+ 6552 |               lifeform.name,
+ 6553 |             lifeformLanguage:
+ 6554 |               lifeform.language,
+ 6555 |             currentEmotion:
+ 6556 |               settledEmotion,
+ 6557 |             currentLevels:
+ 6558 |               emotionLevels,
+ 6559 |             sensitivities:
+ 6560 |               emotionalSensitivities,
+ 6561 |             keyMemories:
+ 6562 |               keyMemoriesRef.current,
+ 6563 |             recentHistory:
+ 6564 |               previousContext.slice(
+ 6565 |                 -EMOTION_CONTEXT_SIZE,
+ 6566 |               ),
+ 6567 |             userMessage:
+
+============================================================
+MARKER: const completeTokenUsage =
+============================================================
+ 6748 |                   goalsRef.current.filter(
+ 6749 |                     (goal) =>
+ 6750 |                       goal.status === 'active',
+ 6751 |                   ),
+ 6752 |                 recentHistory:
+ 6753 |                   previousContext.slice(
+ 6754 |                     -EMOTION_CONTEXT_SIZE,
+ 6755 |                   ),
+ 6756 |                 userMessage: storedUserMessage,
+ 6757 |                 assistantResponse,
+ 6758 |                 mode: explicitThreadRequest
+ 6759 |                   ? 'explicit'
+ 6760 |                   : 'autonomous',
+ 6761 |               })
+ 6762 | 
+ 6763 |             threadCandidate =
+ 6764 |               extractedThread.candidate
+ 6765 | 
+ 6766 |             threadProposalTokenUsage =
+ 6767 |               extractedThread.tokenUsage
+ 6768 |           } catch (threadExtractionError: unknown) {
+ 6769 |             console.warn(
+ 6770 |               'Active Thread extraction was not available:',
+ 6771 |               threadExtractionError,
+ 6772 |             )
+ 6773 |           }
+ 6774 |         }
+ 6775 | 
+ 6776 |         const threadPriority =
+ 6777 |           shouldPrioritizeThreadProposal({
+ 6778 |             userMessage: storedUserMessage,
+ 6779 |             activeThreads,
+ 6780 |             threadCandidate,
+ 6781 |           })
+ 6782 | 
+ 6783 |         const completeTokenUsage =
+ 6784 |           addGeminiTokenUsage(
+ 6785 |             addGeminiTokenUsage(
+ 6786 |               addGeminiTokenUsage(
+ 6787 |                 addGeminiTokenUsage(
+ 6788 |                   replyTokenUsage,
+ 6789 |                   analysis.tokenUsage,
+ 6790 |                 ),
+ 6791 |                 requestedMemoryTokenUsage,
+ 6792 |               ),
+ 6793 |               threadProposalTokenUsage,
+ 6794 |             ),
+ 6795 |             reconciliationTokenUsage,
+ 6796 |           )
+ 6797 | 
+ 6798 |         await updatePersistentEmotion(
+ 6799 |           analysis,
+ 6800 |           completeTokenUsage,
+ 6801 |         )
+ 6802 | 
+ 6803 |         try {
+ 6804 |           if (
+ 6805 |             threadCandidate &&
+ 6806 |             !explicitThreadRequest
+ 6807 |           ) {
+ 6808 |             await queueAutonomousThreadProposal(
+ 6809 |               threadCandidate,
+ 6810 |             )
+ 6811 |           }
+ 6812 |         } catch (threadProposalSaveError: unknown) {
+ 6813 |           console.warn(
+ 6814 |             'Active Thread proposal update was not available:',
+ 6815 |             threadProposalSaveError,
+ 6816 |           )
+ 6817 |         }
+ 6818 | 
+ 6819 |         try {
+ 6820 |           if (!attachment) {
+ 6821 |             if (explicitThreadRequest) {
+ 6822 |               if (!threadCandidate) {
+ 6823 |                 throw new Error(
+ 6824 |                   'Non sono riuscita a estrarre un Thread utile dal contesto recente.',
+ 6825 |                 )
+ 6826 |               }
+ 6827 | 
+ 6828 |               await persistConfirmedThreadProposal(
+ 6829 |                 {
+ 6830 |                   id: 'manual-request',
+ 6831 |                   user_id: lifeform.user_id,
+ 6832 |                   lifeform_id: lifeform.id,
+ 6833 |                   action: threadCandidate.action,
+ 6834 |                   target_thread_id:
+ 6835 |                     threadCandidate.targetThreadId,
+ 6836 |                   title: threadCandidate.title,
+ 6837 |                   current_context:
+ 6838 |                     threadCandidate.currentContext,
+ 6839 |                   last_progress:
+ 6840 |                     threadCandidate.lastProgress,
+ 6841 |                   open_direction:
+ 6842 |                     threadCandidate.openDirection,
+ 6843 |                   linked_goal_id:
+ 6844 |                     threadCandidate.linkedGoalId,
+ 6845 |                   status: 'accepted',
+ 6846 |                   reason: threadCandidate.reason,
+ 6847 |                   created_at:
+ 6848 |                     new Date().toISOString(),
+ 6849 |                   decided_at:
+ 6850 |                     new Date().toISOString(),
+ 6851 |                 },
+ 6852 |                 'manual',
+ 6853 |               )
+ 6854 |             } else if (explicitMemoryLikeRequest) {
+ 6855 |               if (!requestedMemoryInput) {
+ 6856 |                 throw new Error(
+ 6857 |                   'Non sono riuscita a estrarre un salvataggio utile dal contesto recente.',
+ 6858 |                 )
+ 6859 |               }
+ 6860 | 
+ 6861 |               await saveUserRequestedKeyMemory(
+ 6862 |                 requestedMemoryInput,
+ 6863 |               )
+
+============================================================
+MARKER: await updatePersistentEmotion(
+============================================================
+ 6763 |             threadCandidate =
+ 6764 |               extractedThread.candidate
+ 6765 | 
+ 6766 |             threadProposalTokenUsage =
+ 6767 |               extractedThread.tokenUsage
+ 6768 |           } catch (threadExtractionError: unknown) {
+ 6769 |             console.warn(
+ 6770 |               'Active Thread extraction was not available:',
+ 6771 |               threadExtractionError,
+ 6772 |             )
+ 6773 |           }
+ 6774 |         }
+ 6775 | 
+ 6776 |         const threadPriority =
+ 6777 |           shouldPrioritizeThreadProposal({
+ 6778 |             userMessage: storedUserMessage,
+ 6779 |             activeThreads,
+ 6780 |             threadCandidate,
+ 6781 |           })
+ 6782 | 
+ 6783 |         const completeTokenUsage =
+ 6784 |           addGeminiTokenUsage(
+ 6785 |             addGeminiTokenUsage(
+ 6786 |               addGeminiTokenUsage(
+ 6787 |                 addGeminiTokenUsage(
+ 6788 |                   replyTokenUsage,
+ 6789 |                   analysis.tokenUsage,
+ 6790 |                 ),
+ 6791 |                 requestedMemoryTokenUsage,
+ 6792 |               ),
+ 6793 |               threadProposalTokenUsage,
+ 6794 |             ),
+ 6795 |             reconciliationTokenUsage,
+ 6796 |           )
+ 6797 | 
+ 6798 |         await updatePersistentEmotion(
+ 6799 |           analysis,
+ 6800 |           completeTokenUsage,
+ 6801 |         )
+ 6802 | 
+ 6803 |         try {
+ 6804 |           if (
+ 6805 |             threadCandidate &&
+ 6806 |             !explicitThreadRequest
+ 6807 |           ) {
+ 6808 |             await queueAutonomousThreadProposal(
+ 6809 |               threadCandidate,
+ 6810 |             )
+ 6811 |           }
+ 6812 |         } catch (threadProposalSaveError: unknown) {
+ 6813 |           console.warn(
+ 6814 |             'Active Thread proposal update was not available:',
+ 6815 |             threadProposalSaveError,
+ 6816 |           )
+ 6817 |         }
+ 6818 | 
+ 6819 |         try {
+ 6820 |           if (!attachment) {
+ 6821 |             if (explicitThreadRequest) {
+ 6822 |               if (!threadCandidate) {
+ 6823 |                 throw new Error(
+ 6824 |                   'Non sono riuscita a estrarre un Thread utile dal contesto recente.',
+ 6825 |                 )
+ 6826 |               }
+ 6827 | 
+ 6828 |               await persistConfirmedThreadProposal(
+ 6829 |                 {
+ 6830 |                   id: 'manual-request',
+ 6831 |                   user_id: lifeform.user_id,
+ 6832 |                   lifeform_id: lifeform.id,
+ 6833 |                   action: threadCandidate.action,
+ 6834 |                   target_thread_id:
+ 6835 |                     threadCandidate.targetThreadId,
+ 6836 |                   title: threadCandidate.title,
+ 6837 |                   current_context:
+ 6838 |                     threadCandidate.currentContext,
+ 6839 |                   last_progress:
+ 6840 |                     threadCandidate.lastProgress,
+ 6841 |                   open_direction:
+ 6842 |                     threadCandidate.openDirection,
+ 6843 |                   linked_goal_id:
+ 6844 |                     threadCandidate.linkedGoalId,
+ 6845 |                   status: 'accepted',
+ 6846 |                   reason: threadCandidate.reason,
+ 6847 |                   created_at:
+ 6848 |                     new Date().toISOString(),
+ 6849 |                   decided_at:
+ 6850 |                     new Date().toISOString(),
+ 6851 |                 },
+ 6852 |                 'manual',
+ 6853 |               )
+ 6854 |             } else if (explicitMemoryLikeRequest) {
+ 6855 |               if (!requestedMemoryInput) {
+ 6856 |                 throw new Error(
+ 6857 |                   'Non sono riuscita a estrarre un salvataggio utile dal contesto recente.',
+ 6858 |                 )
+ 6859 |               }
+ 6860 | 
+ 6861 |               await saveUserRequestedKeyMemory(
+ 6862 |                 requestedMemoryInput,
+ 6863 |               )
+ 6864 |             } else if (
+ 6865 |               !directCommandHandled &&
+ 6866 |               shouldQueueAutonomousMemoryProposal({
+ 6867 |                 candidate: analysis.memoryCandidate,
+ 6868 |                 userMessage: storedUserMessage,
+ 6869 |                 threadPriority,
+ 6870 |               })
+ 6871 |             ) {
+ 6872 |               await queueAutonomousMemoryProposal(
+ 6873 |                 analysis.memoryCandidate,
+ 6874 |               )
+ 6875 |             }
+ 6876 |           }
+ 6877 |         
+ 6878 | 

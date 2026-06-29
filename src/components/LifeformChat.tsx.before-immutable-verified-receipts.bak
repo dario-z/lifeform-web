@@ -6441,73 +6441,104 @@ export function LifeformChat({
           : assistantResponse
 
 
-      const persistAssistantMessage =
-        async (
-          content: string,
-        ): Promise<void> => {
-          const {
-            data: insertedAssistantMessage,
-            error: assistantInsertError,
-          } = await supabase
-            .from('messages')
-            .insert({
-              user_id: lifeform.user_id,
-              lifeform_id: lifeform.id,
-              role: 'assistant',
-              content,
-              metadata: {
-                provider: 'google',
-                model: selectedModel,
-                token_usage: replyTokenUsage,
-              },
-            })
-            .select()
-            .single()
+      const {
+        data: insertedAssistantMessage,
+        error: assistantInsertError,
+      } = await supabase
+        .from('messages')
+        .insert({
+          user_id: lifeform.user_id,
+          lifeform_id: lifeform.id,
+          role: 'assistant',
+          content: visibleAssistantResponse,
+          metadata: {
+            provider: 'google',
+            model:
+              selectedModel,
+            token_usage:
+              replyTokenUsage,
+          },
+        })
+        .select()
+        .single()
 
-          if (assistantInsertError) {
-            throw new Error(
-              'The assistant message could not be saved: ' +
-                assistantInsertError.message,
-            )
-          }
-
-          if (!insertedAssistantMessage) {
-            throw new Error(
-              'The assistant message was not returned by the database.',
-            )
-          }
-
-          setMessages(
-            (currentMessages) => [
-              ...currentMessages,
-              insertedAssistantMessage as ChatMessage,
-            ],
-          )
-        }
-
-      /*
-       * Normal conversation:
-       * publish Gemini's response immediately.
-       *
-       * Persistent action:
-       * wait. The explicit persistence block below will publish
-       * one final receipt only after Supabase confirms success
-       * or failure.
-       *
-       * Direct archive:
-       * it was already attempted before Gemini was called, so
-       * publishing the verified receipt here is safe.
-       */
-      if (
-        !requiresVerifiedActionReply ||
-        directCommandHandled
-      ) {
-        await persistAssistantMessage(
-          requiresVerifiedActionReply
-            ? visibleAssistantResponse
-            : assistantResponse,
+      if (assistantInsertError) {
+        throw new Error(
+          'La risposta è stata generata ma non è stato possibile salvarla: ' +
+            assistantInsertError.message,
         )
       }
+
+      if (
+        !insertedAssistantMessage
+      ) {
+        throw new Error(
+          'La risposta è stata generata ma non restituita dal database.',
+        )
+      }
+
+      setMessages(
+        (currentMessages) => [
+          ...currentMessages,
+          insertedAssistantMessage as ChatMessage,
+        ],
+      )
+
+      const tryFinalizeVerifiedActionReceipt =
+        async (
+          receipt: string,
+        ) => {
+          try {
+            const {
+              data,
+              error: updateError,
+            } = await supabase
+              .from('messages')
+              .update({
+                content: receipt,
+              })
+              .eq(
+                'id',
+                (
+                  insertedAssistantMessage as ChatMessage
+                ).id,
+              )
+              .eq(
+                'lifeform_id',
+                lifeform.id,
+              )
+              .select()
+              .single()
+
+            if (updateError || !data) {
+              console.warn(
+                'Verified action receipt could not be saved:',
+                updateError,
+              )
+              return
+            }
+
+            const updatedMessage =
+              data as ChatMessage
+
+            setMessages(
+              (currentMessages) =>
+                currentMessages.map(
+                  (message) =>
+                    message.id === updatedMessage.id
+                      ? updatedMessage
+                      : message,
+                ),
+            )
+          } catch (
+            receiptError: unknown
+          ) {
+            console.warn(
+              'Verified action receipt update failed:',
+              receiptError,
+            )
+          }
+        }
 
       setStreamingText('')
       setAnalyzingEmotion(true)
@@ -6861,7 +6892,7 @@ export function LifeformChat({
                   ? 'created'
                   : 'saved'
 
-            await persistAssistantMessage(
+            await tryFinalizeVerifiedActionReceipt(
               buildPersistentActionReceipt({
                 language: lifeform.language,
                 entity: verifiedActionEntity,
@@ -6885,7 +6916,7 @@ export function LifeformChat({
                 ? 'created'
                 : 'saved'
 
-            await persistAssistantMessage(
+            await tryFinalizeVerifiedActionReceipt(
               buildPersistentActionReceipt({
                 language: lifeform.language,
                 entity: verifiedActionEntity,
