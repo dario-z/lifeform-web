@@ -29,15 +29,28 @@ function normalizeComparisonText(
     .replace(/[\u0300-\u036f]/g, '')
 }
 
+const threadRank: Record<
+  LifeformThread['status'],
+  number
+> = {
+  active: 0,
+  paused: 1,
+  resolved: 2,
+  abandoned: 3,
+  archived: 4,
+}
+
 export function sortThreads(
   threads: LifeformThread[],
 ): LifeformThread[] {
   return [...threads].sort(
     (left, right) => {
-      if (left.status !== right.status) {
-        return left.status === 'active'
-          ? -1
-          : 1
+      const statusDifference =
+        threadRank[left.status] -
+        threadRank[right.status]
+
+      if (statusDifference !== 0) {
+        return statusDifference
       }
 
       return (

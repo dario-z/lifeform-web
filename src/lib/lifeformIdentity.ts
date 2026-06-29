@@ -48,8 +48,20 @@ const goalRank: Record<
   number
 > = {
   active: 0,
-  paused: 1,
-  completed: 2,
+  blocked: 1,
+  paused: 2,
+  completed: 3,
+  abandoned: 4,
+  archived: 5,
+}
+
+const beliefRank: Record<
+  LifeformBelief['status'],
+  number
+> = {
+  active: 0,
+  superseded: 1,
+  retracted: 2,
   archived: 3,
 }
 
@@ -84,8 +96,12 @@ export function sortBeliefs(
   beliefs: LifeformBelief[],
 ): LifeformBelief[] {
   return [...beliefs].sort((left, right) => {
-    if (left.status !== right.status) {
-      return left.status === 'active' ? -1 : 1
+    const statusDifference =
+      beliefRank[left.status] -
+      beliefRank[right.status]
+
+    if (statusDifference !== 0) {
+      return statusDifference
     }
 
     const importanceDifference =

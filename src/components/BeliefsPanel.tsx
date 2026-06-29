@@ -50,6 +50,7 @@ export function BeliefsPanel({
           <h2>Beliefs</h2>
           <p>{active} / {MAX_ACTIVE_BELIEFS} active</p>
         </div>
+
         <button
           type="button"
           className="text-button"
@@ -72,17 +73,21 @@ export function BeliefsPanel({
 
       <div className="lifeform-identity-list">
         {loading ? (
-          <p>Loading beliefs…</p>
+          <p>Loading beliefs?</p>
         ) : beliefs.length === 0 ? (
           <p>
             No beliefs yet. Confirmed
-            “Possible beliefs” appear here.
+            ?Possible beliefs? appear here.
           </p>
         ) : (
           sortBeliefs(beliefs).map(
             (belief) => {
               const saving =
                 savingBeliefId === belief.id
+
+              const canReactivate =
+                belief.status !== 'active' &&
+                active < MAX_ACTIVE_BELIEFS
 
               return (
                 <article
@@ -93,30 +98,60 @@ export function BeliefsPanel({
                     <span>{belief.status}</span>
                     <span>{belief.importance}%</span>
                   </div>
+
                   <p>{belief.content}</p>
+
                   <div className="lifeform-identity-actions">
-                    <button
-                      type="button"
-                      className="text-button"
-                      disabled={
-                        saving ||
-                        (belief.status === 'archived' &&
-                          active >=
-                            MAX_ACTIVE_BELIEFS)
-                      }
-                      onClick={() =>
-                        onStatusChange(
-                          belief,
-                          belief.status === 'active'
-                            ? 'archived'
-                            : 'active',
-                        )
-                      }
-                    >
-                      {belief.status === 'active'
-                        ? 'Archive'
-                        : 'Reactivate'}
-                    </button>
+                    {belief.status === 'active' && (
+                      <button
+                        type="button"
+                        className="text-button"
+                        disabled={saving}
+                        onClick={() =>
+                          onStatusChange(
+                            belief,
+                            'retracted',
+                          )
+                        }
+                      >
+                        Retract
+                      </button>
+                    )}
+
+                    {belief.status !== 'active' && (
+                      <button
+                        type="button"
+                        className="text-button"
+                        disabled={
+                          saving ||
+                          !canReactivate
+                        }
+                        onClick={() =>
+                          onStatusChange(
+                            belief,
+                            'active',
+                          )
+                        }
+                      >
+                        Reactivate
+                      </button>
+                    )}
+
+                    {belief.status !== 'archived' && (
+                      <button
+                        type="button"
+                        className="text-button"
+                        disabled={saving}
+                        onClick={() =>
+                          onStatusChange(
+                            belief,
+                            'archived',
+                          )
+                        }
+                      >
+                        Archive
+                      </button>
+                    )}
                   </div>
                 </article>
               )

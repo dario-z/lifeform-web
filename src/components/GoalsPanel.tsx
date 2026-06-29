@@ -50,6 +50,7 @@ export function GoalsPanel({
           <h2>Goals</h2>
           <p>{active} / {MAX_ACTIVE_GOALS} active</p>
         </div>
+
         <button
           type="button"
           className="text-button"
@@ -60,8 +61,8 @@ export function GoalsPanel({
       </header>
 
       <p className="lifeform-identity-intro">
-        Goals are a few durable directions,
-        not a daily task list.
+        Goals are durable directions, not a
+        daily task list.
       </p>
 
       {error && (
@@ -72,16 +73,20 @@ export function GoalsPanel({
 
       <div className="lifeform-identity-list">
         {loading ? (
-          <p>Loading goals…</p>
+          <p>Loading goals?</p>
         ) : goals.length === 0 ? (
           <p>
             No goals yet. Confirmed
-            “Possible goals” appear here.
+            ?Possible goals? appear here.
           </p>
         ) : (
           sortGoals(goals).map((goal) => {
             const saving =
               savingGoalId === goal.id
+
+            const canReactivate =
+              goal.status !== 'active' &&
+              active < MAX_ACTIVE_GOALS
 
             return (
               <article
@@ -92,7 +97,9 @@ export function GoalsPanel({
                   <span>{goal.status}</span>
                   <span>{goal.importance}%</span>
                 </div>
+
                 <p>{goal.content}</p>
+
                 <div className="lifeform-identity-actions">
                   {goal.status === 'active' && (
                     <>
@@ -101,45 +108,88 @@ export function GoalsPanel({
                         className="text-button"
                         disabled={saving}
                         onClick={() =>
-                          onStatusChange(goal, 'paused')
+                          onStatusChange(
+                            goal,
+                            'paused',
+                          )
                         }
                       >
                         Pause
                       </button>
+
                       <button
                         type="button"
                         className="text-button"
                         disabled={saving}
                         onClick={() =>
-                          onStatusChange(goal, 'completed')
+                          onStatusChange(
+                            goal,
+                            'blocked',
+                          )
+                        }
+                      >
+                        Mark blocked
+                      </button>
+
+                      <button
+                        type="button"
+                        className="text-button"
+                        disabled={saving}
+                        onClick={() =>
+                          onStatusChange(
+                            goal,
+                            'completed',
+                          )
                         }
                       >
                         Complete
                       </button>
+
+                      <button
+                        type="button"
+                        className="text-button"
+                        disabled={saving}
+                        onClick={() =>
+                          onStatusChange(
+                            goal,
+                            'abandoned',
+                          )
+                        }
+                      >
+                        Abandon
+                      </button>
                     </>
                   )}
+
                   {goal.status !== 'active' && (
                     <button
                       type="button"
                       className="text-button"
                       disabled={
                         saving ||
-                        active >= MAX_ACTIVE_GOALS
+                        !canReactivate
                       }
                       onClick={() =>
-                        onStatusChange(goal, 'active')
+                        onStatusChange(
+                          goal,
+                          'active',
+                        )
                       }
                     >
                       Reactivate
                     </button>
                   )}
+
                   {goal.status !== 'archived' && (
                     <button
                       type="button"
                       className="text-button"
                       disabled={saving}
                       onClick={() =>
-                        onStatusChange(goal, 'archived')
+                        onStatusChange(
+                          goal,
+                          'archived',
+                        )
                       }
                     >
                       Archive

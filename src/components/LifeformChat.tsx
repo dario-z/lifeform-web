@@ -51,7 +51,7 @@ import {
 import {
   MAX_KEY_MEMORIES,
   buildKeyMemoriesContext,
-  findSimilarKeyMemory,
+  findSimilarKeyMemory as findSimilarPersistedKeyMemory,
   normalizeKeyMemoryInput,
 } from '../lib/keyMemories'
 import {
@@ -71,6 +71,10 @@ import {
   normalizeThreadText,
   sortThreads,
 } from '../lib/lifeformThreads'
+import {
+  reconcileMemoryLifecycle,
+  type MemoryReconciliationResult,
+} from '../lib/memoryReconciliation'
 import {
   EMPTY_GEMINI_TOKEN_USAGE,
   GEMINI_MODEL_OPTIONS,
@@ -1286,11 +1290,56 @@ async function extractThreadProposalCandidate({
   }
 }
 
+function isCurrentKeyMemory(
+  memory: KeyMemory,
+): boolean {
+  return (
+    memory.status === 'active' ||
+    memory.status === 'temporary'
+  )
+}
+
+function countCurrentKeyMemories(
+  memories: KeyMemory[],
+): number {
+  return memories.filter(
+    isCurrentKeyMemory,
+  ).length
+}
+
+function findSimilarCurrentKeyMemory(
+  memories: KeyMemory[],
+  content: string,
+): KeyMemory | null {
+  return findSimilarPersistedKeyMemory(
+    memories.filter(isCurrentKeyMemory),
+    content,
+  )
+}
+
 function sortKeyMemories(
   memories: KeyMemory[],
 ): KeyMemory[] {
+  const statusRank: Record<
+    KeyMemory['status'],
+    number
+  > = {
+    active: 0,
+    temporary: 1,
+    superseded: 2,
+    archived: 3,
+  }
+
   return [...memories].sort(
     (left, right) => {
+      const statusDifference =
+        statusRank[left.status] -
+        statusRank[right.status]
+
+      if (statusDifference !== 0) {
+        return statusDifference
+      }
+
       const importanceDifference =
         right.importance -
         left.importance
@@ -2159,7 +2208,7 @@ export function LifeformChat({
         } = await supabase
           .from('key_memories')
           .select(
-            'id,user_id,lifeform_id,category,content,importance,source,created_at,updated_at',
+            'id,user_id,lifeform_id,category,content,importance,status,status_reason,superseded_by_id,source,created_at,updated_at,archived_at',
           )
           .eq('lifeform_id', lifeform.id)
           .order('importance', {
@@ -2168,7 +2217,7 @@ export function LifeformChat({
           .order('updated_at', {
             ascending: false,
           })
-          .limit(MAX_KEY_MEMORIES)
+          .limit(100)
 
         if (queryError) {
           throw queryError
@@ -2221,7 +2270,7 @@ export function LifeformChat({
         const { data, error } = await supabase
           .from('lifeform_goals')
           .select(
-            'id,user_id,lifeform_id,content,importance,status,source,created_at,updated_at,completed_at',
+            'id,user_id,lifeform_id,content,importance,progress,next_step,blocked_reason,status,status_reason,source,created_at,updated_at,completed_at,archived_at',
           )
           .eq('lifeform_id', lifeform.id)
           .order('updated_at', {
@@ -2255,7 +2304,7 @@ export function LifeformChat({
         const { data, error } = await supabase
           .from('lifeform_beliefs')
           .select(
-            'id,user_id,lifeform_id,content,importance,status,source,created_at,updated_at',
+            'id,user_id,lifeform_id,content,importance,status,status_reason,source,created_at,updated_at,last_confirmed_at,superseded_by_id,archived_at',
           )
           .eq('lifeform_id', lifeform.id)
           .order('updated_at', {
@@ -2307,7 +2356,7 @@ export function LifeformChat({
         const { data, error } = await supabase
           .from('lifeform_threads')
           .select(
-            'id,user_id,lifeform_id,title,current_context,last_progress,open_direction,linked_goal_id,status,source,created_at,updated_at,last_activity_at',
+            'id,user_id,lifeform_id,title,current_context,last_progress,open_direction,linked_goal_id,status,status_reason,source,created_at,updated_at,last_activity_at,resolved_at,abandoned_at,archived_at',
           )
           .eq('lifeform_id', lifeform.id)
           .order('last_activity_at', {
@@ -2912,8 +2961,9 @@ export function LifeformChat({
     input: KeyMemoryInput,
   ) => {
     if (
-      keyMemoriesRef.current.length >=
-      MAX_KEY_MEMORIES
+      countCurrentKeyMemories(
+          keyMemoriesRef.current,
+        ) >= MAX_KEY_MEMORIES
     ) {
       setKeyMemoryError(
         'Il limite di 10 Key Memories è già stato raggiunto.',
@@ -3565,7 +3615,7 @@ export function LifeformChat({
         candidate.action === 'create'
       ) {
         const similarMemory =
-          findSimilarKeyMemory(
+          findSimilarCurrentKeyMemory(
             currentMemories,
             candidate.content,
           )
@@ -3893,7 +3943,7 @@ export function LifeformChat({
 
       const similarMemory =
         requestedTarget ??
-        findSimilarKeyMemory(
+        findSimilarCurrentKeyMemory(
           currentMemories,
           normalized.content,
         )
@@ -3942,8 +3992,9 @@ export function LifeformChat({
       }
 
       if (
-        currentMemories.length >=
-        MAX_KEY_MEMORIES
+        countCurrentKeyMemories(
+          currentMemories,
+        ) >= MAX_KEY_MEMORIES
       ) {
         throw new Error(
           'The Key Memories limit is reached. Open Key Memories and remove one before accepting this proposal.',
@@ -4111,7 +4162,7 @@ export function LifeformChat({
           keyMemoriesRef.current
 
         const similarMemory =
-          findSimilarKeyMemory(
+          findSimilarCurrentKeyMemory(
             currentMemories,
             normalized.content,
           )
@@ -4161,8 +4212,9 @@ export function LifeformChat({
         }
 
         if (
-          currentMemories.length <
-          MAX_KEY_MEMORIES
+          countCurrentKeyMemories(
+          currentMemories,
+        ) < MAX_KEY_MEMORIES
         ) {
           const {
             data,
@@ -4206,7 +4258,8 @@ export function LifeformChat({
         ]
           .filter(
             (memory) =>
-              memory.source === 'auto',
+              memory.source === 'auto' &&
+              isCurrentKeyMemory(memory),
           )
           .sort(
             (left, right) =>
@@ -4266,6 +4319,260 @@ export function LifeformChat({
         setSavingKeyMemory(false)
       }
     }
+
+
+  const applyMemoryReconciliation = async (
+    reconciliation: MemoryReconciliationResult,
+  ) => {
+    const now = new Date().toISOString()
+
+    for (
+      const mutation of reconciliation.threads
+    ) {
+      const current = threadsRef.current.find(
+        (thread) => thread.id === mutation.id,
+      )
+
+      if (!current) {
+        continue
+      }
+
+      if (
+        mutation.status === 'active' &&
+        current.status !== 'active' &&
+        threadsRef.current.filter(
+          (thread) => thread.status === 'active',
+        ).length >= MAX_ACTIVE_THREADS
+      ) {
+        continue
+      }
+
+      const { data, error } = await supabase
+        .from('lifeform_threads')
+        .update({
+          status: mutation.status,
+          status_reason: mutation.statusReason,
+          current_context:
+            mutation.currentContext ||
+            current.current_context,
+          last_progress:
+            mutation.lastProgress ||
+            current.last_progress,
+          open_direction:
+            mutation.openDirection ||
+            current.open_direction,
+          updated_at: now,
+          last_activity_at: now,
+          resolved_at:
+            mutation.status === 'resolved'
+              ? current.resolved_at ?? now
+              : current.resolved_at,
+          abandoned_at:
+            mutation.status === 'abandoned'
+              ? current.abandoned_at ?? now
+              : current.abandoned_at,
+          archived_at:
+            mutation.status === 'archived'
+              ? current.archived_at ?? now
+              : current.archived_at,
+        })
+        .eq('id', current.id)
+        .eq('lifeform_id', lifeform.id)
+        .select()
+        .single()
+
+      if (error) {
+        throw error
+      }
+
+      if (data) {
+        commitThreads([
+          ...threadsRef.current.filter(
+            (thread) => thread.id !== current.id,
+          ),
+          data as LifeformThread,
+        ])
+      }
+    }
+
+    for (
+      const mutation of reconciliation.goals
+    ) {
+      const current = goalsRef.current.find(
+        (goal) => goal.id === mutation.id,
+      )
+
+      if (!current) {
+        continue
+      }
+
+      if (
+        mutation.status === 'active' &&
+        current.status !== 'active' &&
+        goalsRef.current.filter(
+          (goal) => goal.status === 'active',
+        ).length >= MAX_ACTIVE_GOALS
+      ) {
+        continue
+      }
+
+      const nextProgress =
+        mutation.status === 'completed'
+          ? 100
+          : mutation.progress ?? current.progress
+
+      const { data, error } = await supabase
+        .from('lifeform_goals')
+        .update({
+          status: mutation.status,
+          status_reason: mutation.statusReason,
+          progress: nextProgress,
+          next_step:
+            mutation.nextStep ||
+            current.next_step,
+          blocked_reason:
+            mutation.status === 'blocked'
+              ? mutation.blockedReason ||
+                current.blocked_reason
+              : '',
+          updated_at: now,
+          completed_at:
+            mutation.status === 'completed'
+              ? current.completed_at ?? now
+              : current.completed_at,
+          archived_at:
+            mutation.status === 'archived'
+              ? current.archived_at ?? now
+              : current.archived_at,
+        })
+        .eq('id', current.id)
+        .eq('lifeform_id', lifeform.id)
+        .select()
+        .single()
+
+      if (error) {
+        throw error
+      }
+
+      if (data) {
+        commitGoals([
+          ...goalsRef.current.filter(
+            (goal) => goal.id !== current.id,
+          ),
+          data as LifeformGoal,
+        ])
+      }
+    }
+
+    for (
+      const mutation of reconciliation.beliefs
+    ) {
+      const current = beliefsRef.current.find(
+        (belief) => belief.id === mutation.id,
+      )
+
+      if (!current) {
+        continue
+      }
+
+      if (
+        mutation.status === 'active' &&
+        current.status !== 'active' &&
+        beliefsRef.current.filter(
+          (belief) => belief.status === 'active',
+        ).length >= MAX_ACTIVE_BELIEFS
+      ) {
+        continue
+      }
+
+      const { data, error } = await supabase
+        .from('lifeform_beliefs')
+        .update({
+          status: mutation.status,
+          status_reason: mutation.statusReason,
+          superseded_by_id:
+            mutation.status === 'superseded'
+              ? mutation.supersededById
+              : null,
+          last_confirmed_at:
+            mutation.confirm
+              ? now
+              : current.last_confirmed_at,
+          updated_at: now,
+          archived_at:
+            mutation.status === 'archived'
+              ? current.archived_at ?? now
+              : current.archived_at,
+        })
+        .eq('id', current.id)
+        .eq('lifeform_id', lifeform.id)
+        .select()
+        .single()
+
+      if (error) {
+        throw error
+      }
+
+      if (data) {
+        commitBeliefs([
+          ...beliefsRef.current.filter(
+            (belief) => belief.id !== current.id,
+          ),
+          data as LifeformBelief,
+        ])
+      }
+    }
+
+    for (
+      const mutation of reconciliation.keyMemories
+    ) {
+      const current =
+        keyMemoriesRef.current.find(
+          (memory) => memory.id === mutation.id,
+        )
+
+      if (
+        !current ||
+        current.source !== 'auto'
+      ) {
+        continue
+      }
+
+      const { data, error } = await supabase
+        .from('key_memories')
+        .update({
+          status: mutation.status,
+          status_reason: mutation.statusReason,
+          superseded_by_id:
+            mutation.status === 'superseded'
+              ? mutation.supersededById
+              : null,
+          archived_at:
+            mutation.status === 'archived'
+              ? current.archived_at ?? now
+              : current.archived_at,
+          updated_at: now,
+        })
+        .eq('id', current.id)
+        .eq('lifeform_id', lifeform.id)
+        .eq('source', 'auto')
+        .select()
+        .single()
+
+      if (error) {
+        throw error
+      }
+
+      if (data) {
+        commitKeyMemories([
+          ...keyMemoriesRef.current.filter(
+            (memory) => memory.id !== current.id,
+          ),
+          data as KeyMemory,
+        ])
+      }
+    }
+  }
 
   const handleGoalStatusChange = async (
     goal: LifeformGoal,
@@ -4657,7 +4964,9 @@ export function LifeformChat({
 
       const keyMemoryContext =
         buildKeyMemoriesContext(
-          keyMemoriesRef.current,
+          keyMemoriesRef.current.filter(
+            isCurrentKeyMemory,
+          ),
         )
 
       const dreamsContext =
@@ -5223,6 +5532,72 @@ export function LifeformChat({
           }
         }
 
+        let reconciliationTokenUsage:
+          GeminiTokenUsage = {
+            ...EMPTY_GEMINI_TOKEN_USAGE,
+          }
+
+        let lifecycleMutated = false
+
+        if (
+          !attachment &&
+          !explicitSaveIntent
+        ) {
+          try {
+            const reconciliation =
+              await reconcileMemoryLifecycle({
+                apiKey,
+                model: selectedModel,
+                lifeformName: lifeform.name,
+                lifeformLanguage: lifeform.language,
+                recentHistory: previousContext.slice(
+                  -EMOTION_CONTEXT_SIZE,
+                ),
+                userMessage: storedUserMessage,
+                assistantResponse,
+                threads: threadsRef.current,
+                goals: goalsRef.current,
+                beliefs: beliefsRef.current,
+                keyMemories:
+                  keyMemoriesRef.current,
+              })
+
+            reconciliationTokenUsage =
+              reconciliation.tokenUsage
+
+            const mutationCount =
+              reconciliation.threads.length +
+              reconciliation.goals.length +
+              reconciliation.beliefs.length +
+              reconciliation.keyMemories.length
+
+            if (
+              reconciliation.source === 'model' &&
+              mutationCount > 0
+            ) {
+              await applyMemoryReconciliation(
+                reconciliation,
+              )
+
+              lifecycleMutated = true
+            }
+
+            if (reconciliation.error) {
+              console.warn(
+                'Memory lifecycle reconciliation was unavailable:',
+                reconciliation.error,
+              )
+            }
+          } catch (
+            reconciliationError: unknown
+          ) {
+            console.warn(
+              'Memory lifecycle reconciliation failed:',
+              reconciliationError,
+            )
+          }
+        }
+
         const activeThreads =
           threadsRef.current.filter(
             (thread) =>
@@ -5231,6 +5606,7 @@ export function LifeformChat({
 
         const shouldCheckThread =
           !explicitSaveIntent &&
+          !lifecycleMutated &&
           !pendingProposalRef.current &&
           !pendingThreadProposalRef.current &&
           shouldEvaluateThreadProposal({
@@ -5298,12 +5674,15 @@ export function LifeformChat({
           addGeminiTokenUsage(
             addGeminiTokenUsage(
               addGeminiTokenUsage(
-                replyTokenUsage,
-                analysis.tokenUsage,
+                addGeminiTokenUsage(
+                  replyTokenUsage,
+                  analysis.tokenUsage,
+                ),
+                requestedMemoryTokenUsage,
               ),
-              requestedMemoryTokenUsage,
+              threadProposalTokenUsage,
             ),
-            threadProposalTokenUsage,
+            reconciliationTokenUsage,
           )
 
         await updatePersistentEmotion(

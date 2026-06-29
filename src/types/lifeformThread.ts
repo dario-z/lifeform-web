@@ -1,5 +1,8 @@
 export const THREAD_STATUSES = [
   'active',
+  'paused',
+  'resolved',
+  'abandoned',
   'archived',
 ] as const
 
@@ -37,10 +40,14 @@ export type LifeformThread = {
   open_direction: string
   linked_goal_id: string | null
   status: LifeformThreadStatus
+  status_reason: string
   source: LifeformThreadSource
   created_at: string
   updated_at: string
   last_activity_at: string
+  resolved_at: string | null
+  abandoned_at: string | null
+  archived_at: string | null
 }
 
 export type LifeformThreadProposal = {

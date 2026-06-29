@@ -85,21 +85,25 @@ export function ThreadsPanel({
 
       <div className="lifeform-identity-list">
         {loading ? (
-          <p>Loading Threads…</p>
+          <p>Loading Threads?</p>
         ) : threads.length === 0 ? (
           <p>
             No Threads yet. Confirmed
-            “Possible Active Threads” appear
-            here.
+            ?Possible Active Threads? appear here.
           </p>
         ) : (
           sortThreads(threads).map((thread) => {
             const saving =
               savingThreadId === thread.id
+
             const linkedGoal = getThreadGoalLabel(
               thread,
               goals,
             )
+
+            const canReactivate =
+              thread.status !== 'active' &&
+              activeCount < MAX_ACTIVE_THREADS
 
             return (
               <article
@@ -147,28 +151,86 @@ export function ThreadsPanel({
                 </dl>
 
                 <div className="lifeform-identity-actions">
-                  <button
-                    type="button"
-                    className="text-button"
-                    disabled={
-                      saving ||
-                      (thread.status === 'archived' &&
-                        activeCount >=
-                          MAX_ACTIVE_THREADS)
-                    }
-                    onClick={() =>
-                      onStatusChange(
-                        thread,
-                        thread.status === 'active'
-                          ? 'archived'
-                          : 'active',
-                      )
-                    }
-                  >
-                    {thread.status === 'active'
-                      ? 'Archive'
-                      : 'Reactivate'}
-                  </button>
+                  {thread.status === 'active' && (
+                    <>
+                      <button
+                        type="button"
+                        className="text-button"
+                        disabled={saving}
+                        onClick={() =>
+                          onStatusChange(
+                            thread,
+                            'paused',
+                          )
+                        }
+                      >
+                        Pause
+                      </button>
+
+                      <button
+                        type="button"
+                        className="text-button"
+                        disabled={saving}
+                        onClick={() =>
+                          onStatusChange(
+                            thread,
+                            'resolved',
+                          )
+                        }
+                      >
+                        Resolve
+                      </button>
+
+                      <button
+                        type="button"
+                        className="text-button"
+                        disabled={saving}
+                        onClick={() =>
+                          onStatusChange(
+                            thread,
+                            'abandoned',
+                          )
+                        }
+                      >
+                        Abandon
+                      </button>
+                    </>
+                  )}
+
+                  {thread.status !== 'active' && (
+                    <button
+                      type="button"
+                      className="text-button"
+                      disabled={
+                        saving ||
+                        !canReactivate
+                      }
+                      onClick={() =>
+                        onStatusChange(
+                          thread,
+                          'active',
+                        )
+                      }
+                    >
+                      Reactivate
+                    </button>
+                  )}
+
+                  {thread.status !== 'archived' && (
+                    <button
+                      type="button"
+                      className="text-button"
+                      disabled={saving}
+                      onClick={() =>
+                        onStatusChange(
+                          thread,
+                          'archived',
+                        )
+                      }
+                    >
+                      Archive
+                    </button>
+                  )}
 
                   <button
                     type="button"
@@ -178,7 +240,7 @@ export function ThreadsPanel({
                       onDelete(thread)
                     }
                   >
-                    Delete
+                    Delete permanently
                   </button>
                 </div>
               </article>

@@ -53,9 +53,74 @@ const dreamResponseSchema = {
   additionalProperties: false,
 }
 
-const DREAM_WORD_MINIMUM = 35
-const DREAM_WORD_MAXIMUM = 70
+const DREAM_WORD_MINIMUM = 18
+const DREAM_WORD_MAXIMUM = 55
 const MAX_LOCALIZED_ANCHOR_LENGTH = 110
+const MAX_DREAM_SENTENCES = 2
+
+const DREAM_EXPLANATORY_ENDING_PATTERNS = [
+  /\b(?:forse|magari|perhaps|maybe)\b.{0,90}\b(?:signific|mean|message|theme|about|dire|tell|capire|understand)\b/iu,
+  /\b(?:il sogno|questo sogno|the dream|this dream)\b.{0,90}\b(?:era|was|parlava|spoke|riguardava|about|signific|mean)\b/iu,
+  /\b(?:mi sono svegliat[oa]|i woke up)\b.{0,90}\b(?:cap|understand|realiz|know)\b/iu,
+]
+
+const DREAM_MELODRAMATIC_TERMS = [
+  'void',
+  'etern',
+  'destin',
+  'soul',
+  'universe',
+  'abyss',
+  'sacred',
+  'infinite',
+  'darkness',
+  'echo',
+  'forgotten',
+  'heartbeat',
+  'melanchol',
+  'vuoto',
+  'etern',
+  'destin',
+  'anima',
+  'univers',
+  'abisso',
+  'sacro',
+  'infinito',
+  'oscur',
+  'eco',
+  'dimenticat',
+  'battito',
+  'malincon',
+] as const
+
+function normalizeDreamComparisonText(
+  value: string,
+): string {
+  return value
+    .toLocaleLowerCase()
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+}
+
+function countMelodramaticDreamTerms(
+  value: string,
+): number {
+  const normalized =
+    normalizeDreamComparisonText(value)
+
+  return DREAM_MELODRAMATIC_TERMS.filter(
+    (term) => normalized.includes(term),
+  ).length
+}
+
+function hasExplanatoryDreamEnding(
+  value: string,
+): boolean {
+  return DREAM_EXPLANATORY_ENDING_PATTERNS.some(
+    (pattern) => pattern.test(value),
+  )
+}
+
 
 const DREAM_LANGUAGE_NAMES: Record<
   string,
@@ -116,25 +181,6 @@ function isEnglishLanguage(
   language: string,
 ): boolean {
   return language.toLowerCase() === 'en'
-}
-
-function countOccurrences(
-  text: string,
-  fragment: string,
-): number {
-  const normalizedText =
-    text.toLocaleLowerCase()
-
-  const normalizedFragment =
-    fragment.toLocaleLowerCase()
-
-  if (!normalizedFragment) {
-    return 0
-  }
-
-  return normalizedText.split(
-    normalizedFragment,
-  ).length - 1
 }
 
 function getSentences(
@@ -230,45 +276,53 @@ function validateDreamOutput(options: {
   const sentences =
     getSentences(dreamText)
 
-  const firstSentence = sentences[0] ?? ''
+  if (
+    sentences.length >
+    MAX_DREAM_SENTENCES
+  ) {
+    throw new Error(
+      'Dream must contain at most ' +
+        String(MAX_DREAM_SENTENCES) +
+        ' sentences; received ' +
+        String(sentences.length) +
+        '.',
+    )
+  }
+
   const lastSentence =
     sentences[sentences.length - 1] ?? ''
 
   if (
-    !firstSentence
-      .toLocaleLowerCase()
-      .includes(
-        localizedAnchor.toLocaleLowerCase(),
-      )
+    hasExplanatoryDreamEnding(
+      lastSentence,
+    )
   ) {
     throw new Error(
-      'The localized anchor must appear in the first sentence.',
+      'Dream ends with an explanation, interpretation or thematic recap.',
     )
   }
 
   if (
-    !lastSentence
-      .toLocaleLowerCase()
-      .includes(
-        localizedAnchor.toLocaleLowerCase(),
-      )
+    countMelodramaticDreamTerms(
+      dreamText,
+    ) >= 2
   ) {
     throw new Error(
-      'The localized anchor must return in the final sentence.',
+      'Dream uses too much melodramatic or mystical vocabulary.',
     )
   }
 
-  const anchorOccurrences =
-    countOccurrences(
+  if (
+    !normalizeDreamComparisonText(
       dreamText,
-      localizedAnchor,
+    ).includes(
+      normalizeDreamComparisonText(
+        localizedAnchor,
+      ),
     )
-
-  if (anchorOccurrences !== 2) {
+  ) {
     throw new Error(
-      'The localized anchor must appear exactly twice in the Dream; received ' +
-        String(anchorOccurrences) +
-        '.',
+      'The localized anchor must appear naturally at least once in the Dream.',
     )
   }
 
@@ -299,7 +353,7 @@ async function requestDreamResponse(options: {
           'application/json',
         responseSchema:
           dreamResponseSchema,
-        maxOutputTokens: 500,
+        maxOutputTokens: 240,
         temperature: 0.9,
       } as any,
     })
@@ -504,22 +558,26 @@ export async function generateDailyDream(options: {
     '',
     'Rules:',
     '- Write the title, dreamText and randomAnchor JSON fields entirely in the Output language.',
-    '- The Dream is not a summary.',
-    '- Transform recent context into abstract symbols.',
+    '- The Dream is a short fragment, never a summary or symbolic explanation.',
+    '- Transform recent context into loose, indirect details; do not summarize or interpret it.',
     '- Do not directly mention software, APIs, bugs, UI, code, database, implementation details, account settings, or user requests.',
     '- Do not quote the user.',
     '- Do not explain the Dream.',
+    '- Keep it strange, playful, grounded and casually believable.',
+    '- Prefer ordinary places, small objects, food, animals, public transport, household routines and awkward social situations.',
+    '- End on a concrete image, action, object, odd event or unfinished moment.',
+    '- Never end with a moral, explanation, interpretation or thematic recap.',
+    '- Avoid cosmic, mystical, tragic, romantic or apocalyptic language unless recent conversation explicitly requires it.',
     '- Do not add analysis, interpretation, moral lessons or a conclusion.',
     '- First translate or creatively localize the English source anchor into a short, natural noun phrase in the Output language.',
     '- Put that localized phrase in the randomAnchor JSON field.',
-    '- The localized randomAnchor is the central protagonist, obstacle or cause of the Dream, never decoration or scenery.',
-    '- It must appear verbatim in the FIRST sentence of dreamText and return verbatim in the FINAL sentence of dreamText.',
-    '- It must appear exactly twice in dreamText: once at the beginning and once at the end.',
-    '- Between those two appearances, it must cause or transform at least two concrete dream events.',
+    '- Treat the localized randomAnchor as a clue, not as a refrain.',
+    '- Include the localized randomAnchor naturally at least once in dreamText.',
+    '- Never force the anchor into the final sentence and never repeat it merely to close the Dream.',
     '- Do not use the raw English source anchor in the Dream or randomAnchor field unless Output language is English.',
     '- If the emotion vector contains high amused/Humor, the Dream may be playful, ridiculous, weirdly funny or absurd instead of solemn.',
     '- If the emotion vector contains high lonely/Loneliness, the Dream may be quiet, distant or tender, but never guilt the user.',
-    '- Use a surreal, intimate, concise tone.',
+    '- Use a casual, vivid, slightly surreal but grounded tone.',
     '- dreamText must contain ' +
       String(DREAM_WORD_MINIMUM) +
       ' to ' +

@@ -14,6 +14,16 @@ export const KEY_MEMORY_CATEGORIES = [
 export type KeyMemoryCategory =
   (typeof KEY_MEMORY_CATEGORIES)[number]
 
+export const KEY_MEMORY_STATUSES = [
+  'active',
+  'temporary',
+  'superseded',
+  'archived',
+] as const
+
+export type KeyMemoryStatus =
+  (typeof KEY_MEMORY_STATUSES)[number]
+
 export type KeyMemorySource =
   | 'auto'
   | 'manual'
@@ -25,9 +35,13 @@ export type KeyMemory = {
   category: KeyMemoryCategory
   content: string
   importance: number
+  status: KeyMemoryStatus
+  status_reason: string
+  superseded_by_id: string | null
   source: KeyMemorySource
   created_at: string
   updated_at: string
+  archived_at: string | null
 }
 
 export type KeyMemoryInput = {
