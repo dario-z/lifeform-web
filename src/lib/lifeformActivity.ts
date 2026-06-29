@@ -1,0 +1,213 @@
+﻿import { supabase } from './supabase'
+
+export const LIFEFORM_ACTIVITY_ACTORS = [
+  'user',
+  'lifeform',
+  'reconciliation',
+  'system',
+] as const
+
+export type LifeformActivityActor =
+  (typeof LIFEFORM_ACTIVITY_ACTORS)[number]
+
+export const LIFEFORM_ACTIVITY_ENTITY_TYPES = [
+  'goal',
+  'belief',
+  'thread',
+  'key_memory',
+  'dream',
+  'emotion',
+  'proposal',
+  'capability',
+] as const
+
+export type LifeformActivityEntityType =
+  (typeof LIFEFORM_ACTIVITY_ENTITY_TYPES)[number]
+
+export type LifeformActivityRecord = {
+  id: string
+  user_id: string
+  lifeform_id: string
+  actor: LifeformActivityActor
+  entity_type: LifeformActivityEntityType
+  action: string
+  target_id: string | null
+  summary: string
+  reason: string
+  before_snapshot: Record<string, unknown>
+  after_snapshot: Record<string, unknown>
+  metadata: Record<string, unknown>
+  created_at: string
+}
+
+export type LifeformActivityInput = {
+  userId: string
+  lifeformId: string
+  actor: LifeformActivityActor
+  entityType: LifeformActivityEntityType
+  action: string
+  targetId?: string | null
+  summary?: string
+  reason?: string
+  beforeSnapshot?: Record<string, unknown>
+  afterSnapshot?: Record<string, unknown>
+  metadata?: Record<string, unknown>
+}
+
+const UUID_PATTERN =
+  /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/iu
+
+function normalizeText(
+  value: string | undefined,
+  maximumLength: number,
+): string {
+  return (value ?? '')
+    .replace(/\s+/g, ' ')
+    .trim()
+    .slice(0, maximumLength)
+}
+
+function normalizeTargetId(
+  value: string | null | undefined,
+): string | null {
+  const normalized = normalizeText(
+    value ?? '',
+    100,
+  )
+
+  return UUID_PATTERN.test(normalized)
+    ? normalized
+    : null
+}
+
+function createSafeSnapshot(
+  value: Record<string, unknown> | undefined,
+): Record<string, unknown> {
+  if (!value) {
+    return {}
+  }
+
+  try {
+    const serialized = JSON.stringify(
+      value,
+      (_key, currentValue: unknown) => {
+        if (
+          typeof currentValue === 'string'
+        ) {
+          return currentValue.slice(0, 1600)
+        }
+
+        if (
+          typeof currentValue === 'number' ||
+          typeof currentValue === 'boolean' ||
+          currentValue === null
+        ) {
+          return currentValue
+        }
+
+        if (
+          Array.isArray(currentValue)
+        ) {
+          return currentValue.slice(0, 25)
+        }
+
+        if (
+          typeof currentValue === 'object'
+        ) {
+          return currentValue
+        }
+
+        return String(currentValue).slice(
+          0,
+          300,
+        )
+      },
+    )
+
+    const parsed = JSON.parse(
+      serialized,
+    ) as unknown
+
+    return parsed &&
+      typeof parsed === 'object' &&
+      !Array.isArray(parsed)
+      ? parsed as Record<string, unknown>
+      : {}
+  } catch {
+    return {}
+  }
+}
+
+export async function recordLifeformActivity(
+  input: LifeformActivityInput,
+): Promise<LifeformActivityRecord> {
+  const action = normalizeText(
+    input.action,
+    80,
+  )
+
+  if (!action) {
+    throw new Error(
+      'Lifeform activity requires an action.',
+    )
+  }
+
+  const { data, error } = await supabase
+    .from('lifeform_activity_log')
+    .insert({
+      user_id: input.userId,
+      lifeform_id: input.lifeformId,
+      actor: input.actor,
+      entity_type: input.entityType,
+      action,
+      target_id: normalizeTargetId(
+        input.targetId,
+      ),
+      summary: normalizeText(
+        input.summary,
+        600,
+      ),
+      reason: normalizeText(
+        input.reason,
+        1200,
+      ),
+      before_snapshot: createSafeSnapshot(
+        input.beforeSnapshot,
+      ),
+      after_snapshot: createSafeSnapshot(
+        input.afterSnapshot,
+      ),
+      metadata: createSafeSnapshot(
+        input.metadata,
+      ),
+    })
+    .select(
+      'id,user_id,lifeform_id,actor,entity_type,action,target_id,summary,reason,before_snapshot,after_snapshot,metadata,created_at',
+    )
+    .single()
+
+  if (error) {
+    throw error
+  }
+
+  if (!data) {
+    throw new Error(
+      'The activity event was not returned by the database.',
+    )
+  }
+
+  return data as LifeformActivityRecord
+}
+
+export async function tryRecordLifeformActivity(
+  input: LifeformActivityInput,
+): Promise<void> {
+  try {
+    await recordLifeformActivity(input)
+  } catch (error: unknown) {
+    console.warn(
+      'Lifeform activity logging failed:',
+      error,
+    )
+  }
+}
