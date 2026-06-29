@@ -5460,246 +5460,6 @@ export function LifeformChat({
     }
 
 
-
-  const archiveLatestThreadFromChat =
-    async (
-      refersToLatest: boolean,
-    ): Promise<string> => {
-      const candidates =
-        threadsRef.current
-          .filter(
-            (thread) =>
-              thread.status !== 'archived',
-          )
-          .sort(
-            (left, right) =>
-              new Date(
-                right.updated_at,
-              ).getTime() -
-              new Date(
-                left.updated_at,
-              ).getTime(),
-          )
-
-      const target =
-        candidates.length === 1 ||
-        refersToLatest
-          ? candidates[0] ?? null
-          : null
-
-      if (!target) {
-        return [
-          'DIRECTIVE RESULT: FAILED.',
-          'No unambiguous non-archived Thread could be selected.',
-          'Ask the user to name the Thread or use the Threads panel.',
-        ].join(' ')
-      }
-
-      const now = new Date().toISOString()
-
-      const reason =
-        'Archived by an explicit multilingual chat directive from the user.'
-
-      const { data, error } = await supabase
-        .from('lifeform_threads')
-        .update({
-          status: 'archived',
-          status_reason: reason,
-          updated_at: now,
-          last_activity_at: now,
-          archived_at:
-            target.archived_at ?? now,
-        })
-        .eq('id', target.id)
-        .eq('lifeform_id', lifeform.id)
-        .select()
-        .single()
-
-      if (error) {
-        throw error
-      }
-
-      if (!data) {
-        throw new Error(
-          'The archived Thread was not returned.',
-        )
-      }
-
-      const archivedThread =
-        data as LifeformThread
-
-      commitThreads([
-        ...threadsRef.current.filter(
-          (thread) => thread.id !== target.id,
-        ),
-        archivedThread,
-      ])
-
-      await tryRecordLifeformActivity({
-        userId: lifeform.user_id,
-        lifeformId: lifeform.id,
-        actor: 'user',
-        entityType: 'thread',
-        action: 'archived',
-        targetId: archivedThread.id,
-        summary:
-          'Thread "' +
-          archivedThread.title +
-          '" was archived by direct chat instruction.',
-        reason,
-        beforeSnapshot: {
-          status: target.status,
-          title: target.title,
-          current_context:
-            target.current_context,
-          last_progress:
-            target.last_progress,
-          open_direction:
-            target.open_direction,
-        },
-        afterSnapshot: {
-          status: archivedThread.status,
-          title: archivedThread.title,
-          current_context:
-            archivedThread.current_context,
-          last_progress:
-            archivedThread.last_progress,
-          open_direction:
-            archivedThread.open_direction,
-        },
-        metadata: {
-          source: 'chat_directive',
-          requestedEntity: 'thread',
-          refersToLatest,
-        },
-      })
-
-      return [
-        'DIRECTIVE RESULT: SUCCESS.',
-        'The Thread "' +
-          archivedThread.title +
-          '" was archived before this reply.',
-        'Do not claim it was permanently deleted.',
-      ].join(' ')
-    }
-
-  const archiveLatestGoalFromChat =
-    async (
-      refersToLatest: boolean,
-    ): Promise<string> => {
-      const candidates =
-        goalsRef.current
-          .filter(
-            (goal) =>
-              goal.status !== 'archived',
-          )
-          .sort(
-            (left, right) =>
-              new Date(
-                right.updated_at,
-              ).getTime() -
-              new Date(
-                left.updated_at,
-              ).getTime(),
-          )
-
-      const target =
-        candidates.length === 1 ||
-        refersToLatest
-          ? candidates[0] ?? null
-          : null
-
-      if (!target) {
-        return [
-          'DIRECTIVE RESULT: FAILED.',
-          'No unambiguous non-archived Goal could be selected.',
-          'Ask the user to name the Goal or use the Goals panel.',
-        ].join(' ')
-      }
-
-      const now = new Date().toISOString()
-
-      const reason =
-        'Archived by an explicit multilingual chat directive from the user.'
-
-      const { data, error } = await supabase
-        .from('lifeform_goals')
-        .update({
-          status: 'archived',
-          status_reason: reason,
-          updated_at: now,
-          archived_at:
-            target.archived_at ?? now,
-        })
-        .eq('id', target.id)
-        .eq('lifeform_id', lifeform.id)
-        .select()
-        .single()
-
-      if (error) {
-        throw error
-      }
-
-      if (!data) {
-        throw new Error(
-          'The archived Goal was not returned.',
-        )
-      }
-
-      const archivedGoal =
-        data as LifeformGoal
-
-      commitGoals([
-        ...goalsRef.current.filter(
-          (goal) => goal.id !== target.id,
-        ),
-        archivedGoal,
-      ])
-
-      await tryRecordLifeformActivity({
-        userId: lifeform.user_id,
-        lifeformId: lifeform.id,
-        actor: 'user',
-        entityType: 'goal',
-        action: 'archived',
-        targetId: archivedGoal.id,
-        summary:
-          'Goal "' +
-          archivedGoal.content +
-          '" was archived by direct chat instruction.',
-        reason,
-        beforeSnapshot: {
-          status: target.status,
-          content: target.content,
-          progress: target.progress,
-          next_step: target.next_step,
-          blocked_reason:
-            target.blocked_reason,
-        },
-        afterSnapshot: {
-          status: archivedGoal.status,
-          content: archivedGoal.content,
-          progress: archivedGoal.progress,
-          next_step: archivedGoal.next_step,
-          blocked_reason:
-            archivedGoal.blocked_reason,
-        },
-        metadata: {
-          source: 'chat_directive',
-          requestedEntity: 'goal',
-          refersToLatest,
-        },
-      })
-
-      return [
-        'DIRECTIVE RESULT: SUCCESS.',
-        'The Goal "' +
-          archivedGoal.content +
-          '" was archived before this reply.',
-        'Do not claim it was permanently deleted.',
-      ].join(' ')
-    }
-
   const archiveLatestBeliefFromChat =
     async (
       refersToLatest: boolean,
@@ -5708,7 +5468,7 @@ export function LifeformChat({
         beliefsRef.current
           .filter(
             (belief) =>
-              belief.status !== 'archived',
+              belief.status === 'active',
           )
           .sort(
             (left, right) =>
@@ -5729,7 +5489,7 @@ export function LifeformChat({
       if (!target) {
         return [
           'DIRECTIVE RESULT: FAILED.',
-          'No unambiguous non-archived Belief could be selected.',
+          'No unambiguous active Belief could be selected.',
           'Ask the user to name the Belief or use the Beliefs panel.',
         ].join(' ')
       }
@@ -5788,18 +5548,13 @@ export function LifeformChat({
         beforeSnapshot: {
           status: target.status,
           content: target.content,
-          superseded_by_id:
-            target.superseded_by_id,
         },
         afterSnapshot: {
           status: archivedBelief.status,
           content: archivedBelief.content,
-          superseded_by_id:
-            archivedBelief.superseded_by_id,
         },
         metadata: {
           source: 'chat_directive',
-          requestedEntity: 'belief',
           refersToLatest,
         },
       })
@@ -5811,152 +5566,6 @@ export function LifeformChat({
           '" was archived before this reply.',
         'Do not claim it was permanently deleted.',
       ].join(' ')
-    }
-
-  const archiveLatestKeyMemoryFromChat =
-    async (
-      refersToLatest: boolean,
-    ): Promise<string> => {
-      const candidates =
-        keyMemoriesRef.current
-          .filter(
-            (memory) =>
-              memory.status === 'active' ||
-              memory.status === 'temporary',
-          )
-          .sort(
-            (left, right) =>
-              new Date(
-                right.updated_at,
-              ).getTime() -
-              new Date(
-                left.updated_at,
-              ).getTime(),
-          )
-
-      const target =
-        candidates.length === 1 ||
-        refersToLatest
-          ? candidates[0] ?? null
-          : null
-
-      if (!target) {
-        return [
-          'DIRECTIVE RESULT: FAILED.',
-          'No unambiguous current Key Memory could be selected.',
-          'Ask the user to name the Key Memory or use the Key Memories panel.',
-        ].join(' ')
-      }
-
-      const now = new Date().toISOString()
-
-      const reason =
-        'Archived by an explicit multilingual chat directive from the user.'
-
-      const { data, error } = await supabase
-        .from('key_memories')
-        .update({
-          status: 'archived',
-          status_reason: reason,
-          updated_at: now,
-          archived_at:
-            target.archived_at ?? now,
-        })
-        .eq('id', target.id)
-        .eq('lifeform_id', lifeform.id)
-        .select()
-        .single()
-
-      if (error) {
-        throw error
-      }
-
-      if (!data) {
-        throw new Error(
-          'The archived Key Memory was not returned.',
-        )
-      }
-
-      const archivedMemory =
-        data as KeyMemory
-
-      commitKeyMemories([
-        ...keyMemoriesRef.current.filter(
-          (memory) => memory.id !== target.id,
-        ),
-        archivedMemory,
-      ])
-
-      await tryRecordLifeformActivity({
-        userId: lifeform.user_id,
-        lifeformId: lifeform.id,
-        actor: 'user',
-        entityType: 'key_memory',
-        action: 'archived',
-        targetId: archivedMemory.id,
-        summary:
-          'Key Memory "' +
-          archivedMemory.content +
-          '" was archived by direct chat instruction.',
-        reason,
-        beforeSnapshot: {
-          status: target.status,
-          content: target.content,
-          source: target.source,
-          importance: target.importance,
-        },
-        afterSnapshot: {
-          status: archivedMemory.status,
-          content: archivedMemory.content,
-          source: archivedMemory.source,
-          importance: archivedMemory.importance,
-        },
-        metadata: {
-          source: 'chat_directive',
-          requestedEntity: 'memory',
-          refersToLatest,
-        },
-      })
-
-      return [
-        'DIRECTIVE RESULT: SUCCESS.',
-        'The Key Memory "' +
-          archivedMemory.content +
-          '" was archived before this reply.',
-        'Do not claim it was permanently deleted.',
-      ].join(' ')
-    }
-
-  const archiveLatestDirectEntityFromChat =
-    async (
-      entity:
-        | 'thread'
-        | 'goal'
-        | 'belief'
-        | 'memory',
-      refersToLatest: boolean,
-    ): Promise<string> => {
-      if (entity === 'thread') {
-        return archiveLatestThreadFromChat(
-          refersToLatest,
-        )
-      }
-
-      if (entity === 'goal') {
-        return archiveLatestGoalFromChat(
-          refersToLatest,
-        )
-      }
-
-      if (entity === 'belief') {
-        return archiveLatestBeliefFromChat(
-          refersToLatest,
-        )
-      }
-
-      return archiveLatestKeyMemoryFromChat(
-        refersToLatest,
-      )
     }
 
   const updatePersistentEmotion =
@@ -6333,11 +5942,20 @@ export function LifeformChat({
         directCommandHandled = true
 
         try {
-          directCommandResult =
-            await archiveLatestDirectEntityFromChat(
-              directCommand.entity,
-              directCommand.refersToLatest,
-            )
+          if (
+            directCommand.entity === 'belief'
+          ) {
+            directCommandResult =
+              await archiveLatestBeliefFromChat(
+                directCommand.refersToLatest,
+              )
+          } else {
+            directCommandResult = [
+              'DIRECTIVE RESULT: NOT EXECUTED.',
+              'Direct archival is currently enabled for Beliefs only.',
+              'Do not claim that another entity was changed.',
+            ].join(' ')
+          }
         } catch (
           directCommandError: unknown
         ) {
