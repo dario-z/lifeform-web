@@ -6561,7 +6561,9 @@ export function LifeformChat({
         directCommandHandled
       ) {
         await persistAssistantMessage(
-          visibleAssistantResponse,
+          requiresVerifiedActionReply
+            ? visibleAssistantResponse
+            : assistantResponse,
         )
       }
 

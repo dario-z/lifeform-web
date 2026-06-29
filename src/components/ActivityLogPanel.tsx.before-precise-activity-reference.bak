@@ -255,10 +255,6 @@ export function ActivityLogPanel({
                       ' - ' +
                       event.action}
                   </span>
-
-                  <span>
-                    Ref {event.id.slice(0, 8)}
-                  </span>
                 </div>
 
                 <h3>

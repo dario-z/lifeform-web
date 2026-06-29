@@ -749,21 +749,15 @@ export function buildVerifiedActivityProvenanceLabel(
         : latest,
   )
 
-  const shortReference =
-    mostRecent.id.slice(0, 8)
-
   return [
-    '[Verified Activity Log',
-    mostRecent.entity_type +
-      '/' +
-      mostRecent.action,
-    formatActivityProvenanceTime(
-      mostRecent.created_at,
-    ),
-    'ref: ' + shortReference,
+    '[Based on verified Activity Log',
     events.length +
       ' matching event' +
-      (events.length === 1 ? '' : 's') +
+      (events.length === 1 ? '' : 's'),
+    'latest ' +
+      formatActivityProvenanceTime(
+        mostRecent.created_at,
+      ) +
       ']',
   ].join(' | ')
 }
