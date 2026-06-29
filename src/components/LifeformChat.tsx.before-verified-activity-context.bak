@@ -75,8 +75,6 @@ import {
   buildLifeformSelfModelContext,
 } from '../lib/lifeformCapabilities'
 import {
-  buildVerifiedActivityContext,
-  loadLifeformActivity,
   tryRecordLifeformActivity,
 } from '../lib/lifeformActivity'
 import {
@@ -6399,28 +6397,6 @@ export function LifeformChat({
             ].join(' ')
           : '')
 
-      let verifiedActivityContext = ''
-
-      try {
-        const recentVerifiedActivity =
-          await loadLifeformActivity(
-            lifeform.id,
-            8,
-          )
-
-        verifiedActivityContext =
-          buildVerifiedActivityContext(
-            recentVerifiedActivity,
-          )
-      } catch (
-        activityContextError: unknown
-      ) {
-        console.warn(
-          'Verified activity context was not available:',
-          activityContextError,
-        )
-      }
-
       const assistantResponse =
         await streamGeminiReplyWithModel({
           apiKey,
@@ -6430,13 +6406,12 @@ export function LifeformChat({
           attachment: attachment
             ? toGeminiAttachment(attachment)
             : null,
-          systemInstruction: [
-            buildSystemInstruction(),
-            verifiedActivityContext,
-            directiveInstruction,
-          ]
-            .filter(Boolean)
-            .join('\n\n'),
+          systemInstruction:
+            buildSystemInstruction() +
+            (directiveInstruction
+              ? '\n\n' +
+                directiveInstruction
+              : ''),
           onText:
             requiresVerifiedActionReply
               ? () => undefined
