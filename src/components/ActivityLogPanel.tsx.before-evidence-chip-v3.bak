@@ -13,7 +13,6 @@ import './ActivityLogPanel.css'
 type Props = {
   open: boolean
   lifeformId: string
-  highlightedEventIds: string[]
   onClose: () => void
 }
 
@@ -109,7 +108,6 @@ function formatEventTime(
 export function ActivityLogPanel({
   open,
   lifeformId,
-  highlightedEventIds,
   onClose,
 }: Props) {
   const [events, setEvents] = useState<
@@ -123,9 +121,6 @@ export function ActivityLogPanel({
     string | null
   >(null)
 
-  const highlightedEventIdsKey =
-    highlightedEventIds.join(',')
-
   const loadEvents = useCallback(
     async () => {
       setLoading(true)
@@ -135,7 +130,7 @@ export function ActivityLogPanel({
         const loaded =
           await loadLifeformActivity(
             lifeformId,
-            200,
+            80,
           )
 
         setEvents(loaded)
@@ -157,45 +152,6 @@ export function ActivityLogPanel({
 
     void loadEvents()
   }, [open, loadEvents])
-
-  useEffect(() => {
-    if (
-      !open ||
-      loading ||
-      highlightedEventIds.length === 0
-    ) {
-      return
-    }
-
-    const firstEventId =
-      highlightedEventIds[0]
-
-    if (!firstEventId) {
-      return
-    }
-
-    const frame =
-      window.requestAnimationFrame(() => {
-        document
-          .getElementById(
-            'activity-event-' +
-              firstEventId,
-          )
-          ?.scrollIntoView({
-            behavior: 'smooth',
-            block: 'center',
-          })
-      })
-
-    return () => {
-      window.cancelAnimationFrame(frame)
-    }
-  }, [
-    open,
-    loading,
-    events,
-    highlightedEventIdsKey,
-  ])
 
   return (
     <aside
@@ -276,17 +232,7 @@ export function ActivityLogPanel({
 
             return (
               <article
-                id={
-                  'activity-event-' +
-                  event.id
-                }
-                className={
-                  highlightedEventIds.includes(
-                    event.id,
-                  )
-                    ? 'activity-log-entry activity-log-entry-highlighted'
-                    : 'activity-log-entry'
-                }
+                className="activity-log-entry"
                 key={event.id}
               >
                 <div className="activity-log-meta">

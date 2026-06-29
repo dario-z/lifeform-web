@@ -75,6 +75,7 @@ import {
   buildLifeformSelfModelContext,
 } from '../lib/lifeformCapabilities'
 import {
+  buildVerifiedActivityProvenanceLabel,
   buildVerifiedActivitySearchContext,
   findRelevantVerifiedActivity,
   isLikelyActivityLookup,
@@ -1378,110 +1379,6 @@ function sortKeyMemories(
         ).getTime()
       )
     },
-  )
-}
-
-
-type MessageActivityEvidence = {
-  eventIds: string[]
-  matchedCount: number
-}
-
-function getMessageActivityEvidence(
-  metadata: unknown,
-): MessageActivityEvidence | null {
-  if (
-    !metadata ||
-    typeof metadata !== 'object' ||
-    Array.isArray(metadata)
-  ) {
-    return null
-  }
-
-  const messageMetadata =
-    metadata as Record<string, unknown>
-
-  const rawEvidence =
-    messageMetadata.activity_evidence
-
-  if (
-    !rawEvidence ||
-    typeof rawEvidence !== 'object' ||
-    Array.isArray(rawEvidence)
-  ) {
-    return null
-  }
-
-  const evidence =
-    rawEvidence as Record<string, unknown>
-
-  const rawEventIds =
-    evidence.event_ids
-
-  if (!Array.isArray(rawEventIds)) {
-    return null
-  }
-
-  const eventIds = [
-    ...new Set(
-      rawEventIds.filter(
-        (value): value is string =>
-          typeof value === 'string' &&
-          value.trim().length > 0,
-      ),
-    ),
-  ]
-
-  if (eventIds.length === 0) {
-    return null
-  }
-
-  const rawMatchedCount =
-    evidence.matched_count
-
-  const matchedCount =
-    typeof rawMatchedCount === 'number' &&
-    Number.isFinite(rawMatchedCount)
-      ? Math.max(
-          eventIds.length,
-          Math.floor(rawMatchedCount),
-        )
-      : eventIds.length
-
-  return {
-    eventIds,
-    matchedCount,
-  }
-}
-
-type ActivityEvidenceChipProps = {
-  metadata: unknown
-  onOpen: (eventIds: string[]) => void
-}
-
-function ActivityEvidenceChip({
-  metadata,
-  onOpen,
-}: ActivityEvidenceChipProps) {
-  const evidence =
-    getMessageActivityEvidence(metadata)
-
-  if (!evidence) {
-    return null
-  }
-
-  return (
-    <button
-      type="button"
-      className="activity-evidence-chip"
-      onClick={() =>
-        onOpen(evidence.eventIds)
-      }
-      title="Open verified Activity Log evidence"
-    >
-      Verified ? {evidence.matchedCount} event
-      {evidence.matchedCount === 1 ? '' : 's'}
-    </button>
   )
 }
 
@@ -6507,8 +6404,8 @@ export function LifeformChat({
 
       let verifiedActivityContext = ''
 
-      let verifiedActivityEvidenceEventIds:
-        string[] = []
+      let verifiedActivityProvenanceLabel =
+        ''
 
       if (
         isLikelyActivityLookup(
@@ -6535,9 +6432,9 @@ export function LifeformChat({
               cleanMessage,
             )
 
-          verifiedActivityEvidenceEventIds =
-            matchingVerifiedActivity.map(
-              (event) => event.id,
+          verifiedActivityProvenanceLabel =
+            buildVerifiedActivityProvenanceLabel(
+              matchingVerifiedActivity,
             )
         } catch (
           activityContextError: unknown
@@ -6580,6 +6477,14 @@ export function LifeformChat({
           'DIRECTIVE RESULT: SUCCESS.',
         )
 
+      const assistantResponseWithProvenance =
+        !requiresVerifiedActionReply &&
+        verifiedActivityProvenanceLabel
+          ? assistantResponse +
+            '\n\n' +
+            verifiedActivityProvenanceLabel
+          : assistantResponse
+
       const visibleAssistantResponse =
         requiresVerifiedActionReply
           ? buildPersistentActionReceipt({
@@ -6592,20 +6497,7 @@ export function LifeformChat({
                   : 'failed'
                 : 'pending',
             })
-          : assistantResponse
-
-      const assistantActivityEvidence =
-        !requiresVerifiedActionReply &&
-        verifiedActivityEvidenceEventIds.length > 0
-          ? {
-              source: 'activity_log',
-              event_ids:
-                verifiedActivityEvidenceEventIds,
-              matched_count:
-                verifiedActivityEvidenceEventIds.length,
-              query: cleanMessage,
-            }
-          : null
+          : assistantResponseWithProvenance
 
       const persistAssistantMessage =
         async (
@@ -6625,12 +6517,6 @@ export function LifeformChat({
                 provider: 'google',
                 model: selectedModel,
                 token_usage: replyTokenUsage,
-                ...(assistantActivityEvidence
-                  ? {
-                      activity_evidence:
-                        assistantActivityEvidence,
-                    }
-                  : {}),
               },
             })
             .select()
@@ -7549,11 +7435,6 @@ const [
     setActivityLogPanelOpen,
   ] = useState(false)
 
-const [
-    activityLogHighlightedEventIds,
-    setActivityLogHighlightedEventIds,
-  ] = useState<string[]>([])
-
   return (
     <main className="chat-page">
       <section className="chat-shell">
@@ -8135,19 +8016,6 @@ const [
 
                       {message.role ===
                         'assistant' && (
-                        <ActivityEvidenceChip
-                          metadata={message.metadata}
-                          onOpen={(eventIds) => {
-                            setActivityLogHighlightedEventIds(
-                              eventIds,
-                            )
-                            setActivityLogPanelOpen(true)
-                          }}
-                        />
-                      )}
-
-                      {message.role ===
-                        'assistant' && (
                         <div className="voice-message-actions">
                           <button
                             type="button"
@@ -8575,13 +8443,9 @@ const [
 <ActivityLogPanel
           open={activityLogPanelOpen}
           lifeformId={lifeform.id}
-          highlightedEventIds={
-            activityLogHighlightedEventIds
-          }
-          onClose={() => {
+          onClose={() =>
             setActivityLogPanelOpen(false)
-            setActivityLogHighlightedEventIds([])
-          }}
+          }
         />
 </main>
   )
