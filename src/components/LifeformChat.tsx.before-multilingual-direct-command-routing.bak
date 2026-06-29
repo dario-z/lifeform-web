@@ -128,10 +128,6 @@ import {
   getEmotionChipStyle,
 } from '../lib/emotionTheme'
 import { supabase } from '../lib/supabase'
-import {
-  detectLifeformDirectCommand,
-  getDirectiveEntityLabel,
-} from '../lib/lifeformDirectives'
 import type {
   EmotionalSensitivities,
   EmotionalState,
@@ -5452,120 +5448,11 @@ export function LifeformChat({
         'Beliefs are user-confirmed tentative perspectives. They are not objective truth and must never become assumptions about the user.',
         'Saved Dreams are symbolic fragments, not factual memories. If the user asks about Dreams, use the supplied Recent Dreams and do not invent unsaved Dreams.',
         'When interpreting Dreams, avoid making every interpretation tragic, grandiose or melodramatic. Some interpretations can be calm, playful, funny, mundane, absurd or unresolved.',
-        'When the user explicitly asks to create, save, update, archive or remove a Key Memory, Goal, Belief or Thread, follow any supplied DIRECTIVE ROUTING or DIRECTIVE RESULT exactly. Never substitute one entity type for another. Never say an action succeeded unless the directive result explicitly says SUCCESS.',
+        'If the user explicitly asks you to create, save, register or update a Key Memory, Goal, Belief or Thread, acknowledge that the application will save it after your reply. Do not falsely claim that it has already been saved before storage has completed.',
         'If a Key Memory conflicts with the latest explicit statement from the user, follow the latest statement and allow the memory system to update afterward.',
         'Do not pretend to have used tools, searched the web, opened files or performed actions unless those tools were actually provided in the request.',
         'Do not repeatedly announce that you are an AI unless it is directly relevant.',
       ].join('\n')
-    }
-
-
-  const archiveLatestBeliefFromChat =
-    async (
-      refersToLatest: boolean,
-    ): Promise<string> => {
-      const candidates =
-        beliefsRef.current
-          .filter(
-            (belief) =>
-              belief.status === 'active',
-          )
-          .sort(
-            (left, right) =>
-              new Date(
-                right.updated_at,
-              ).getTime() -
-              new Date(
-                left.updated_at,
-              ).getTime(),
-          )
-
-      const target =
-        candidates.length === 1 ||
-        refersToLatest
-          ? candidates[0] ?? null
-          : null
-
-      if (!target) {
-        return [
-          'DIRECTIVE RESULT: FAILED.',
-          'No unambiguous active Belief could be selected.',
-          'Ask the user to name the Belief or use the Beliefs panel.',
-        ].join(' ')
-      }
-
-      const now = new Date().toISOString()
-
-      const reason =
-        'Archived by an explicit multilingual chat directive from the user.'
-
-      const { data, error } = await supabase
-        .from('lifeform_beliefs')
-        .update({
-          status: 'archived',
-          status_reason: reason,
-          updated_at: now,
-          archived_at:
-            target.archived_at ?? now,
-        })
-        .eq('id', target.id)
-        .eq('lifeform_id', lifeform.id)
-        .select()
-        .single()
-
-      if (error) {
-        throw error
-      }
-
-      if (!data) {
-        throw new Error(
-          'The archived Belief was not returned.',
-        )
-      }
-
-      const archivedBelief =
-        data as LifeformBelief
-
-      commitBeliefs([
-        ...beliefsRef.current.filter(
-          (belief) => belief.id !== target.id,
-        ),
-        archivedBelief,
-      ])
-
-      await tryRecordLifeformActivity({
-        userId: lifeform.user_id,
-        lifeformId: lifeform.id,
-        actor: 'user',
-        entityType: 'belief',
-        action: 'archived',
-        targetId: archivedBelief.id,
-        summary:
-          'Belief "' +
-          archivedBelief.content +
-          '" was archived by direct chat instruction.',
-        reason,
-        beforeSnapshot: {
-          status: target.status,
-          content: target.content,
-        },
-        afterSnapshot: {
-          status: archivedBelief.status,
-          content: archivedBelief.content,
-        },
-        metadata: {
-          source: 'chat_directive',
-          refersToLatest,
-        },
-      })
-
-      return [
-        'DIRECTIVE RESULT: SUCCESS.',
-        'The Belief "' +
-          archivedBelief.content +
-          '" was archived before this reply.',
-        'Do not claim it was permanently deleted.',
-      ].join(' ')
     }
 
   const updatePersistentEmotion =
@@ -5825,13 +5712,6 @@ export function LifeformChat({
           content: message.content,
         }))
 
-    const directCommand =
-      !attachment
-        ? detectLifeformDirectCommand(
-            cleanMessage,
-          )
-        : null
-
     const explicitSaveIntent =
       !attachment
         ? getExplicitSaveIntent(
@@ -5839,22 +5719,14 @@ export function LifeformChat({
           )
         : null
 
-    const requestedPersistentKind =
-      directCommand?.operation === 'create'
-        ? directCommand.entity
-        : directCommand?.operation ===
-          'archive'
-          ? null
-          : explicitSaveIntent?.kind ?? null
-
     const explicitMemoryLikeRequest =
-      requestedPersistentKind === 'memory' ||
-      requestedPersistentKind === 'goal' ||
-      requestedPersistentKind === 'belief' ||
-      requestedPersistentKind === 'auto'
+      explicitSaveIntent?.kind === 'memory' ||
+      explicitSaveIntent?.kind === 'goal' ||
+      explicitSaveIntent?.kind === 'belief' ||
+      explicitSaveIntent?.kind === 'auto'
 
     const explicitThreadRequest =
-      requestedPersistentKind === 'thread'
+      explicitSaveIntent?.kind === 'thread'
 
     let immediateReaction:
       | {
@@ -5866,10 +5738,6 @@ export function LifeformChat({
     let replyTokenUsage: GeminiTokenUsage = {
       ...EMPTY_GEMINI_TOKEN_USAGE,
     }
-
-    let directCommandHandled = false
-
-    let directCommandResult = ''
 
     stopVoicePlayback()
     clearImmediateReaction()
@@ -5935,56 +5803,6 @@ export function LifeformChat({
         attachmentInputRef.current.value = ''
       }
 
-      if (
-        !attachment &&
-        directCommand?.operation === 'archive'
-      ) {
-        directCommandHandled = true
-
-        try {
-          if (
-            directCommand.entity === 'belief'
-          ) {
-            directCommandResult =
-              await archiveLatestBeliefFromChat(
-                directCommand.refersToLatest,
-              )
-          } else {
-            directCommandResult = [
-              'DIRECTIVE RESULT: NOT EXECUTED.',
-              'Direct archival is currently enabled for Beliefs only.',
-              'Do not claim that another entity was changed.',
-            ].join(' ')
-          }
-        } catch (
-          directCommandError: unknown
-        ) {
-          directCommandResult = [
-            'DIRECTIVE RESULT: FAILED.',
-            getErrorMessage(
-              directCommandError,
-            ),
-            'Do not claim the requested change succeeded.',
-          ].join(' ')
-        }
-      }
-
-      const directiveInstruction =
-        directCommandResult ||
-        (directCommand?.operation === 'create'
-          ? [
-              'DIRECTIVE ROUTING:',
-              'The user explicitly requested creation of a ' +
-                getDirectiveEntityLabel(
-                  directCommand.entity,
-                ) +
-                '.',
-              'Route this request only to that exact persistent entity type.',
-              'Do not substitute a Goal, Belief or Key Memory for a Thread request.',
-              'Do not describe the item as already saved until the application confirms storage.',
-            ].join(' ')
-          : '')
-
       const assistantResponse =
         await streamGeminiReplyWithModel({
           apiKey,
@@ -5995,11 +5813,7 @@ export function LifeformChat({
             ? toGeminiAttachment(attachment)
             : null,
           systemInstruction:
-            buildSystemInstruction() +
-            (directiveInstruction
-              ? '\n\n' +
-                directiveInstruction
-              : ''),
+            buildSystemInstruction(),
           onText: setStreamingText,
           onUsage: (usage) => {
             replyTokenUsage = usage
@@ -6128,7 +5942,7 @@ export function LifeformChat({
 
           if (
             requestedMemoryInput &&
-            requestedPersistentKind === 'goal'
+            explicitSaveIntent?.kind === 'goal'
           ) {
             requestedMemoryInput =
               normalizeKeyMemoryInput({
@@ -6139,7 +5953,7 @@ export function LifeformChat({
 
           if (
             requestedMemoryInput &&
-            requestedPersistentKind === 'belief'
+            explicitSaveIntent?.kind === 'belief'
           ) {
             requestedMemoryInput =
               normalizeKeyMemoryInput({
@@ -6158,8 +5972,7 @@ export function LifeformChat({
 
         if (
           !attachment &&
-          !explicitSaveIntent &&
-          !directCommandHandled
+          !explicitSaveIntent
         ) {
           try {
             const reconciliation =
@@ -6224,7 +6037,6 @@ export function LifeformChat({
 
         const shouldCheckThread =
           !explicitSaveIntent &&
-          !directCommandHandled &&
           !lifecycleMutated &&
           !pendingProposalRef.current &&
           !pendingThreadProposalRef.current &&
@@ -6371,7 +6183,6 @@ export function LifeformChat({
                 requestedMemoryInput,
               )
             } else if (
-              !directCommandHandled &&
               shouldQueueAutonomousMemoryProposal({
                 candidate: analysis.memoryCandidate,
                 userMessage: storedUserMessage,
