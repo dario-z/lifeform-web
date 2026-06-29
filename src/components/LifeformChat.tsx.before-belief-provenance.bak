@@ -2429,7 +2429,7 @@ export function LifeformChat({
         const { data, error } = await supabase
           .from('lifeform_beliefs')
           .select(
-            'id,user_id,lifeform_id,content,importance,status,status_reason,source,confidence,created_at,updated_at,last_confirmed_at,superseded_by_id,archived_at',
+            'id,user_id,lifeform_id,content,importance,status,status_reason,source,created_at,updated_at,last_confirmed_at,superseded_by_id,archived_at',
           )
           .eq('lifeform_id', lifeform.id)
           .order('updated_at', {
@@ -4082,20 +4082,6 @@ export function LifeformChat({
       )
     }
 
-    const now = new Date().toISOString()
-
-    const beliefConfidence =
-      source === 'manual'
-        ? 'high'
-        : source === 'migrated'
-          ? 'tentative'
-          : 'medium'
-
-    const beliefLastConfirmedAt =
-      source === 'manual'
-        ? now
-        : null
-
     const currentBeliefs = beliefsRef.current
     const similar = findSimilarIdentityItem(
       currentBeliefs,
@@ -4112,15 +4098,8 @@ export function LifeformChat({
             importance,
           ),
           source,
-          confidence:
-            source === 'manual'
-              ? beliefConfidence
-              : similar.confidence,
-          last_confirmed_at:
-            source === 'manual'
-              ? beliefLastConfirmedAt
-              : similar.last_confirmed_at,
-          updated_at: now,
+          updated_at:
+            new Date().toISOString(),
         })
         .eq('id', similar.id)
         .eq('lifeform_id', lifeform.id)
@@ -4166,9 +4145,6 @@ export function LifeformChat({
         importance,
         status: 'active',
         source,
-        confidence: beliefConfidence,
-        last_confirmed_at:
-          beliefLastConfirmedAt,
       })
       .select()
       .single()
@@ -5237,55 +5213,6 @@ export function LifeformChat({
     }
   }
 
-
-  const handleConfirmBelief = async (
-    belief: LifeformBelief,
-  ) => {
-    const now = new Date().toISOString()
-
-    setSavingBeliefId(belief.id)
-    setBeliefsError(null)
-
-    try {
-      const {
-        data,
-        error: updateError,
-      } = await supabase
-        .from('lifeform_beliefs')
-        .update({
-          confidence: 'high',
-          last_confirmed_at: now,
-        })
-        .eq('id', belief.id)
-        .eq('lifeform_id', lifeform.id)
-        .select()
-        .single()
-
-      if (updateError) {
-        throw updateError
-      }
-
-      if (!data) {
-        throw new Error(
-          'The confirmed Belief was not returned.',
-        )
-      }
-
-      commitBeliefs([
-        ...beliefsRef.current.filter(
-          (item) => item.id !== belief.id,
-        ),
-        data as LifeformBelief,
-      ])
-    } catch (confirmError: unknown) {
-      setBeliefsError(
-        getErrorMessage(confirmError),
-      )
-      throw confirmError
-    } finally {
-      setSavingBeliefId(null)
-    }
-  }
 
   const handleBeliefStatusChange = async (
     belief: LifeformBelief,
@@ -8709,9 +8636,6 @@ const [
           }
           onStatusChange={
             handleBeliefStatusChange
-          }
-          onConfirm={
-            handleConfirmBelief
           }
         />
 

@@ -58,7 +58,6 @@ export type LifeformBelief = {
   status: LifeformBeliefStatus
   status_reason: string
   source: 'proposal' | 'manual' | 'migrated'
-  confidence: IdentityConfidence
   created_at: string
   updated_at: string
   last_confirmed_at: string | null

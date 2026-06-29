@@ -8,59 +8,6 @@ import {
 } from '../lib/lifeformIdentity'
 import './LifeformIdentityPanels.css'
 
-
-function getBeliefOriginLabel(
-  source: LifeformBelief['source'],
-): string {
-  if (source === 'manual') {
-    return 'Origin: User confirmed'
-  }
-
-  if (source === 'proposal') {
-    return 'Origin: Lifeform proposal'
-  }
-
-  return 'Origin: Migrated'
-}
-
-function getBeliefConfidenceLabel(
-  confidence: LifeformBelief['confidence'],
-): string {
-  if (confidence === 'high') {
-    return 'Confidence: High'
-  }
-
-  if (confidence === 'tentative') {
-    return 'Confidence: Tentative'
-  }
-
-  return 'Confidence: Medium'
-}
-
-function formatBeliefConfirmation(
-  value: string | null,
-): string {
-  if (!value) {
-    return 'Not confirmed'
-  }
-
-  const date = new Date(value)
-
-  if (Number.isNaN(date.getTime())) {
-    return 'Not confirmed'
-  }
-
-  return (
-    'Confirmed ' +
-    new Intl.DateTimeFormat(
-      'en-GB',
-      {
-        dateStyle: 'medium',
-        timeStyle: 'short',
-      },
-    ).format(date)
-  )
-}
 type Props = {
   open: boolean
   beliefs: LifeformBelief[]
@@ -72,9 +19,6 @@ type Props = {
     belief: LifeformBelief,
     status: LifeformBeliefStatus,
   ) => void
-  onConfirm: (
-    belief: LifeformBelief,
-  ) => Promise<void>
 }
 
 export function BeliefsPanel({
@@ -85,7 +29,6 @@ export function BeliefsPanel({
   error,
   onClose,
   onStatusChange,
-  onConfirm,
 }: Props) {
   const active = beliefs.filter(
     (belief) => belief.status === 'active',
@@ -156,99 +99,9 @@ export function BeliefsPanel({
                     <span>{belief.importance}%</span>
                   </div>
 
-                  <div className="lifeform-belief-provenance">
-
-
-                    <span>
-
-
-                      {getBeliefOriginLabel(
-
-
-                        belief.source,
-
-
-                      )}
-
-
-                    </span>
-
-
-
-                    <span>
-
-
-                      {getBeliefConfidenceLabel(
-
-
-                        belief.confidence,
-
-
-                      )}
-
-
-                    </span>
-
-
-
-                    <span>
-
-
-                      {formatBeliefConfirmation(
-
-
-                        belief.last_confirmed_at,
-
-
-                      )}
-
-
-                    </span>
-
-
-                  </div>
-
-
-
                   <p>{belief.content}</p>
 
                   <div className="lifeform-identity-actions">
-
-
-                    <button
-
-
-                      type="button"
-
-
-                      className="text-button"
-
-
-                      disabled={saving}
-
-
-                      onClick={() =>
-
-
-                        void onConfirm(belief)
-
-
-                      }
-
-
-                    >
-
-
-                      {belief.last_confirmed_at
-
-
-                        ? 'Reconfirm'
-
-
-                        : 'Confirm'}
-
-
-                    </button>
                     {belief.status === 'active' && (
                       <button
                         type="button"
