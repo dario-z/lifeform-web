@@ -6710,15 +6710,35 @@ export function LifeformChat({
           content: message.content,
         }))
 
-    const directCommand =
+    const detectedDirectCommand =
       !attachment
         ? detectLifeformDirectCommand(
             cleanMessage,
           )
         : null
 
+    /*
+     * A user can mention a completed technical change without
+     * asking Lili to execute a persistent action. For example:
+     * "Ho fatto una modifica alle Key Memories".
+     *
+     * Such reports must remain ordinary conversation. They must
+     * never suppress Gemini's visible reply or trigger a save.
+     */
+    const reportsPersistentChange =
+      !attachment &&
+      /^(?:io\s+)?(?:ho|abbiamo)\s+(?:appena\s+)?(?:fatto|eseguito|applicato|installato|aggiunto|creato|modificato|aggiornato)\b/i.test(
+        cleanMessage,
+      )
+
+    const directCommand =
+      reportsPersistentChange
+        ? null
+        : detectedDirectCommand
+
     const explicitSaveIntent =
-      !attachment
+      !attachment &&
+      !reportsPersistentChange
         ? getExplicitSaveIntent(
             cleanMessage,
           )
@@ -6758,8 +6778,20 @@ export function LifeformChat({
     const explicitThreadRequest =
       requestedPersistentKind === 'thread'
 
+    /*
+     * The generic truth classifier is intentionally broad, but it
+     * cannot be allowed to hide a normal reply on its own.
+     * A visible reply is deferred only when the application has
+     * an actual persistence route to execute.
+     */
+    const hasPersistentActionRoute =
+      Boolean(directCommand) ||
+      explicitMemoryLikeRequest ||
+      explicitThreadRequest
+
     const requiresVerifiedActionReply =
       !attachment &&
+      hasPersistentActionRoute &&
       requiresVerifiedPersistentReply(
         cleanMessage,
       )
