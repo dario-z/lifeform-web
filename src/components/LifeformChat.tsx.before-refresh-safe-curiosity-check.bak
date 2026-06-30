@@ -7756,86 +7756,8 @@ export function LifeformChat({
           return
         }
 
-        const {
-          data: latestUserMessage,
-          error: latestUserMessageError,
-        } = await supabase
-          .from('messages')
-          .select('id,created_at')
-          .eq(
-            'lifeform_id',
-            lifeform.id,
-          )
-          .eq('role', 'user')
-          .order('created_at', {
-            ascending: false,
-          })
-          .limit(1)
-          .maybeSingle()
-
-        if (latestUserMessageError) {
-          throw latestUserMessageError
-        }
-
-        if (!latestUserMessage) {
-          lastUserMessageAtRef.current =
-            null
-
-          lastObservedUserMessageIdRef.current =
-            null
-
-          return
-        }
-
-        const lastUserMessageAt = new Date(
-          latestUserMessage.created_at,
-        ).getTime()
-
-        if (
-          !Number.isFinite(
-            lastUserMessageAt,
-          )
-        ) {
-          return
-        }
-
-        lastUserMessageAtRef.current =
-          lastUserMessageAt
-
-        const openQuestion =
-          curiosityQuestionsRef.current.find(
-            (question) =>
-              question.status === 'asked',
-          )
-
-        const openQuestionAskedAt =
-          openQuestion
-            ? new Date(
-                openQuestion.asked_at,
-              ).getTime()
-            : null
-
-        if (
-          openQuestion &&
-          openQuestionAskedAt !== null &&
-          Number.isFinite(
-            openQuestionAskedAt,
-          ) &&
-          lastUserMessageAt >
-            openQuestionAskedAt
-        ) {
-          await markOpenCuriosityQuestionAnswered(
-            latestUserMessage.id,
-          )
-
-          lastObservedUserMessageIdRef.current =
-            latestUserMessage.id
-
-          return
-        }
-
-        lastObservedUserMessageIdRef.current =
-          latestUserMessage.id
+        const lastUserMessageAt =
+          lastUserMessageAtRef.current
 
         if (
           !canAskCuriosityQuestion({
@@ -8081,7 +8003,7 @@ export function LifeformChat({
           curiosityGenerationError: unknown
         ) {
           console.warn(
-            'Curiosity eligibility re-check failed:',
+            'Curiosity question was not sent:',
             curiosityGenerationError,
           )
         } finally {
@@ -8105,19 +8027,10 @@ export function LifeformChat({
     )
 
   useEffect(() => {
-    const runCuriosityCheck = () => {
-      void maybeAskCuriosityQuestion()
-    }
-
-    /*
-     * Important for page refreshes:
-     * after data loads, check immediately instead of waiting
-     * a full extra minute for the first interval tick.
-     */
-    runCuriosityCheck()
-
     const intervalId = window.setInterval(
-      runCuriosityCheck,
+      () => {
+        void maybeAskCuriosityQuestion()
+      },
       60 * 1000,
     )
 
