@@ -7,5 +7,5 @@ cd /d C:\Projects\lifeform-web
 npm run build
 git status --short
 git add .
-git commit -m "female male 2"
+git commit -m "confidence ratings 5"
 git push

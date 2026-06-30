@@ -1,0 +1,745 @@
+Dream validator source snapshot
+Generated: 2026-06-30T08:18:43.927Z
+
+============================================================
+MARKER: function validateDreamOutput
+============================================================
+  195 |     )
+  196 |     .filter(Boolean)
+  197 | }
+  198 | 
+  199 | type ValidDreamOutput = {
+  200 |   title: string
+  201 |   dreamText: string
+  202 |   localizedAnchor: string
+  203 | }
+  204 | 
+  205 | function validateDreamOutput(options: {
+  206 |   parsed: RawDreamResponse
+  207 |   sourceAnchor: string
+  208 |   lifeformLanguage: string
+  209 | }): ValidDreamOutput {
+  210 |   const {
+  211 |     parsed,
+  212 |     sourceAnchor,
+  213 |     lifeformLanguage,
+  214 |   } = options
+  215 | 
+  216 |   const title = normalizeTitle(
+  217 |     parsed.title,
+  218 |   )
+  219 | 
+  220 |   const dreamText =
+  221 |     normalizeDreamText(
+  222 |       parsed.dreamText ??
+  223 |         parsed.dream,
+  224 |     )
+  225 | 
+  226 |   const localizedAnchor =
+  227 |     normalizeText(
+  228 |       parsed.randomAnchor,
+  229 |     ).slice(
+  230 |       0,
+  231 |       MAX_LOCALIZED_ANCHOR_LENGTH,
+  232 |     )
+  233 | 
+  234 |   if (!dreamText) {
+  235 |     throw new Error(
+  236 |       'Dream generation returned an empty dream.',
+  237 |     )
+  238 |   }
+  239 | 
+  240 |   const wordCount =
+  241 |     countWords(dreamText)
+  242 | 
+  243 |   if (
+  244 |     wordCount < DREAM_WORD_MINIMUM ||
+  245 |     wordCount > DREAM_WORD_MAXIMUM
+  246 |   ) {
+  247 |     throw new Error(
+  248 |       'Dream must contain ' +
+  249 |         String(DREAM_WORD_MINIMUM) +
+  250 |         ' to ' +
+  251 |         String(DREAM_WORD_MAXIMUM) +
+  252 |         ' words; received ' +
+  253 |         String(wordCount) +
+  254 |         '.',
+  255 |     )
+  256 |   }
+  257 | 
+  258 |   if (!localizedAnchor) {
+  259 |     throw new Error(
+  260 |       'Dream generation returned no localized anchor.',
+  261 |     )
+  262 |   }
+  263 | 
+  264 |   if (
+  265 |     !isEnglishLanguage(
+  266 |       lifeformLanguage,
+  267 |     ) &&
+  268 |     localizedAnchor.toLocaleLowerCase() ===
+  269 |       sourceAnchor.toLocaleLowerCase()
+  270 |   ) {
+  271 |     throw new Error(
+  272 |       'Dream generation kept the raw English source anchor instead of localizing it.',
+  273 |     )
+  274 |   }
+  275 | 
+  276 |   const sentences =
+  277 |     getSentences(dreamText)
+  278 | 
+  279 |   if (
+  280 |     sentences.length >
+  281 |     MAX_DREAM_SENTENCES
+  282 |   ) {
+  283 |     throw new Error(
+  284 |       'Dream must contain at most ' +
+  285 |         String(MAX_DREAM_SENTENCES) +
+  286 |         ' sentences; received ' +
+  287 |         String(sentences.length) +
+  288 |         '.',
+  289 |     )
+  290 |   }
+  291 | 
+  292 |   const lastSentence =
+  293 |     sentences[sentences.length - 1] ?? ''
+  294 | 
+  295 |   if (
+  296 |     hasExplanatoryDreamEnding(
+  297 |       lastSentence,
+  298 |     )
+  299 |   ) {
+  300 |     throw new Error(
+  301 |       'Dream ends with an explanation, interpretation or thematic recap.',
+  302 |     )
+  303 |   }
+  304 | 
+  305 |   if (
+  306 |     countMelodramaticDreamTerms(
+  307 |       dreamText,
+  308 |     ) >= 2
+  309 |   ) {
+  310 |     throw new Error(
+  311 |       'Dream uses too much melodramatic or mystical vocabulary.',
+  312 |     )
+  313 |   }
+  314 | 
+  315 |   if (
+  316 |     !normalizeDreamComparisonText(
+  317 |       dreamText,
+  318 |     ).includes(
+  319 |       normalizeDreamComparisonText(
+  320 |         localizedAnchor,
+  321 |       ),
+  322 |     )
+  323 |   ) {
+  324 |     throw new Error(
+  325 |       'The localized anchor must appear naturally at least once in the Dream.',
+  326 |     )
+  327 |   }
+  328 | 
+  329 |   return {
+  330 |     title,
+  331 |     dreamText,
+  332 |     localizedAnchor,
+  333 |   }
+  334 | }
+  335 | 
+  336 | async function requestDreamResponse(options: {
+  337 |   client: GoogleGenAI
+  338 |   model: GeminiModelId
+  339 |   prompt: string
+  340 | }): Promise<RawDreamResponse> {
+  341 |   const {
+  342 |     client,
+  343 |     model,
+  344 |     prompt,
+  345 |   } = options
+  346 | 
+  347 |   const response =
+  348 |     await client.models.generateContent({
+  349 |       model,
+  350 |       contents: prompt,
+  351 |       config: {
+  352 |         responseMimeType:
+  353 |           'application/json',
+  354 |         responseSchema:
+  355 |           dreamResponseSchema,
+  356 |         maxOutputTokens: 240,
+  357 |         temperature: 0.9,
+  358 |       } as any,
+  359 |     })
+  360 | 
+  361 |   const responseText =
+  362 |     response.text?.trim()
+  363 | 
+  364 |   if (!responseText) {
+  365 |     throw new Error(
+  366 |       'Dream generation returned no text.',
+  367 |     )
+  368 |   }
+  369 | 
+  370 |   return JSON.parse(
+  371 |     responseText,
+  372 |   ) as RawDreamResponse
+  373 | }
+  374 | 
+  375 | export function getLocalDreamDate(
+  376 |   date = new Date(),
+  377 | ): string {
+  378 |   const year = date.getFullYear()
+  379 |   const month = String(
+  380 |     date.getMonth() + 1,
+  381 |   ).padStart(2, '0')
+  382 |   const day = String(
+  383 |     date.getDate(),
+  384 |   ).padStart(2, '0')
+  385 | 
+
+MARKER NOT FOUND: const validateDreamOutput
+
+============================================================
+MARKER: function normalize
+============================================================
+   88 |   'infinito',
+   89 |   'oscur',
+   90 |   'eco',
+   91 |   'dimenticat',
+   92 |   'battito',
+   93 |   'malincon',
+   94 | ] as const
+   95 | 
+   96 | function normalizeDreamComparisonText(
+   97 |   value: string,
+   98 | ): string {
+   99 |   return value
+  100 |     .toLocaleLowerCase()
+  101 |     .normalize('NFD')
+  102 |     .replace(/[\u0300-\u036f]/g, '')
+  103 | }
+  104 | 
+  105 | function countMelodramaticDreamTerms(
+  106 |   value: string,
+  107 | ): number {
+  108 |   const normalized =
+  109 |     normalizeDreamComparisonText(value)
+  110 | 
+  111 |   return DREAM_MELODRAMATIC_TERMS.filter(
+  112 |     (term) => normalized.includes(term),
+  113 |   ).length
+  114 | }
+  115 | 
+  116 | function hasExplanatoryDreamEnding(
+  117 |   value: string,
+  118 | ): boolean {
+  119 |   return DREAM_EXPLANATORY_ENDING_PATTERNS.some(
+  120 |     (pattern) => pattern.test(value),
+  121 |   )
+  122 | }
+  123 | 
+  124 | 
+  125 | const DREAM_LANGUAGE_NAMES: Record<
+  126 |   string,
+  127 |   string
+  128 | > = {
+  129 |   it: 'Italian',
+  130 |   en: 'English',
+  131 |   fr: 'French',
+  132 |   de: 'German',
+  133 |   es: 'Spanish',
+  134 | }
+  135 | 
+  136 | function countWords(value: string): number {
+  137 |   return value
+  138 |     .trim()
+  139 |     .split(/\s+/)
+  140 |     .filter(Boolean).length
+  141 | }
+  142 | 
+  143 | function normalizeText(
+  144 |   value: unknown,
+  145 |   fallback = '',
+  146 | ): string {
+  147 |   if (typeof value !== 'string') {
+  148 |     return fallback
+  149 |   }
+  150 | 
+  151 |   return value
+  152 |     .replace(/\s+/g, ' ')
+  153 |     .trim()
+  154 | }
+  155 | 
+  156 | function normalizeTitle(value: unknown): string {
+  157 |   const title = normalizeText(value)
+  158 | 
+  159 |   if (!title) {
+  160 |     return 'Untitled Dream'
+  161 |   }
+  162 | 
+  163 |   return title.slice(0, 80)
+  164 | }
+  165 | 
+  166 | function normalizeDreamText(value: unknown): string {
+  167 |   return normalizeText(value).slice(0, 900)
+  168 | }
+  169 | 
+  170 | function getDreamLanguageName(
+  171 |   language: string,
+  172 | ): string {
+  173 |   return (
+  174 |     DREAM_LANGUAGE_NAMES[
+  175 |       language.toLowerCase()
+  176 |     ] ?? language
+  177 |   )
+  178 | }
+  179 | 
+  180 | function isEnglishLanguage(
+  181 |   language: string,
+  182 | ): boolean {
+  183 |   return language.toLowerCase() === 'en'
+  184 | }
+  185 | 
+  186 | function getSentences(
+
+============================================================
+MARKER: localizedAnchor
+============================================================
+  172 | ): string {
+  173 |   return (
+  174 |     DREAM_LANGUAGE_NAMES[
+  175 |       language.toLowerCase()
+  176 |     ] ?? language
+  177 |   )
+  178 | }
+  179 | 
+  180 | function isEnglishLanguage(
+  181 |   language: string,
+  182 | ): boolean {
+  183 |   return language.toLowerCase() === 'en'
+  184 | }
+  185 | 
+  186 | function getSentences(
+  187 |   text: string,
+  188 | ): string[] {
+  189 |   return (
+  190 |     text.match(/[^.!?…]+[.!?…]*/gu) ??
+  191 |     [text]
+  192 |   )
+  193 |     .map((sentence) =>
+  194 |       sentence.trim(),
+  195 |     )
+  196 |     .filter(Boolean)
+  197 | }
+  198 | 
+  199 | type ValidDreamOutput = {
+  200 |   title: string
+  201 |   dreamText: string
+  202 |   localizedAnchor: string
+  203 | }
+  204 | 
+  205 | function validateDreamOutput(options: {
+  206 |   parsed: RawDreamResponse
+  207 |   sourceAnchor: string
+  208 |   lifeformLanguage: string
+  209 | }): ValidDreamOutput {
+  210 |   const {
+  211 |     parsed,
+  212 |     sourceAnchor,
+  213 |     lifeformLanguage,
+  214 |   } = options
+  215 | 
+  216 |   const title = normalizeTitle(
+  217 |     parsed.title,
+  218 |   )
+  219 | 
+  220 |   const dreamText =
+  221 |     normalizeDreamText(
+  222 |       parsed.dreamText ??
+  223 |         parsed.dream,
+  224 |     )
+  225 | 
+  226 |   const localizedAnchor =
+  227 |     normalizeText(
+  228 |       parsed.randomAnchor,
+  229 |     ).slice(
+  230 |       0,
+  231 |       MAX_LOCALIZED_ANCHOR_LENGTH,
+  232 |     )
+  233 | 
+  234 |   if (!dreamText) {
+  235 |     throw new Error(
+  236 |       'Dream generation returned an empty dream.',
+  237 |     )
+  238 |   }
+  239 | 
+  240 |   const wordCount =
+  241 |     countWords(dreamText)
+  242 | 
+  243 |   if (
+  244 |     wordCount < DREAM_WORD_MINIMUM ||
+  245 |     wordCount > DREAM_WORD_MAXIMUM
+  246 |   ) {
+  247 |     throw new Error(
+  248 |       'Dream must contain ' +
+  249 |         String(DREAM_WORD_MINIMUM) +
+  250 |         ' to ' +
+  251 |         String(DREAM_WORD_MAXIMUM) +
+  252 |         ' words; received ' +
+  253 |         String(wordCount) +
+  254 |         '.',
+  255 |     )
+  256 |   }
+  257 | 
+  258 |   if (!localizedAnchor) {
+  259 |     throw new Error(
+  260 |       'Dream generation returned no localized anchor.',
+  261 |     )
+  262 |   }
+  263 | 
+  264 |   if (
+  265 |     !isEnglishLanguage(
+  266 |       lifeformLanguage,
+  267 |     ) &&
+  268 |     localizedAnchor.toLocaleLowerCase() ===
+  269 |       sourceAnchor.toLocaleLowerCase()
+  270 |   ) {
+  271 |     throw new Error(
+  272 |       'Dream generation kept the raw English source anchor instead of localizing it.',
+  273 |     )
+  274 |   }
+  275 | 
+  276 |   const sentences =
+  277 |     getSentences(dreamText)
+  278 | 
+  279 |   if (
+  280 |     sentences.length >
+  281 |     MAX_DREAM_SENTENCES
+  282 |   ) {
+  283 |     throw new Error(
+  284 |       'Dream must contain at most ' +
+  285 |         String(MAX_DREAM_SENTENCES) +
+  286 |         ' sentences; received ' +
+  287 |         String(sentences.length) +
+  288 |         '.',
+  289 |     )
+  290 |   }
+  291 | 
+  292 |   const lastSentence =
+  293 |     sentences[sentences.length - 1] ?? ''
+  294 | 
+  295 |   if (
+  296 |     hasExplanatoryDreamEnding(
+  297 |       lastSentence,
+  298 |     )
+  299 |   ) {
+  300 |     throw new Error(
+  301 |       'Dream ends with an explanation, interpretation or thematic recap.',
+  302 |     )
+  303 |   }
+  304 | 
+  305 |   if (
+  306 |     countMelodramaticDreamTerms(
+  307 |       dreamText,
+  308 |     ) >= 2
+  309 |   ) {
+  310 |     throw new Error(
+  311 |       'Dream uses too much melodramatic or mystical vocabulary.',
+  312 |     )
+  313 |   }
+  314 | 
+  315 |   if (
+  316 |     !normalizeDreamComparisonText(
+  317 |       dreamText,
+  318 |     ).includes(
+  319 |       normalizeDreamComparisonText(
+  320 |         localizedAnchor,
+  321 |       ),
+  322 |     )
+  323 |   ) {
+  324 |     throw new Error(
+  325 |       'The localized anchor must appear naturally at least once in the Dream.',
+  326 |     )
+  327 |   }
+  328 | 
+  329 |   return {
+  330 |     title,
+  331 |     dreamText,
+  332 |     localizedAnchor,
+  333 |   }
+  334 | }
+  335 | 
+  336 | async function requestDreamResponse(options: {
+  337 |   client: GoogleGenAI
+  338 |   model: GeminiModelId
+  339 |   prompt: string
+  340 | }): Promise<RawDreamResponse> {
+  341 |   const {
+  342 |     client,
+  343 |     model,
+  344 |     prompt,
+  345 |   } = options
+  346 | 
+  347 |   const response =
+  348 |     await client.models.generateContent({
+  349 |       model,
+  350 |       contents: prompt,
+  351 |       config: {
+  352 |         responseMimeType:
+
+============================================================
+MARKER: sourceAnchor
+============================================================
+  177 |   )
+  178 | }
+  179 | 
+  180 | function isEnglishLanguage(
+  181 |   language: string,
+  182 | ): boolean {
+  183 |   return language.toLowerCase() === 'en'
+  184 | }
+  185 | 
+  186 | function getSentences(
+  187 |   text: string,
+  188 | ): string[] {
+  189 |   return (
+  190 |     text.match(/[^.!?…]+[.!?…]*/gu) ??
+  191 |     [text]
+  192 |   )
+  193 |     .map((sentence) =>
+  194 |       sentence.trim(),
+  195 |     )
+  196 |     .filter(Boolean)
+  197 | }
+  198 | 
+  199 | type ValidDreamOutput = {
+  200 |   title: string
+  201 |   dreamText: string
+  202 |   localizedAnchor: string
+  203 | }
+  204 | 
+  205 | function validateDreamOutput(options: {
+  206 |   parsed: RawDreamResponse
+  207 |   sourceAnchor: string
+  208 |   lifeformLanguage: string
+  209 | }): ValidDreamOutput {
+  210 |   const {
+  211 |     parsed,
+  212 |     sourceAnchor,
+  213 |     lifeformLanguage,
+  214 |   } = options
+  215 | 
+  216 |   const title = normalizeTitle(
+  217 |     parsed.title,
+  218 |   )
+  219 | 
+  220 |   const dreamText =
+  221 |     normalizeDreamText(
+  222 |       parsed.dreamText ??
+  223 |         parsed.dream,
+  224 |     )
+  225 | 
+  226 |   const localizedAnchor =
+  227 |     normalizeText(
+  228 |       parsed.randomAnchor,
+  229 |     ).slice(
+  230 |       0,
+  231 |       MAX_LOCALIZED_ANCHOR_LENGTH,
+  232 |     )
+  233 | 
+  234 |   if (!dreamText) {
+  235 |     throw new Error(
+  236 |       'Dream generation returned an empty dream.',
+  237 |     )
+  238 |   }
+  239 | 
+  240 |   const wordCount =
+  241 |     countWords(dreamText)
+  242 | 
+  243 |   if (
+  244 |     wordCount < DREAM_WORD_MINIMUM ||
+  245 |     wordCount > DREAM_WORD_MAXIMUM
+  246 |   ) {
+  247 |     throw new Error(
+  248 |       'Dream must contain ' +
+  249 |         String(DREAM_WORD_MINIMUM) +
+  250 |         ' to ' +
+  251 |         String(DREAM_WORD_MAXIMUM) +
+  252 |         ' words; received ' +
+  253 |         String(wordCount) +
+  254 |         '.',
+  255 |     )
+  256 |   }
+  257 | 
+  258 |   if (!localizedAnchor) {
+  259 |     throw new Error(
+  260 |       'Dream generation returned no localized anchor.',
+  261 |     )
+  262 |   }
+  263 | 
+  264 |   if (
+  265 |     !isEnglishLanguage(
+  266 |       lifeformLanguage,
+  267 |     ) &&
+  268 |     localizedAnchor.toLocaleLowerCase() ===
+  269 |       sourceAnchor.toLocaleLowerCase()
+  270 |   ) {
+  271 |     throw new Error(
+  272 |       'Dream generation kept the raw English source anchor instead of localizing it.',
+  273 |     )
+  274 |   }
+  275 | 
+  276 |   const sentences =
+  277 |     getSentences(dreamText)
+  278 | 
+  279 |   if (
+  280 |     sentences.length >
+  281 |     MAX_DREAM_SENTENCES
+  282 |   ) {
+  283 |     throw new Error(
+  284 |       'Dream must contain at most ' +
+  285 |         String(MAX_DREAM_SENTENCES) +
+  286 |         ' sentences; received ' +
+  287 |         String(sentences.length) +
+  288 |         '.',
+  289 |     )
+  290 |   }
+  291 | 
+  292 |   const lastSentence =
+  293 |     sentences[sentences.length - 1] ?? ''
+  294 | 
+  295 |   if (
+  296 |     hasExplanatoryDreamEnding(
+  297 |       lastSentence,
+  298 |     )
+  299 |   ) {
+  300 |     throw new Error(
+  301 |       'Dream ends with an explanation, interpretation or thematic recap.',
+  302 |     )
+  303 |   }
+  304 | 
+  305 |   if (
+  306 |     countMelodramaticDreamTerms(
+  307 |       dreamText,
+  308 |     ) >= 2
+  309 |   ) {
+  310 |     throw new Error(
+  311 |       'Dream uses too much melodramatic or mystical vocabulary.',
+  312 |     )
+  313 |   }
+  314 | 
+  315 |   if (
+  316 |     !normalizeDreamComparisonText(
+  317 |       dreamText,
+  318 |     ).includes(
+  319 |       normalizeDreamComparisonText(
+  320 |         localizedAnchor,
+  321 |       ),
+  322 |     )
+  323 |   ) {
+  324 |     throw new Error(
+  325 |       'The localized anchor must appear naturally at least once in the Dream.',
+  326 |     )
+  327 |   }
+  328 | 
+  329 |   return {
+  330 |     title,
+  331 |     dreamText,
+  332 |     localizedAnchor,
+  333 |   }
+  334 | }
+  335 | 
+  336 | async function requestDreamResponse(options: {
+  337 |   client: GoogleGenAI
+  338 |   model: GeminiModelId
+  339 |   prompt: string
+  340 | }): Promise<RawDreamResponse> {
+  341 |   const {
+  342 |     client,
+  343 |     model,
+  344 |     prompt,
+  345 |   } = options
+  346 | 
+  347 |   const response =
+  348 |     await client.models.generateContent({
+  349 |       model,
+  350 |       contents: prompt,
+  351 |       config: {
+  352 |         responseMimeType:
+  353 |           'application/json',
+  354 |         responseSchema:
+  355 |           dreamResponseSchema,
+  356 |         maxOutputTokens: 240,
+  357 |         temperature: 0.9,
+
+MARKER NOT FOUND: dreamText.includes
+
+============================================================
+MARKER: attempt < 2
+============================================================
+  589 |     'JSON shape:',
+  590 |     JSON.stringify({
+  591 |       title: 'Localized Dream Title',
+  592 |       dreamText:
+  593 |         'A concise localized dream fragment...',
+  594 |       randomAnchor:
+  595 |         'Localized central anchor phrase',
+  596 |       dominantEmotion: currentEmotion,
+  597 |     }),
+  598 |   ].join('\n')
+  599 | 
+  600 |   let firstFailure = ''
+  601 | 
+  602 |   for (
+  603 |     let attempt = 0;
+  604 |     attempt < 2;
+  605 |     attempt += 1
+  606 |   ) {
+  607 |     const attemptPrompt =
+  608 |       attempt === 0
+  609 |         ? prompt
+  610 |         : [
+  611 |             prompt,
+  612 |             '',
+  613 |             'The prior draft was rejected for this exact reason:',
+  614 |             firstFailure,
+  615 |             'Generate a new compliant Dream now. Follow every structural rule exactly.',
+  616 |           ].join('\n')
+  617 | 
+  618 |     const parsed =
+  619 |       await requestDreamResponse({
+  620 |         client,
+  621 |         model,
+  622 |         prompt: attemptPrompt,
+  623 |       })
+  624 | 
+  625 |     try {
+  626 |       const valid =
+  627 |         validateDreamOutput({
+  628 |           parsed,
+  629 |           sourceAnchor: randomAnchor,
+  630 |           lifeformLanguage,
+  631 |         })
+  632 | 
+  633 |       return {
+  634 |         title: valid.title,
+  635 |         dreamText: valid.dreamText,
+  636 |         // The database stores the localized phrase shown in the Dream,
+  637 |         // never the English seed anchor for non-English Lifeforms.
+  638 |         randomAnchor:
+  639 |           valid.localizedAnchor,
+  640 |         dominantEmotion: currentEmotion,
+  641 |       }
+  642 |     } catch (validationError: unknown) {
+  643 |       firstFailure =
+  644 |         validationError instanceof Error
+  645 |           ? validationError.message
+  646 |           : 'Dream output did not meet the required structure.'
+  647 |     }
+  648 |   }
+  649 | 
+  650 |   throw new Error(
+  651 |     'Dream generation could not satisfy the localized-anchor rules: ' +
+  652 |       firstFailure,
+  653 |   )
+  654 | }
+  655 | 

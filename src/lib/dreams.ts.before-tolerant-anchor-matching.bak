@@ -93,78 +93,6 @@ const DREAM_MELODRAMATIC_TERMS = [
   'malincon',
 ] as const
 
-const DREAM_ANCHOR_STOP_WORDS = new Set([
-  'a',
-  'al',
-  'alla',
-  'alle',
-  'allo',
-  'an',
-  'au',
-  'aux',
-  'd',
-  'da',
-  'dal',
-  'dall',
-  'dalla',
-  'dalle',
-  'dallo',
-  'de',
-  'del',
-  'dell',
-  'della',
-  'delle',
-  'dello',
-  'dem',
-  'den',
-  'der',
-  'des',
-  'die',
-  'du',
-  'el',
-  'ein',
-  'eine',
-  'einem',
-  'einen',
-  'gli',
-  'i',
-  'il',
-  'in',
-  'l',
-  'la',
-  'las',
-  'le',
-  'les',
-  'lo',
-  'los',
-  'na',
-  'ne',
-  'nel',
-  'nell',
-  'nella',
-  'nelle',
-  'nello',
-  'no',
-  'o',
-  'os',
-  'sul',
-  'sull',
-  'sulla',
-  'sulle',
-  'sullo',
-  'the',
-  'un',
-  'una',
-  'une',
-  'uno',
-  'uns',
-  'una',
-  'unos',
-  'unas',
-  'um',
-  'uma',
-]) 
-
 function normalizeDreamComparisonText(
   value: string,
 ): string {
@@ -172,78 +100,6 @@ function normalizeDreamComparisonText(
     .toLocaleLowerCase()
     .normalize('NFD')
     .replace(/[\u0300-\u036f]/g, '')
-    .replace(/[\u2018\u2019'\`]/g, ' ')
-    .replace(/[^\p{L}\p{N}]+/gu, ' ')
-    .replace(/\s+/g, ' ')
-    .trim()
-}
-
-function normalizeDreamAnchorToken(
-  token: string,
-): string {
-  let normalized = token
-
-  if (
-    normalized.length >= 5 &&
-    normalized.endsWith('s')
-  ) {
-    normalized = normalized.slice(0, -1)
-  }
-
-  if (
-    normalized.length >= 5 &&
-    /[aeiou]$/u.test(normalized)
-  ) {
-    normalized = normalized.slice(0, -1)
-  }
-
-  return normalized
-}
-
-function getDreamAnchorTokens(
-  value: string,
-): string[] {
-  return normalizeDreamComparisonText(value)
-    .split(' ')
-    .filter(
-      (token) =>
-        Boolean(token) &&
-        !DREAM_ANCHOR_STOP_WORDS.has(token),
-    )
-    .map(normalizeDreamAnchorToken)
-    .filter(
-      (token) => token.length >= 2,
-    )
-}
-
-function dreamContainsLocalizedAnchor(
-  dreamText: string,
-  localizedAnchor: string,
-): boolean {
-  const anchorTokens =
-    getDreamAnchorTokens(
-      localizedAnchor,
-    )
-
-  const dreamTokens =
-    getDreamAnchorTokens(dreamText)
-
-  if (
-    anchorTokens.length === 0 ||
-    dreamTokens.length === 0
-  ) {
-    return false
-  }
-
-  return dreamTokens.some(
-    (_token, startIndex) =>
-      anchorTokens.every(
-        (anchorToken, offset) =>
-          dreamTokens[
-            startIndex + offset
-          ] === anchorToken,
-      ),
-  )
 }
 
 function countMelodramaticDreamTerms(
@@ -409,12 +265,8 @@ function validateDreamOutput(options: {
     !isEnglishLanguage(
       lifeformLanguage,
     ) &&
-    normalizeDreamComparisonText(
-      localizedAnchor,
-    ) ===
-      normalizeDreamComparisonText(
-        sourceAnchor,
-      )
+    localizedAnchor.toLocaleLowerCase() ===
+      sourceAnchor.toLocaleLowerCase()
   ) {
     throw new Error(
       'Dream generation kept the raw English source anchor instead of localizing it.',
@@ -461,9 +313,12 @@ function validateDreamOutput(options: {
   }
 
   if (
-    !dreamContainsLocalizedAnchor(
+    !normalizeDreamComparisonText(
       dreamText,
-      localizedAnchor,
+    ).includes(
+      normalizeDreamComparisonText(
+        localizedAnchor,
+      ),
     )
   ) {
     throw new Error(
@@ -716,10 +571,8 @@ export async function generateDailyDream(options: {
     '- Do not add analysis, interpretation, moral lessons or a conclusion.',
     '- First translate or creatively localize the English source anchor into a short, natural noun phrase in the Output language.',
     '- Put that localized phrase in the randomAnchor JSON field.',
-    '- Decide the localized randomAnchor before composing dreamText.',
-    '- Copy that same localized phrase naturally into dreamText once, preserving its central nouns and adjectives.',
-    '- A leading article may change in the sentence, but do not replace the anchor with a synonym or a different inflection.',
     '- Treat the localized randomAnchor as a clue, not as a refrain.',
+    '- Include the localized randomAnchor naturally at least once in dreamText.',
     '- Never force the anchor into the final sentence and never repeat it merely to close the Dream.',
     '- Do not use the raw English source anchor in the Dream or randomAnchor field unless Output language is English.',
     '- If the emotion vector contains high amused/Humor, the Dream may be playful, ridiculous, weirdly funny or absurd instead of solemn.',
@@ -748,7 +601,7 @@ export async function generateDailyDream(options: {
 
   for (
     let attempt = 0;
-    attempt < 3;
+    attempt < 2;
     attempt += 1
   ) {
     const attemptPrompt =
@@ -759,7 +612,7 @@ export async function generateDailyDream(options: {
             '',
             'The prior draft was rejected for this exact reason:',
             firstFailure,
-            'Generate a new compliant Dream now. Choose randomAnchor first, then use the same localized phrase once in dreamText with matching central nouns and adjectives.',
+            'Generate a new compliant Dream now. Follow every structural rule exactly.',
           ].join('\n')
 
     const parsed =
