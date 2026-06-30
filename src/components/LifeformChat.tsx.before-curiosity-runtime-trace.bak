@@ -7734,17 +7734,6 @@ export function LifeformChat({
   const maybeAskCuriosityQuestion =
     useCallback(
       async () => {
-        const traceCuriosity = (
-          stage: string,
-          details: Record<string, unknown>,
-        ) => {
-          console.info(
-            '[Curiosity trace]',
-            stage,
-            details,
-          )
-        }
-
         if (
           curiosityRequestInFlightRef.current ||
           loadingCuriosityQuestions ||
@@ -7754,22 +7743,6 @@ export function LifeformChat({
           clearingChat ||
           !apiKey
         ) {
-          traceCuriosity(
-            'blocked-before-query',
-            {
-              requestInFlight:
-                curiosityRequestInFlightRef.current,
-              loadingCuriosityQuestions,
-              loadingMessages,
-              sending,
-              isStreaming: Boolean(
-                streamingText,
-              ),
-              clearingChat,
-              hasApiKey: Boolean(apiKey),
-            },
-          )
-
           return
         }
 
@@ -7801,24 +7774,10 @@ export function LifeformChat({
           .maybeSingle()
 
         if (latestUserMessageError) {
-          traceCuriosity(
-            'latest-user-message-query-failed',
-            {
-              error: String(
-                latestUserMessageError,
-              ),
-            },
-          )
-
           throw latestUserMessageError
         }
 
         if (!latestUserMessage) {
-          traceCuriosity(
-            'no-user-message',
-            {},
-          )
-
           lastUserMessageAtRef.current =
             null
 
@@ -7837,14 +7796,6 @@ export function LifeformChat({
             lastUserMessageAt,
           )
         ) {
-          traceCuriosity(
-            'invalid-user-message-time',
-            {
-              createdAt:
-                latestUserMessage.created_at,
-            },
-          )
-
           return
         }
 
@@ -7886,49 +7837,6 @@ export function LifeformChat({
         lastObservedUserMessageIdRef.current =
           latestUserMessage.id
 
-        traceCuriosity(
-          'eligibility-input',
-          {
-            now: now.toISOString(),
-            localDate:
-              getLocalCuriosityDate(now),
-            latestUserMessageId:
-              latestUserMessage.id,
-            latestUserMessageAt:
-              latestUserMessage.created_at,
-            minutesSinceLastUserMessage:
-              Math.round(
-                (now.getTime() -
-                  lastUserMessageAt) /
-                  60000,
-              ),
-            questionCount:
-              curiosityQuestionsRef.current.length,
-            questionsToday:
-              curiosityQuestionsRef.current.filter(
-                (question) =>
-                  question.local_date ===
-                  getLocalCuriosityDate(now),
-              ).length,
-            hasOpenQuestion:
-              curiosityQuestionsRef.current.some(
-                (question) =>
-                  question.status === 'asked',
-              ),
-            sending,
-            isStreaming: Boolean(
-              streamingText,
-            ),
-            hasPendingProposal: Boolean(
-              pendingProposalRef.current,
-            ),
-            hasPendingThreadProposal:
-              Boolean(
-                pendingThreadProposalRef.current,
-              ),
-          },
-        )
-
         if (
           !canAskCuriosityQuestion({
             questions:
@@ -7948,11 +7856,6 @@ export function LifeformChat({
               ),
           })
         ) {
-          traceCuriosity(
-            'not-eligible',
-            {},
-          )
-
           return
         }
 
@@ -7968,23 +7871,8 @@ export function LifeformChat({
           !topic ||
           lastUserMessageAt === null
         ) {
-          traceCuriosity(
-            'no-topic-or-time',
-            {
-              topic,
-              lastUserMessageAt,
-            },
-          )
-
           return
         }
-
-        traceCuriosity(
-          'starting-generation',
-          {
-            topic,
-          },
-        )
 
         curiosityRequestInFlightRef.current =
           true
@@ -8006,15 +7894,6 @@ export function LifeformChat({
                 curiosityQuestionsRef.current,
             })
 
-          traceCuriosity(
-            'generation-succeeded',
-            {
-              topic,
-              questionLength:
-                generated.question.length,
-            },
-          )
-
           /*
            * Do not post a question if the user wrote a
            * message while Gemini was generating it, or if
@@ -8030,13 +7909,6 @@ export function LifeformChat({
           ) {
             return
           }
-
-          traceCuriosity(
-            'starting-database-insert',
-            {
-              topic,
-            },
-          )
 
           const nowIso = new Date().toISOString()
 
@@ -8188,16 +8060,6 @@ export function LifeformChat({
                   insertedAssistantMessage.id,
               }) as LifeformCuriosityQuestion
 
-          traceCuriosity(
-            'question-sent',
-            {
-              topic,
-              questionId: savedQuestion.id,
-              messageId:
-                insertedAssistantMessage.id,
-            },
-          )
-
           commitCuriosityQuestions([
             savedQuestion,
             ...curiosityQuestionsRef.current.filter(
@@ -8221,19 +8083,6 @@ export function LifeformChat({
           console.warn(
             'Curiosity eligibility re-check failed:',
             curiosityGenerationError,
-          )
-
-          traceCuriosity(
-            'failed',
-            {
-              error:
-                curiosityGenerationError instanceof
-                Error
-                  ? curiosityGenerationError.message
-                  : String(
-                      curiosityGenerationError,
-                    ),
-            },
           )
         } finally {
           curiosityRequestInFlightRef.current =
