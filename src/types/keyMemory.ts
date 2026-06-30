@@ -27,6 +27,7 @@ export type KeyMemoryStatus =
 export type KeyMemorySource =
   | 'auto'
   | 'manual'
+  | 'curiosity'
 
 export const KEY_MEMORY_CONFIDENCE_LEVELS = [
   'high',

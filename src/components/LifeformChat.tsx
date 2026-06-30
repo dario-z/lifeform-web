@@ -1395,6 +1395,24 @@ function sortKeyMemories(
 }
 
 
+function isAutonomousCuriosityMessage(
+  metadata: unknown,
+): boolean {
+  if (
+    !metadata ||
+    typeof metadata !== 'object' ||
+    Array.isArray(metadata)
+  ) {
+    return false
+  }
+
+  return (
+    (
+      metadata as Record<string, unknown>
+    ).autonomy === 'curiosity_question'
+  )
+}
+
 type MessageActivityEvidence = {
   eventIds: string[]
   matchedCount: number
@@ -9216,7 +9234,12 @@ const [
                       key={message.id}
                       className={
                         'chat-message chat-message-' +
-                        message.role
+                        message.role +
+                        (isAutonomousCuriosityMessage(
+                          message.metadata,
+                        )
+                          ? ' chat-message-curiosity'
+                          : '')
                       }
                     >
                       <div className="message-meta">
@@ -9253,6 +9276,14 @@ const [
                           )}
                         </time>
                       </div>
+
+                      {isAutonomousCuriosityMessage(
+                        message.metadata,
+                      ) && (
+                        <span className="curiosity-message-chip">
+                          Autonomous curiosity
+                        </span>
+                      )}
 
                       <p>
                         {message.content}

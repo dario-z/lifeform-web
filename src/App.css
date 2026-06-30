@@ -1800,3 +1800,35 @@ body #root .account-details dt {
       scale(1.002);
   }
 }
+
+.chat-message.chat-message-curiosity {
+  border-color: rgba(198, 146, 255, 0.74);
+  background:
+    linear-gradient(
+      135deg,
+      rgba(137, 67, 207, 0.22),
+      rgba(35, 22, 55, 0.82)
+    );
+  box-shadow:
+    0 0 0 1px rgba(198, 146, 255, 0.14),
+    0 14px 34px rgba(87, 35, 139, 0.2);
+}
+
+.chat-message-curiosity .message-meta {
+  color: rgb(225, 199, 255);
+}
+
+.curiosity-message-chip {
+  display: inline-flex;
+  width: fit-content;
+  margin: 0.2rem 0 0.7rem;
+  padding: 0.27rem 0.58rem;
+  border: 1px solid rgba(211, 171, 255, 0.58);
+  border-radius: 999px;
+  background: rgba(130, 67, 195, 0.24);
+  color: rgb(243, 230, 255);
+  font-size: 0.69rem;
+  font-weight: 700;
+  letter-spacing: 0.055em;
+  text-transform: uppercase;
+}

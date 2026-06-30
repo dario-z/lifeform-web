@@ -282,7 +282,7 @@ export function KeyMemoriesPanel({
                       event.target.value,
                   }))
                 }
-                maxLength={500}
+                maxLength={8000}
                 rows={5}
                 disabled={saving}
                 placeholder="Write a clear, self-contained memory…"
@@ -372,7 +372,11 @@ export function KeyMemoriesPanel({
             orderedMemories.map((memory) => (
               <article
                 key={memory.id}
-                className="key-memory-card"
+                className={
+                  memory.source === 'curiosity'
+                    ? 'key-memory-card key-memory-card-curiosity'
+                    : 'key-memory-card'
+                }
               >
                 <div className="key-memory-card-topline">
                   <span>
@@ -386,19 +390,29 @@ export function KeyMemoriesPanel({
                   <span>
                     {memory.source === 'manual'
                       ? 'Manual'
-                      : 'Autonomous'}
+                      : memory.source === 'curiosity'
+                        ? 'Autonomous curiosity'
+                        : 'Autonomous'}
                     {' · '}
                     {memory.importance}
                   </span>
                 </div>
 
+                {memory.source === 'curiosity' && (
+                  <span className="key-memory-curiosity-chip">
+                    Autonomous curiosity
+                  </span>
+                )}
+
                 <p>{memory.content}</p>
 
                 <div className="key-memory-provenance">
                   <span>
-                    {getMemoryOriginLabel(
-                      memory.source,
-                    )}
+                    {memory.source === 'curiosity'
+                      ? 'Origin: autonomous curiosity'
+                      : getMemoryOriginLabel(
+                          memory.source,
+                        )}
                   </span>
 
                   <span>

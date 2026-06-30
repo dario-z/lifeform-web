@@ -6,8 +6,8 @@ import {
   type KeyMemoryInput,
 } from '../types/keyMemory'
 
-export const MAX_KEY_MEMORIES = 10
-export const MAX_KEY_MEMORY_LENGTH = 500
+export const MAX_KEY_MEMORIES = 30
+export const MAX_KEY_MEMORY_LENGTH = 8000
 export const AUTO_MEMORY_REPLACEMENT_MARGIN = 8
 
 export const KEY_MEMORY_CATEGORY_LABELS:

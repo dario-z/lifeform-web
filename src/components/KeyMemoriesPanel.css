@@ -301,3 +301,37 @@
   border: 1px solid
     rgba(255, 255, 255, 0.08);
 }
+
+
+.key-memory-card.key-memory-card-curiosity {
+  border-color: rgba(196, 137, 255, 0.64);
+  background:
+    linear-gradient(
+      135deg,
+      rgba(147, 71, 221, 0.2),
+      rgba(20, 18, 31, 0.92)
+    );
+  box-shadow:
+    0 0 0 1px rgba(196, 137, 255, 0.1),
+    0 12px 28px rgba(82, 35, 125, 0.18);
+}
+
+.key-memory-curiosity-chip {
+  display: inline-flex;
+  width: fit-content;
+  margin: 0.15rem 0 0.65rem;
+  padding: 0.25rem 0.52rem;
+  border: 1px solid rgba(209, 170, 255, 0.56);
+  border-radius: 999px;
+  background: rgba(129, 67, 194, 0.22);
+  color: rgb(236, 220, 255);
+  font-size: 0.68rem;
+  font-weight: 700;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+}
+
+.key-memory-card-curiosity > p {
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
