@@ -1,0 +1,492 @@
+import { GoogleGenAI } from '@google/genai'
+import {
+  getGeminiTokenUsage,
+  type GeminiModelId,
+  type GeminiTokenUsage,
+} from './geminiModels'
+import type { KeyMemory } from '../types/keyMemory'
+import type {
+  LifeformBelief,
+  LifeformGoal,
+} from '../types/lifeformIdentity'
+import {
+  CURIOSITY_TOPICS,
+  type CuriosityTopic,
+  type LifeformCuriosityQuestion,
+} from '../types/lifeformCuriosity'
+
+export const MAX_CURIOSITY_QUESTIONS_PER_DAY = 3
+
+export const CURIOSITY_IDLE_MS =
+  10 * 60 * 1000
+
+export const CURIOSITY_MIN_GAP_MS =
+  90 * 60 * 1000
+
+export const CURIOSITY_RECENT_HISTORY_LIMIT = 24
+
+const MAX_CURIOSITY_QUESTION_LENGTH = 320
+
+const TOPIC_GUIDANCE: Record<
+  CuriosityTopic,
+  string
+> = {
+  life_phase:
+    'Ask gently about the life stage or age range that feels meaningful to the user. Never ask for a birth date.',
+  interests:
+    'Explore hobbies, interests, media, skills, or topics that naturally hold the users attention.',
+  work:
+    'Explore work, study, responsibilities, or the kind of work the user finds meaningful or draining.',
+  creative_practice:
+    'Explore making, building, art, music, projects, craft, experimentation, or personal creative habits.',
+  relationships:
+    'Explore the kinds of friendships, partnership, family connection, or social environments that help the user feel understood. Do not ask sexual questions.',
+  likes_dislikes:
+    'Explore personal preferences, comforts, pet peeves, favorite experiences, or things the user actively avoids.',
+  routine:
+    'Explore the rhythm of an ordinary day, energy patterns, rituals, rest, or how the user likes to spend unstructured time.',
+  challenges:
+    'Explore a non-medical difficulty, obstacle, uncertainty, or pressure in a gentle and optional way. Never ask for a diagnosis or traumatic details.',
+  short_term_hopes:
+    'Explore something the user hopes to experience, change, finish, or move toward in the near future.',
+  long_term_hopes:
+    'Explore a longer horizon dream, direction, aspiration, or kind of life the user hopes to build.',
+}
+
+function normalizeText(
+  value: unknown,
+): string {
+  if (typeof value !== 'string') {
+    return ''
+  }
+
+  return value
+    .replace(/\s+/g, ' ')
+    .trim()
+}
+
+function getLocalDate(
+  date: Date,
+): string {
+  const year = date.getFullYear()
+
+  const month = String(
+    date.getMonth() + 1,
+  ).padStart(2, '0')
+
+  const day = String(
+    date.getDate(),
+  ).padStart(2, '0')
+
+  return [
+    String(year),
+    month,
+    day,
+  ].join('-')
+}
+
+function getQuestionTime(
+  question: LifeformCuriosityQuestion,
+): number {
+  const value = new Date(
+    question.asked_at,
+  ).getTime()
+
+  return Number.isFinite(value)
+    ? value
+    : 0
+}
+
+function countTopicHistory(
+  questions: LifeformCuriosityQuestion[],
+  topic: CuriosityTopic,
+): number {
+  return questions.filter(
+    (question) =>
+      question.topic === topic,
+  ).length
+}
+
+function getCurrentKnownRecords(options: {
+  keyMemories: KeyMemory[]
+  goals: LifeformGoal[]
+  beliefs: LifeformBelief[]
+}): Array<Record<string, unknown>> {
+  const memories = options.keyMemories
+    .filter(
+      (memory) =>
+        memory.status === 'active' ||
+        memory.status === 'temporary',
+    )
+    .sort(
+      (left, right) =>
+        right.importance -
+        left.importance,
+    )
+    .slice(0, 10)
+    .map((memory) => ({
+      type: 'key_memory',
+      content: memory.content,
+      source: memory.source,
+      confidence: memory.confidence,
+      importance: memory.importance,
+    }))
+
+  const goals = options.goals
+    .filter(
+      (goal) => goal.status === 'active',
+    )
+    .sort(
+      (left, right) =>
+        right.importance -
+        left.importance,
+    )
+    .slice(0, 6)
+    .map((goal) => ({
+      type: 'goal',
+      content: goal.content,
+      source: goal.source,
+      confidence: goal.confidence,
+      importance: goal.importance,
+    }))
+
+  const beliefs = options.beliefs
+    .filter(
+      (belief) =>
+        belief.status === 'active',
+    )
+    .sort(
+      (left, right) =>
+        right.importance -
+        left.importance,
+    )
+    .slice(0, 6)
+    .map((belief) => ({
+      type: 'belief',
+      content: belief.content,
+      source: belief.source,
+      confidence: belief.confidence,
+      importance: belief.importance,
+    }))
+
+  return [
+    ...memories,
+    ...goals,
+    ...beliefs,
+  ]
+}
+
+export function getLocalCuriosityDate(
+  date = new Date(),
+): string {
+  return getLocalDate(date)
+}
+
+export function getCuriosityTopicLabel(
+  topic: CuriosityTopic,
+): string {
+  return topic.replace(/_/g, ' ')
+}
+
+export function chooseCuriosityTopic(options: {
+  questions: LifeformCuriosityQuestion[]
+  localDate: string
+}): CuriosityTopic | null {
+  const askedToday = new Set(
+    options.questions
+      .filter(
+        (question) =>
+          question.local_date ===
+          options.localDate,
+      )
+      .map((question) => question.topic),
+  )
+
+  const candidates = CURIOSITY_TOPICS.filter(
+    (topic) => !askedToday.has(topic),
+  )
+
+  if (candidates.length === 0) {
+    return null
+  }
+
+  return [...candidates].sort(
+    (left, right) => {
+      const leftCount =
+        countTopicHistory(
+          options.questions,
+          left,
+        )
+
+      const rightCount =
+        countTopicHistory(
+          options.questions,
+          right,
+        )
+
+      if (leftCount !== rightCount) {
+        return leftCount - rightCount
+      }
+
+      return (
+        CURIOSITY_TOPICS.indexOf(left) -
+        CURIOSITY_TOPICS.indexOf(right)
+      )
+    },
+  )[0] ?? null
+}
+
+export function canAskCuriosityQuestion(options: {
+  questions: LifeformCuriosityQuestion[]
+  now: Date
+  lastUserMessageAt: number | null
+  isSending: boolean
+  isStreaming: boolean
+  hasPendingProposal: boolean
+  hasPendingThreadProposal: boolean
+}): boolean {
+  if (
+    options.isSending ||
+    options.isStreaming ||
+    options.hasPendingProposal ||
+    options.hasPendingThreadProposal
+  ) {
+    return false
+  }
+
+  if (
+    options.lastUserMessageAt === null ||
+    !Number.isFinite(
+      options.lastUserMessageAt,
+    )
+  ) {
+    return false
+  }
+
+  const nowMs = options.now.getTime()
+
+  const localDate = getLocalDate(
+    options.now,
+  )
+
+  const lastUserMessageDate =
+    getLocalDate(
+      new Date(
+        options.lastUserMessageAt,
+      ),
+    )
+
+  /*
+   * Daily session gate:
+   * Lili remains silent until the user has written
+   * at least once during the current local day.
+   */
+  if (
+    lastUserMessageDate !== localDate
+  ) {
+    return false
+  }
+
+  /*
+   * The ten-minute pause is measured only from the
+   * latest persisted user message. Page refreshes,
+   * mouse clicks, typing and focus changes do not
+   * reset this clock.
+   */
+  if (
+    nowMs - options.lastUserMessageAt <=
+    CURIOSITY_IDLE_MS
+  ) {
+    return false
+  }
+
+  const askedToday = options.questions.filter(
+    (question) =>
+      question.local_date === localDate,
+  )
+
+  if (
+    askedToday.length >=
+    MAX_CURIOSITY_QUESTIONS_PER_DAY
+  ) {
+    return false
+  }
+
+  const unansweredQuestion =
+    options.questions.find(
+      (question) =>
+        question.status === 'asked',
+    )
+
+  if (unansweredQuestion) {
+    return false
+  }
+
+  const lastQuestion = [
+    ...options.questions,
+  ].sort(
+    (left, right) =>
+      getQuestionTime(right) -
+      getQuestionTime(left),
+  )[0]
+
+  if (
+    lastQuestion &&
+    nowMs - getQuestionTime(lastQuestion) <
+      CURIOSITY_MIN_GAP_MS
+  ) {
+    return false
+  }
+
+  return Boolean(
+    chooseCuriosityTopic({
+      questions: options.questions,
+      localDate,
+    }),
+  )
+}
+
+export async function generateCuriosityQuestion(options: {
+  apiKey: string
+  model: GeminiModelId
+  lifeformName: string
+  lifeformLanguage: string
+  topic: CuriosityTopic
+  keyMemories: KeyMemory[]
+  goals: LifeformGoal[]
+  beliefs: LifeformBelief[]
+  recentQuestions: LifeformCuriosityQuestion[]
+}): Promise<{
+  question: string
+  tokenUsage: GeminiTokenUsage
+}> {
+  const client = new GoogleGenAI({
+    apiKey: options.apiKey,
+  })
+
+  const knownRecords =
+    getCurrentKnownRecords({
+      keyMemories: options.keyMemories,
+      goals: options.goals,
+      beliefs: options.beliefs,
+    })
+
+  const previousQuestions =
+    [...options.recentQuestions]
+      .sort(
+        (left, right) =>
+          getQuestionTime(right) -
+          getQuestionTime(left),
+      )
+      .slice(
+        0,
+        CURIOSITY_RECENT_HISTORY_LIMIT,
+      )
+      .map((question) => ({
+        topic: question.topic,
+        question: question.question,
+        status: question.status,
+      }))
+
+  const prompt = [
+    'Generate one proactive curiosity question for a persistent digital Lifeform.',
+    '',
+    'The Lifeform is quietly curious about understanding the user better.',
+    'This question will appear only after a long quiet pause while the user has the app open.',
+    'It must feel like a natural, warm initiative, never a questionnaire, notification, assessment, or reminder.',
+    '',
+    'Lifeform name: ' +
+      options.lifeformName,
+    'Output language: ' +
+      options.lifeformLanguage,
+    'Chosen topic: ' + options.topic,
+    'Topic guidance: ' +
+      TOPIC_GUIDANCE[options.topic],
+    '',
+    'Known persistent context:',
+    JSON.stringify(knownRecords),
+    '',
+    'Recently asked curiosity questions:',
+    JSON.stringify(previousQuestions),
+    '',
+    'Rules:',
+    '- Return JSON only with one string field named question.',
+    '- Ask exactly one short open question.',
+    '- Write entirely in the Output language.',
+    '- The question must be warm, optional, and conversational.',
+    '- Do not mention databases, memory systems, confidence, profiles, prompts, automation, or that you were instructed to ask.',
+    '- Do not repeat or closely paraphrase a recent question.',
+    '- Do not assume any fact about the user that is not present in Known persistent context.',
+    '- Do not ask for a full name, address, phone number, email, passwords, identity documents, exact birth date, payment details, medical diagnosis, trauma details, religion, political affiliation, or sexual details.',
+    '- For life_phase, you may gently ask about age or life stage, but never request a birth date.',
+    '- For relationships and challenges, leave clear room for the user to decline or answer lightly.',
+    '- Do not give advice, explanations, or multiple questions.',
+    '- Keep the question under 220 characters.',
+    '',
+    'JSON shape:',
+    JSON.stringify({
+      question:
+        'One natural question in the requested language?',
+    }),
+  ].join('\n')
+
+  const response =
+    await client.models.generateContent({
+      model: options.model,
+      contents: prompt,
+      config: {
+        responseMimeType:
+          'application/json',
+        maxOutputTokens: 140,
+        temperature: 0.8,
+      } as any,
+    })
+
+  const tokenUsage =
+    getGeminiTokenUsage(response)
+
+  const responseText =
+    response.text?.trim()
+
+  if (!responseText) {
+    throw new Error(
+      'Curiosity generation returned no text.',
+    )
+  }
+
+  const parsed = JSON.parse(
+    responseText,
+  ) as {
+    question?: unknown
+  }
+
+  let question = normalizeText(
+    parsed.question,
+  ).slice(
+    0,
+    MAX_CURIOSITY_QUESTION_LENGTH,
+  )
+
+  if (!question) {
+    throw new Error(
+      'Curiosity generation returned an empty question.',
+    )
+  }
+
+  if (!question.includes('?')) {
+    question = question + '?'
+  }
+
+  if (
+    question.split('?').length > 2
+  ) {
+    throw new Error(
+      'Curiosity generation returned more than one question.',
+    )
+  }
+
+  return {
+    question,
+    tokenUsage,
+  }
+}
